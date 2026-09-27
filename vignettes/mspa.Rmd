@@ -1,0 +1,445 @@
+---
+title: "Morphological spatial pattern analysis, built from operators"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Morphological spatial pattern analysis, built from operators}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7,
+                      fig.height = 6)
+```
+
+## What this vignette shows
+
+Morphological spatial pattern analysis (MSPA) partitions the foreground of a
+binary map (habitat against matrix) into seven mutually exclusive
+morphological classes. It describes configuration rather than composition:
+which parts of the habitat function as interior, as ecotone, and as structural
+connection.
+
+mosaik has no MSPA function. It does not need one. MSPA decomposes into a
+handful of ordinary operations (a distance transform, a threshold, connected
+components, a zonal summary, a thinning) which mosaik already provides. What
+follows composes the full classification from those parts and reproduces the
+published result cell for cell.
+
+If you want the classification and not the explanation, skip to the last
+section and take the code.
+
+## The seven classes
+
+Everything is defined relative to the **core**: foreground cells lying further
+than a chosen distance from the matrix. That distance, `size`, is the method's
+only real parameter, and it sets the depth at which interior habitat is
+considered buffered from edge influence.
+
+The remaining six classes describe how the non-core foreground relates to it:
+
+| class | definition | reading |
+|---|---|---|
+| core | interior beyond `size` of the matrix | buffered habitat |
+| edge | the outer boundary of a core area | the ecotone facing the matrix |
+| perforation | the boundary of a hole enclosed within a core area | internal ecotone |
+| islet | a patch containing no core at all | too small to hold interior; a stepping stone |
+| bridge | a connector joining **two different** core areas | corridor |
+| loop | a connector returning to the same core area | detour, not a corridor |
+| branch | a connector attached at one end only | dead end |
+
+The bridge/loop distinction carries most of the connectivity signal: a bridge
+links two habitat blocks and its loss fragments them, whereas a loop returns
+where it came from and its loss does not.
+
+## Setup
+
+The `mspa` dataset that ships with the package is the pattern from the paper
+which introduced the method (Soille & Vogt 2009), in its layer `pattern`. That
+paper prints the resulting classification as its Fig. 1, so the map produced at
+the end of this vignette can be compared against it directly.
+
+```{r setup, message = FALSE}
+library(mosaik)
+
+m <- mspa
+ncols <- msk_dims(mspa)[1]; nrows <- msk_dims(mspa)[2]
+```
+
+The binary input is the layer `pattern`, and every layer we derive is added
+alongside it, so the object carries the whole working state as we go. This is
+what we start from: habitat in black, matrix in white.
+
+```{r input, echo = FALSE}
+msk_vis(m, .layer("pattern", colours = c("#ffffff", "#222222")))
+```
+
+Two settings. `size` is the edge width, meaning the depth at which habitat
+counts as interior. `edu` is the unit it is measured in. The reference
+implementation fixes this at `sqrt(2)`, the spacing of diagonal neighbours, so
+`size = 1` means "further than `sqrt(2)` cell widths from the matrix".
+
+```{r params}
+size <- 1
+edu  <- sqrt(2)
+
+conn   <- 8L   # cells touching at a corner count as connected (habitat)
+connBg <- 4L   # ... but not for the background
+```
+
+Throughout, each class is stored as its own 0/1 layer, and `mdf_filter()` is
+what writes them: give it a condition over the layers, and it writes 1 where
+the condition holds and 0 elsewhere.
+
+Each class has a code and a colour, taken from the paper so the maps here can be
+held against its Fig. 1. Code 8 is not a class of the method: it marks habitat
+not yet classified, drawn grey, and it is how the figures below show what is
+still to be explained.
+
+```{r palette}
+classes <- c(branch = 7, edges = 6, perf = 3, patch = 4,
+             core = 1, bridge = 5, loop = 2)
+
+mspaCols <- c("#ffffff",   # 0 background
+              "#399c39",   # 1 core
+              "#f7ff05",   # 2 loop
+              "#0401ed",   # 3 perforation
+              "#9a3312",   # 4 islet
+              "#f10606",   # 5 bridge
+              "#010100",   # 6 edge
+              "#efce09",   # 7 branch
+              "#cccccc")   # 8 not yet classified
+```
+
+The map after any number of steps is drawn by `show_state()`, which paints the
+classes decided so far and leaves the rest of the habitat grey. As the
+classification proceeds the grey shrinks.
+
+```{r show-state}
+show_state <- function(obj, done = character()){
+  cls <- rep(0L, nrows * ncols)
+  cls[msk_pull(obj, "pattern") == 1] <- 8L
+  for(nm in done) cls[msk_pull(obj, nm) == 1] <- as.integer(classes[[nm]])
+
+  state <- mosaik(extent = c(0, ncols, 0, nrows), res = 1,
+                  vals = list(mspa = as.numeric(cls)))
+  msk_vis(state, .layer("mspa", colours = mspaCols[sort(unique(cls)) + 1L]))
+}
+```
+
+## Core
+
+The distance transform gives every foreground cell its distance to the nearest
+matrix cell. Core is what survives the threshold.
+
+```{r core}
+m <- mdf_distance(m, source = "background", layer = "pattern", add = "edt")
+m <- mdf_filter(m, edt > size * edu, value = TRUE, background = 0, add = "core")
+```
+
+The green is core. Everything still grey is within `size` of the matrix, or
+belongs to a patch too narrow to hold any interior at all, and the rest of the
+method is about telling those cases apart.
+
+```{r core-fig, echo = FALSE}
+show_state(m, "core")
+```
+
+## Islet
+
+An islet is a patch holding no core. Label the patches with
+`mdf_componentise()`, then ask of each whether any of its cells is core.
+
+`mdf_zonal()` does the second part. It groups cells by a label layer and writes
+one summary value back onto every cell of the group, which is the raster
+equivalent of a group-by. Here the summary is whether the patch contains a core
+cell, and the patches answering no are the islets.
+
+```{r islet}
+m <- mdf_componentise(m, connectivity = conn, layer = "pattern", add = "cc")
+m <- mdf_mask(m, by = "pattern", background = 0, layer = "cc")
+m <- mdf_zonal(m, by = "cc", fun = "any", layer = "core",
+               background = 0, add = "hasCore")
+m <- mdf_filter(m, pattern == 1 & hasCore == 0,
+                value = TRUE, background = 0, add = "patch")
+```
+
+The brown patches are gone from further consideration: having no core, they can
+carry no boundary and connect nothing.
+
+```{r islet-fig, echo = FALSE}
+show_state(m, c("core", "patch"))
+```
+
+## Edge and perforation
+
+Both are the one-cell boundary of a core area, and they differ in which side
+they face. An **edge** faces the surrounding matrix, a **perforation** faces a
+hole enclosed inside the core area.
+
+Separating them is not a single test, because a patch may sit inside a hole of
+another patch, whose own boundary is then an edge again. The reference handles
+this by peeling: take the boundary of what you have, discard the part lying
+inside a hole, and repeat, so each nested level is resolved in turn.
+
+The starting state. Filling the holes of the core gives `corefill`, and what the
+filling added is `holes`, the holes themselves.
+
+```{r edges-init}
+m <- mdf_distance(m, source = "foreground", layer = "core", add = "dcore")
+m <- mdf_filter(m, core == 1 | (dcore > 0 & dcore <= size * edu),
+                value = TRUE, background = 0, add = "opening")
+
+m <- mdf_offset(m, value = 0, layer = "core", add = "work")
+m <- mdf_fill(m, background = 0, value = 1, connectivity = connBg,
+              layer = "work", add = "corefill")
+m <- mdf_filter(m, corefill == 1 & work == 0,
+                value = TRUE, background = 0, add = "holes")
+
+# an empty accumulator: no cell satisfies pattern < 0, so this is all zeros
+m <- mdf_filter(m, pattern < 0, value = TRUE, background = 0, add = "edges")
+```
+
+One round of peeling adds the boundary of the current `corefill` to `edges`,
+then strips away the part enclosed in holes so the next round sees the next
+level down.
+Written with `obj = NULL`, a chain of `mdf_*` calls records itself instead of
+executing. That recorded sequence is a **recipe**, and `mdf_loop()` replays it
+until a condition is met.
+
+```{r edges-loop}
+peel <- mdf_distance(source = "foreground", layer = "corefill", add = "dfill") |>
+  mdf_filter(edges == 1 | (corefill == 0 & dfill > 0 & dfill <= size * edu),
+             value = TRUE, background = 0, add = "edges") |>
+  mdf_fill(background = 0, value = 1, connectivity = conn,
+           layer = "holes", add = "i0") |>
+  mdf_filter(corefill == 1 & i0 == 0, value = TRUE, background = 0,
+             add = "corefill") |>
+  mdf_filter(work == 1 & corefill == 0, value = TRUE, background = 0,
+             add = "work") |>
+  mdf_fill(background = 0, value = 1, connectivity = connBg,
+           layer = "work", add = "corefill") |>
+  mdf_filter(corefill == 1 & work == 0, value = TRUE, background = 0,
+             add = "holes")
+```
+
+```{r edges-converge}
+if(sum(msk_pull(m, "corefill")) > 0){
+  m <- mdf_loop(m, peel, until = sum(corefill, na.rm = TRUE) == 0)
+}
+```
+
+`mdf_loop()` evaluates its condition after each round, so the `if` guards the
+degenerate case of a map with no core at all, where no round should run.
+
+How many rounds this takes depends on how deeply the pattern nests. Each round
+resolves one level, and on this pattern the first round already collects all
+`r sum(msk_pull(m, "edges"))` boundary cells, because nothing here sits inside
+the hole of something else. A pattern with a patch inside a clearing inside a
+forest block would need the rounds that follow.
+
+Now separate the two. Everything the rounds collected, minus the core itself,
+is edge. Perforation is the remainder of the core's boundary, the part the
+peeling never reached because it faces inward.
+
+```{r edges-split}
+m <- mdf_filter(m, edges == 1 & core == 0,
+                value = TRUE, background = 0, add = "edges")
+m <- mdf_filter(m, core == 0 & dcore > 0 & dcore <= size * edu & edges == 0,
+                value = TRUE, background = 0, add = "perf")
+```
+
+Black is edge, blue perforation. The core areas are now fully bounded, and what
+stays grey touches no core area on any side: it lies between them.
+
+```{r edges-fig, echo = FALSE}
+show_state(m, c("core", "patch", "edges", "perf"))
+```
+
+## Connectors
+
+What remains unclassified is connective tissue of some kind.
+
+```{r residues}
+m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0,
+                value = TRUE, background = 0, add = "residues")
+```
+
+To find which of it genuinely connects, reduce the pattern to its centre lines
+while holding the core areas fixed. That is `mdf_skeletonise(anchor = "core")`
+with homotopic thinning, which removes a cell only where doing so preserves the
+topology: it may not split a component or open a hole.
+
+The consequence is what makes the classification work. A strand joining two core
+areas is topologically necessary, so it survives thinning. A dead-end strand is
+necessary to nothing, so
+it retracts entirely. The branch/connector distinction falls out of the
+thinning, so no separate test is needed for it.
+
+```{r skeleton}
+m <- mdf_filter(m, opening == 1 | residues == 1,
+                value = TRUE, background = 0, add = "skin")
+m <- mdf_skeletonise(m, anchor = "core", background = 0, layer = "skin",
+                     add = "sk", method = "homotopic")
+m <- mdf_filter(m, sk == 1 & core == 0, value = TRUE, background = 0, add = "sk")
+```
+
+Keep the parts of the skeleton reachable through the unclassified cells. Growing
+a layer until it stops changing, a fixpoint, is `mdf_loop(stable = TRUE)`.
+
+```{r connector}
+m <- mdf_filter(m, (opening == 1 & core == 0) | residues == 1,
+                value = TRUE, background = 0, add = "i0")
+
+m <- mdf_offset(m, value = 0, layer = "sk", add = "rec")
+grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "rec") |>
+        mdf_filter(rec == 1 & i0 == 1, value = TRUE, background = 0, add = "rec")
+m <- mdf_loop(m, grow, stable = TRUE, layer = "rec")
+
+m <- mdf_filter(m, sk == 1 & i0 == 1 & rec == 1,
+                value = TRUE, background = 0, add = "connector")
+```
+
+What survived is drawn here over the grey it was cut from. These strands are the
+connective structure of the pattern, and all that is left is to say what each
+one connects.
+
+```{r connector-fig, echo = FALSE}
+conCls <- rep(0L, nrows * ncols)
+conCls[msk_pull(m, "pattern") == 1] <- 8L
+conCls[msk_pull(m, "connector") == 1] <- 5L
+conState <- mosaik(extent = c(0, ncols, 0, nrows), res = 1,
+                   vals = list(mspa = as.numeric(conCls)))
+msk_vis(conState,
+        .layer("mspa", colours = mspaCols[sort(unique(conCls)) + 1L]))
+```
+
+## Bridge, loop and branch
+
+Label each connector and each core area, then ask two things of every connector:
+how many distinct core areas it adjoins, and how many cells it spans. Both are
+`mdf_zonal()` summaries, the first taken over the neighbours of each connector
+rather than over its own cells.
+
+A connector adjoining two or more core areas is a **bridge**, provided it is
+longer than one cell. That second condition matters: a single cell can sit
+diagonally in the gap between two core areas, adjoining both without running
+between them, and the reference classifies it as a loop.
+
+```{r bridge-loop}
+m <- mdf_componentise(m, connectivity = conn, layer = "connector", add = "strand")
+m <- mdf_mask(m, by = "connector", background = 0, layer = "strand")
+m <- mdf_componentise(m, connectivity = conn, layer = "core", add = "coreID")
+m <- mdf_mask(m, by = "core", background = 0, layer = "coreID")
+
+m <- mdf_zonal(m, by = "strand", fun = "n_distinct", neighbours = TRUE,
+               connectivity = conn, layer = "coreID", background = 0,
+               add = "nCores")
+m <- mdf_zonal(m, by = "strand", fun = "n", layer = "strand",
+               background = 0, add = "strandSize")
+
+m <- mdf_filter(m, connector == 1 & nCores >= 2 & strandSize >= 2,
+                value = TRUE, background = 0, add = "bridge")
+m <- mdf_filter(m, connector == 1 & bridge == 0,
+                value = TRUE, background = 0, add = "loop")
+```
+
+Red is bridge, yellow loop. This is the distinction the method exists to draw:
+losing a red strand separates two habitat blocks, losing a yellow one does not.
+
+```{r bridge-loop-fig, echo = FALSE}
+show_state(m, c("core", "patch", "edges", "perf", "bridge", "loop"))
+```
+
+Branch is the residue, being what the thinning retracted because it leads
+nowhere.
+
+```{r branch}
+m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0 &
+                   bridge == 0 & loop == 0,
+                value = TRUE, background = 0, add = "branch")
+```
+
+No grey is left, so every foreground cell now holds a class and the
+classification is complete.
+
+```{r branch-fig, echo = FALSE}
+show_state(m, names(classes))
+```
+
+## Assembling
+
+Collapse the seven layers into one map of class codes. Order matters where
+classes overlap, since a cell can be both boundary and connector. The connector
+takes precedence, so bridge and loop are written last.
+
+```{r assemble}
+cls <- rep(0L, nrows * ncols)
+for(nm in names(classes)) cls[msk_pull(m, nm) == 1] <- as.integer(classes[[nm]])
+cls[msk_pull(m, "pattern") != 1] <- 0L
+```
+
+## The map
+
+```{r plot}
+res <- mosaik(extent = c(0, ncols, 0, nrows), res = 1,
+              vals = list(mspa = as.numeric(cls)))
+msk_vis(res, .layer("mspa", colours = mspaCols[sort(unique(cls)) + 1L]))
+```
+
+This agrees with Fig. 1 of the paper cell for cell, all 1178 of them.
+
+## The seven layers
+
+The map above is one view of the result. The other is the seven binary layers it
+was assembled from, each holding one class, which is what the pipeline actually
+produced.
+
+```{r composition, echo = FALSE, fig.height = 8}
+op <- par(mfrow = c(4, 2), mar = c(0.5, 0.5, 2, 0.5))
+labels <- c(core = "core", edges = "edge", perf = "perforation",
+            patch = "islet", bridge = "bridge", loop = "loop",
+            branch = "branch")
+for(nm in names(labels)){
+  # drawn after the precedence in "Assembling", so the 18 cells claimed by two
+  # layers appear only in the one that wins
+  v <- matrix(as.integer(cls == classes[[nm]]),
+              nrow = nrows, ncol = ncols, byrow = TRUE)
+  image(t(v[nrows:1, ]), col = c("#eeeeee", mspaCols[classes[[nm]] + 1L]),
+        axes = FALSE, asp = nrows / ncols, main = labels[[nm]])
+}
+par(op)
+```
+
+The seven do not quite fall out as a partition on their own. Eighteen cells of
+this pattern satisfy two definitions at once, eleven of them both edge and
+bridge, seven both perforation and loop, which is why the assembling step needs
+an order at all. The panels above apply that order, so each cell appears once.
+
+## What to take from this
+
+No part of this needed a function written for MSPA. The whole classification is
+eight operators (`mdf_distance`, `mdf_filter`, `mdf_componentise`, `mdf_mask`,
+`mdf_zonal`, `mdf_fill`, `mdf_dilate`, `mdf_skeletonise`) plus `mdf_loop()` to
+iterate a recipe to a condition.
+
+This is the design intent of the package. It provides the operators that named
+methods decompose into, so the same parts compose FRAGSTATS-style metrics,
+neutral models and connectivity measures. Because the composition is explicit,
+you can read what a method does and change it.
+
+Two things are worth knowing if you adapt this:
+
+- Only 8-connected habitat (`conn = 8L`) is covered here. The 4-connected
+  variant needs a different rule inside the thinning step and is not
+  implemented.
+- `size` above 1 widens the core threshold; the connector step would then also
+  need the strands widened to match, which this vignette does not do.
+
+## Reference
+
+Soille, P. & Vogt, P. (2009). Morphological segmentation of binary patterns.
+*Pattern Recognition Letters* 30(4), 456–459.
+
+Soille, P. & Vogt, P. (2022). Morphological segmentation of binary patterns:
+the open source release. *ISPRS Archives* XLVIII-4/W1, 427–432.

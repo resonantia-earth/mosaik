@@ -1,0 +1,51 @@
+Package: mosaik
+Type: Package
+Title: Categorical Raster Algebra for Landscape Analysis
+Description: Measure and modify spatial patterns in gridded landscape
+    mosaics, with the measurement primitives and their composition made
+    explicit so that a new metric is an expression rather than a new
+    function. Modify operators transform categorical and continuous layers,
+    measure operators quantify the primitives (adjacency, area, perimeter,
+    distance, dissimilarity) at patch, class, and landscape scale, and
+    composite metrics are derived from equations over them. Cell values are
+    group identifiers throughout, and provenance is recorded in the
+    vocabulary of the W3C PROV ontology as operations are applied.
+Version: 1.0.0
+Authors@R: c(
+    person("Steffen", "Ehrmann", role = c("aut", "cre"),
+           email = "steffen.ehrmann@posteo.de",
+           comment = c(ORCID = "0000-0002-2958-0796")),
+    person("Dan", "Sunday", role = c("cph"),
+           comment = "various algorithms."),
+    person("Jon", "Clayden", role = c("ctb"),
+           comment = "morphological operations derived from mmand.")
+    )
+License: GPL (>= 3)
+URL: https://github.com/resonantia-earth/mosaik
+BugReports: https://github.com/resonantia-earth/mosaik/issues
+Depends:
+    R (>= 4.1.0)
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    checkmate,
+    crayon,
+    digest,
+    grDevices,
+    grid,
+    methods,
+    Rcpp,
+    utils
+LinkingTo:
+    Rcpp
+Suggests:
+    DiagrammeR,
+    knitr,
+    rmarkdown,
+    sf,
+    terra,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+VignetteBuilder: knitr

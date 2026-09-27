@@ -1,0 +1,22 @@
+# R
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# Compiled objects
+src/*.o
+src/*.so
+src/*.dll
+
+# Package build artefacts
+*.tar.gz
+*.Rcheck/
+
+# OS
+.DS_Store
+Thumbs.db
+.positai
+
+# ignore all of design documents
+inst/design
