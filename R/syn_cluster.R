@@ -18,9 +18,6 @@
 #'   \code{"randomCluster"}. Default 3. Ignored for \code{"percolation"}.
 #' @param name [character(1)][character]\cr the layer name. Default
 #'   \code{"values"}.
-#' @param role [character(1)][character]\cr optional semantic role tag (e.g.
-#'   \code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-#'   auto-detect layer purpose.
 #' @param seed [integerish(1)][integer]\cr random seed for reproducibility.
 #' @return A \code{\link{mosaik}} with integer cluster labels.
 #' @references
@@ -43,14 +40,13 @@
 #' @export
 
 syn_cluster <- function(obj, type = "percolation", p = 0.5, n = 3L,
-                         name = "values", role = NULL, seed = NULL) {
+                         name = "values", seed = NULL) {
 
   assertClass(x = obj, classes = "mosaik")
   assertChoice(x = type, choices = c("percolation", "randomCluster"))
   assertNumber(x = p, lower = 0, upper = 1)
   assertIntegerish(x = n, len = 1, lower = 2)
   assertCharacter(x = name, len = 1)
-  assertCharacter(x = role, len = 1, null.ok = TRUE)
   assertIntegerish(x = seed, len = 1, null.ok = TRUE)
 
   if (!is.null(seed)) set.seed(seed)
@@ -108,5 +104,5 @@ syn_cluster <- function(obj, type = "percolation", p = 0.5, n = 3L,
   prov <- msk_prov("syn_cluster",
                      list(type = type, p = p, n = n, name = name, seed = seed))
 
-  msk_set(obj, name, vals, prov, role = role)
+  msk_set(obj, name, vals, prov)
 }

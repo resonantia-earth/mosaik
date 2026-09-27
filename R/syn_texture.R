@@ -24,9 +24,6 @@
 #'   diamond-square. Default 1.
 #' @param name [character(1)][character]\cr the layer name. Default
 #'   \code{"values"}.
-#' @param role [character(1)][character]\cr optional semantic role tag (e.g.
-#'   \code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-#'   auto-detect layer purpose.
 #' @param seed [integerish(1)][integer]\cr random seed for reproducibility.
 #' @return A \code{\link{mosaik}} with texture values scaled to \[0, 1\].
 #' @references Fournier A, Fussell D, Carpenter L. Computer rendering of
@@ -62,7 +59,7 @@
 syn_texture <- function(obj, type = "diamondSquare", base = "perlin",
                          hurst = 0.7, octaves = 6L, lacunarity = 2.0,
                          frequency = 4, startDev = 1, name = "values",
-                         role = NULL, seed = NULL) {
+                         seed = NULL) {
 
   assertClass(x = obj, classes = "mosaik")
   assertChoice(x = type, choices = c("diamondSquare", "fbm", "billow", "ridged"))
@@ -73,7 +70,6 @@ syn_texture <- function(obj, type = "diamondSquare", base = "perlin",
   assertNumber(x = frequency, lower = 0.01)
   assertNumber(x = startDev, lower = 0)
   assertCharacter(x = name, len = 1)
-  assertCharacter(x = role, len = 1, null.ok = TRUE)
   assertIntegerish(x = seed, len = 1, null.ok = TRUE)
 
   if (!is.null(seed)) set.seed(seed)
@@ -133,7 +129,7 @@ syn_texture <- function(obj, type = "diamondSquare", base = "perlin",
                           octaves = octaves, lacunarity = lacunarity,
                           frequency = frequency, name = name, seed = seed))
 
-  msk_set(obj, name, vals, prov, role = role)
+  msk_set(obj, name, vals, prov)
 }
 
 

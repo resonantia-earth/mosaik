@@ -10,12 +10,16 @@ diamondSquareCpp(mat, stepSize, roughness, startDev)
 \item{mat}{\link[=matrix]{matrix(numeric)}\cr the template matrix into which
 height values are written.}
 
-\item{stepSize}{\link[=numeric]{numeric(.)}\cr ...}
+\item{stepSize}{\link[=numeric]{numeric(.)}\cr the side length of the squares at
+each iteration, largest first, each half the one before; the first is the
+side of \code{mat} minus one.}
 
 \item{roughness}{\link[=numeric]{numeric(1)}\cr the Hurst exponent (fBm) or its
 equivalent, the roughness factor (DSa). Bounded between 0 and 1.}
 
-\item{startDev}{\link[=numeric]{numeric(1)}\cr ...}
+\item{startDev}{\link[=numeric]{numeric(1)}\cr standard deviation of the random
+offset at the first iteration; it shrinks by \code{0.5^roughness} at each
+following one.}
 }
 \value{
 A numeric matrix of the same dimensions as \code{mat} into which the

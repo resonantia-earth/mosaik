@@ -102,5 +102,5 @@ mdf_blend <- function(obj = NULL,
                      list(fun = if(is.character(fun)) fun else "custom",
                           inputs = paste(layers, collapse = ", "),
                           layer = out_layer))
-  msk_set(obj, out_layer, temp, prov, keep_role = FALSE)
+  msk_set(obj, out_layer, temp, prov, keep = FALSE)
 }

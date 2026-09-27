@@ -228,6 +228,106 @@ msk_pull <- function(obj, layer = NULL){
   if (inherits(v, "rle")) inverse.rle(v) else v
 }
 
+# --- msk_set ------------------------------------------------------------------
+
+#' Write a layer into a mosaik
+#'
+#' Return a copy of \code{obj} with one layer's values replaced, or a new layer
+#' added, and the provenance entry appended. Every \code{mdf_*} and \code{syn_*}
+#' function writes its result through this, and it is the way for another
+#' package to write computed values into a mosaik.
+#'
+#' To combine layers that already sit in another mosaik, use
+#' \code{\link{msk_add}} instead: it checks that both objects share the same
+#' grid and carries the layers' category tables along.
+#'
+#' @details
+#' \strong{Continuous or categorical.} Passing \code{gid} and \code{val} writes
+#' a categorical layer: its category table is set from them, and only those
+#' \code{gid}s that occur in \code{values} are registered. Omitting them writes
+#' a continuous layer.
+#'
+#' \strong{What is carried forward.} Another package may attach its own fields
+#' to a layer's category entry. When a continuous layer is overwritten in place,
+#' those fields are kept by default, because an operator that only changes
+#' values (\code{\link{mdf_scale}}, \code{\link{mdf_perturb}}, ...) does not
+#' change what the layer is. An operator that does change it
+#' (\code{\link{mdf_binarise}} turning a field into a mask,
+#' \code{\link{mdf_componentise}} turning it into patch IDs) passes
+#' \code{keep = FALSE}. A categorical write always starts a fresh entry.
+#'
+#' @param obj [mosaik][mosaik]\cr the mosaik to write into.
+#' @param layer [character(1)][character]\cr name of the layer to write. A name
+#'   not already present adds a new layer.
+#' @param values [numeric(.)][numeric]\cr the new cell values, one per cell.
+#'   Compressed with \code{\link[base]{rle}} automatically when that is smaller.
+#' @param prov [list][list]\cr a provenance entry from \code{\link{msk_prov}},
+#'   appended to \code{obj}'s history.
+#' @param keep [logical(1)][logical]\cr keep the fields other packages attached
+#'   to the layer's category entry when overwriting it in place. \code{FALSE}
+#'   for an operator that changes what the layer is. Default \code{TRUE}.
+#' @param gid [integer(.)][integer]\cr categorical: the group IDs occurring in
+#'   \code{values}.
+#' @param val [character(.)][character]\cr categorical: the label for each
+#'   \code{gid}.
+#' @return The mosaik, with the layer written and \code{prov} appended.
+#' @seealso \code{\link{msk_add}} to take layers from another mosaik,
+#'   \code{\link{msk_prov}} for the provenance entry, \code{\link{mosaik}} for
+#'   creating an object in the first place.
+#' @examples
+#' m <- mosaik(extent = c(0, 10, 0, 10), res = 1)
+#'
+#' # a continuous layer
+#' m <- msk_set(m, "elevation", runif(100) * 800,
+#'              prov = msk_prov("example", list(range = c(0, 800))))
+#'
+#' # a categorical one
+#' m <- msk_set(m, "cover", rep(1:2, each = 50),
+#'              gid = 1:2, val = c("forest", "crop"),
+#'              prov = msk_prov("example", list()))
+#' msk_categories(m)
+#' @export
+
+msk_set <- function(obj, layer, values, prov = NULL, keep = TRUE,
+                    gid = NULL, val = NULL) {
+
+  new_layers <- obj@layers
+  # auto-compress
+  rv <- rle(values)
+  if (utils::object.size(rv) < utils::object.size(values)) {
+    new_layers[[layer]] <- rv
+  } else {
+    new_layers[[layer]] <- values
+  }
+
+  # what another package attached to this layer, besides the category table
+  prior <- obj@categories[[layer]]
+  extra <- if (keep && is.null(gid) && !is.null(prior))
+             prior[setdiff(names(prior), c("gid", "val"))] else list()
+
+  new_categories <- obj@categories
+  new_categories[[layer]] <- NULL
+
+  if (!is.null(gid)) {
+    # register only those gids that actually occur in the output
+    present <- gid %in% unique(values[!is.na(values)])
+    new_categories[[layer]] <- list(gid = gid[present], val = val[present])
+  } else if (length(extra)) {
+    new_categories[[layer]] <- extra
+  }
+
+  new_mosaik(
+    extent     = obj@extent,
+    dims       = obj@dims,
+    layers     = new_layers,
+    categories = new_categories,
+    patches    = obj@patches,
+    global     = obj@global,
+    crs        = obj@crs,
+    provenance = if (is.null(prov)) obj@provenance else c(obj@provenance, list(prov))
+  )
+}
+
 # --- msk_terra ----------------------------------------------------------------
 
 #' Convert a mosaik to a SpatRaster

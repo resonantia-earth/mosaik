@@ -37,14 +37,19 @@
 #'   \code{times} may be combined with either condition, in which case it caps
 #'   the iterations and guards against a loop that never settles.
 #' @examples
-#' \dontrun{
-#' # spread the cells of "seed" through "mask" until they stop growing
-#' grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "seed") |>
-#'   mdf_filter(seed == 1 & mask == 1, value = TRUE, background = 0,
-#'              add = "seed")
+#' # the forest (class 47), and one of its cells as a seed
+#' m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+#' seed <- as.numeric(seq_len(msk_ncells(m)) ==
+#'                    which(msk_pull(m, "forest") == 1)[1])
+#' m <- msk_set(m, "seed", seed, prov = msk_prov("seed", list()))
 #'
-#' mdf_loop(m, grow, stable = TRUE, layer = "seed")
-#' }
+#' # spread the seed through the forest until it stops growing: what is left is
+#' # the forest patch the seed sits in
+#' grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "seed") |>
+#'   mdf_filter(seed == 1 & forest == 1, value = TRUE, background = 0,
+#'              add = "seed")
+#' m <- mdf_loop(m, grow, stable = TRUE, layer = "seed")
+#' sum(msk_pull(m, "seed"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertNumber assertFlag assertCharacter
 #' @export

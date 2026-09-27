@@ -58,5 +58,5 @@ mdf_binarise <- function(obj = NULL,
   out_layer <- .resolve_add(obj, layer, add)
   prov <- msk_prov("mdf_binarise", list(thresh = thresh, match = match, layer = out_layer))
   # binarising changes the layer's kind (-> binary mask); drop any prior role
-  msk_set(obj, out_layer, temp, prov, keep_role = FALSE)
+  msk_set(obj, out_layer, temp, prov, keep = FALSE)
 }

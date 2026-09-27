@@ -8,10 +8,14 @@ using namespace Rcpp;
 //' algorithm
 //' @param mat [matrix(numeric)][matrix]\cr the template matrix into which
 //'   height values are written.
-//' @param stepSize [numeric(.)][numeric]\cr ...
+//' @param stepSize [numeric(.)][numeric]\cr the side length of the squares at
+//'   each iteration, largest first, each half the one before; the first is the
+//'   side of \code{mat} minus one.
 //' @param roughness [numeric(1)][numeric]\cr the Hurst exponent (fBm) or its
 //'   equivalent, the roughness factor (DSa). Bounded between 0 and 1.
-//' @param startDev [numeric(1)][numeric]\cr ...
+//' @param startDev [numeric(1)][numeric]\cr standard deviation of the random
+//'   offset at the first iteration; it shrinks by \code{0.5^roughness} at each
+//'   following one.
 //' @family matrix modify functions
 //' @return A numeric matrix of the same dimensions as \code{mat} into which the
 //'   values of a height map have been written.
@@ -21,7 +25,6 @@ NumericMatrix diamondSquareCpp(NumericMatrix mat, NumericVector stepSize, double
 
   const int n = stepSize.size();
 
-  // the algo is recursive, so we go here through each of its steps
   for(int z = 0; z < n; ++z){
     int halfStep = stepSize[z]/2;
     int aStep = stepSize[z];

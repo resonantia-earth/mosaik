@@ -1,482 +1,160 @@
 ---
-title: "mosaik: one engine for spatially explicit landscape measurement"
+title: "Getting started with mosaik"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{mosaik: one engine for spatially explicit landscape measurement}
+  %\VignetteIndexEntry{Getting started with mosaik}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>",
-  eval = FALSE
-)
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6,
+                      fig.height = 5)
 ```
 
-## Abstract
-
-Landscape measurement looks like a sprawl of incompatible methods — neutral
-landscape models, FRAGSTATS indices, morphological pattern analysis,
-connectivity models, ecosystem-service maps, land-change scenarios, condition
-accounts. It is not. Almost every named metric in common use decomposes into a
-small set of measurement primitives — area, number, perimeter, adjacency,
-distance, dissimilarity — composed over a stack of raster layers. mosaik is
-built on that decomposition rather than on a catalogue of named metrics: it
-makes layers, modifies them, measures the primitives — directly or by combining
-them into any metric — and simulates configurations toward targets. Because every method reduces to the
-same primitives plus composition, one engine covers null-model generation,
-metric computation, scenario building, and condition accounting — not by
-bolting tools together, but because they were the same operations all along.
-
-This unification is what opens computational landscape ecology to a wider
-audience. The neutral-model builder, the landscape-metrics user, the
-scenario modeller, and the analyst who must produce a defensible
-biodiversity-condition number for disclosure today reach for four separate
-tools with four vocabularies. mosaik gives them one open, inspectable,
-provenance-tracked engine, and stays deliberately agnostic about the value
-choices the numbers encode. That neutrality is the contribution: not a missing
-metric, but a missing common substrate the field can build standards on before
-those standards are locked in by proprietary practice.
-
-This document explains what mosaik is, the problem it answers, how it is built,
-and why it is built that way. For the function-level reference see the package
-documentation; for whether mosaik fits your particular work, the closing
-section points to the use-case vignettes.
-
-## Introduction: the measurement gap
-
-Biodiversity disclosure frameworks — the European Sustainability Reporting
-Standards E4 (ESRS E4), the Taskforce on Nature-related Financial Disclosures
-(TNFD), the Science Based Targets Network (SBTN) — specify *what* must be
-reported but provide no rigorous basis for *how* landscape condition is
-measured. The IPBES Business and Biodiversity Assessment (2026) records the gap
-directly: current metrics are insufficient to track the changes in nature that
-matter for business and society, and functional diversity beyond species
-richness lacks adequate indicators.
-
-In practice, corporate biodiversity reporting defaults to species counts at
-points, land-cover proportions inside arbitrary buffers, and qualitative site
-descriptions. These are measurable but ecologically thin: they treat
-biodiversity as a property of discrete sites rather than as an outcome of
-landscape-scale process. A forest patch surrounded by intensive agriculture is
-functionally different from the same patch in continuous woodland, even when
-internal species counts are identical.
-
-What is absent is not data and not another metric. It is an open, interoperable
-tool chain that runs from raw spatial data through landscape-structural
-measurement to standards-aligned outputs with full provenance — and that stays
-agnostic about the value choices the numbers encode. Existing global metrics
-tend to bake one such choice into the metric itself. The Ecosystem Integrity
-Index, for example, measures functional condition against a potential-natural
-baseline; that is a defensible choice, but it is *a* choice, written into the
-metric's definition rather than left open to the user. mosaik takes the
-opposite stance: it supplies the engine and lets the reference, the objective,
-and the vocabulary be set by the user or the standard, not by the tool. That is
-the gap mosaik exists to close.
-
-## One engine: primitives and four verbs
-
-The decomposition is the whole design. Shannon diversity, contagion, edge
-density, mean patch size, evenness, a morphological class: each is one of a few
-primitives, or an arithmetic combination of them, computed over a stack of
-raster layers. mosaik measures the primitives and lets the user build any
-named metric from them. Four families of verbs follow:
-
-| Verb | Family | Role |
-| :--- | :--- | :--------- |
-| **Make** | `make_*` | materialise a named layer — pattern primitives and layers computed from inputs — or ingest real ones |
-| **Modify** | `mdf_*`, `mdf()` | transform or combine existing layers without claiming new semantics; `mdf()` replays a recorded sequence of such steps (a *recipe*) so an algorithm defined once applies to many rasters |
-| **Measure** | `msr_*`, `msr()` | `msr_*` measures the primitives directly (area, number, perimeter, adjacency, distance, dissimilarity) at patch, class, and landscape level; `msr()` measures a derived metric by combining those primitives via an equation, written into the matching slot |
-| **Simulate** | `sim` | evolve a configuration over time toward targets defined on any `msr_*` output |
-
-Every family takes a `mosaik` object in and returns one out, so operations
-compose into pipelines with provenance carried through each step. The data
-structure is one S4 class with transparent, inspectable slots — `extent`,
-`dims`, `layers`, `categories`, `patches`, `global`, `crs`, `provenance` — and
-no opaque pointers. Cell values *are* the group identifiers; metric outputs land
-in the slot matching their level (patch-level in `@patches`, class-level in
-`@categories`, landscape-level in `@global`). Two consequences fall out at once:
-
-- Morphological Spatial Pattern Analysis (core, edge, bridge, loop, branch,
-  islet) is a measurement over the configuration primitive, not a separate
-  program to wrap. It belongs in `msr_*`.
-- The FRAGSTATS family of landscape indices is not special. Each is a named
-  combination of the primitives, computed by the same machinery — which is why
-  users can construct metrics that no fixed catalogue ships.
-
-Work begins with a grid. `mosaik()` creates an empty one (or ingests a real
-raster); `syn_*` functions populate it with abstract fields — noise, texture,
-gradients, tessellations — all of which take a mosaik in and return one out, so
-they chain like everything else:
+mosaik is a small set of operations on one kind of object: `syn_*` synthesises
+fields, `mdf_*` modifies layers, `msr_*` measures them, and `msr()` combines
+measurements into metrics. This vignette walks through them on the example data
+that ships with the package.
 
 ```{r}
 library(mosaik)
-
-# a synthetic field to analyse
-m <- mosaik(extent = c(0, 100, 0, 100), res = 1) |>
-  syn_texture(type = "diamondSquare", name = "elevation", role = "surface")
 ```
 
-Whole synthetic *landscapes* — climate, soil, vegetation, land use, tenure, each
-derived from the last — are the business of the companion package
-[mundus](https://github.com/resonantia-earth/mundus), which builds on this class
-and returns the same objects. Point the engine at a real raster
-(`mosaik(rast = ...)`) instead and nothing downstream changes: measured and
-generated layers sit side by side and every later operation treats them
-identically.
+## The example data
 
-A minimal status-quo assessment on a real landscape makes the measurement shape
-concrete:
+`landscape` is a small example: a 60 by 56 grid with two layers, a land-cover
+map (`cover`) and a continuous `intensity` field.
 
 ```{r}
-mosaik(rast = land_cover) |>
-  msr_area(scale = "class") |>
-  msr_perimeter(scale = "class") |>
-  msr_area(scale = "landscape") |>
-  msr(equation = "perimeter.class / area.class",      label = "edge_density") |>
-  msr(equation = "area.class / area.landscape * 100", label = "prop_area")
+landscape
 ```
 
-This is the difference from a metrics catalogue such as landscapemetrics, which ships a fixed set of pre-baked indices: you can compute the ones it includes, but not ones it does not. By exposing the primitives and letting `msr()` combine them, mosaik lets you build any named metric — including ones no catalogue ships.
+```{r, fig.alt = "The cover layer of the example data, nine land-cover classes"}
+msk_vis(landscape, .layer("cover"))
+```
 
-Because every step records itself in the object's provenance, a sequence of
-steps can also be defined *without* a starting raster and replayed later on
-many. Calling the operators with no input mosaik records the chain rather than
-executing it; the result is a **recipe**, and `mdf()` applies it to a real
-mosaik:
+The cell values of `cover` are the class identifiers themselves: 1, 11, 21 and
+so on. There is no lookup from a number to a class; the number is the class.
+
+## Measuring the primitives
+
+A `msr_*` function measures one primitive and writes the result into the
+object at the level it describes. Here the area of every class, and of the
+whole grid:
 
 ```{r}
-# define a morphological algorithm once, with no data
-gaps <- mdf_componentise(layer = "fg", add = "cc_fore") |>
-  mdf_componentise(layer = "bg", add = "cc_back") |>
-  mdf_dilate(layer = "fg", add = "closed") |>
-  mdf_mask(layer = "closed", by = "cc_back", add = "gaps")
-
-# apply it to any landscape
-result <- mdf(some_landscape, gaps)
+m <- landscape |>
+  msr_area(scale = "class", layer = "cover") |>
+  msr_area(scale = "landscape", layer = "cover") |>
+  msr_perimeter(scale = "class", layer = "cover")
 ```
 
-A step reads an earlier intermediate by the layer name an earlier step wrote
-(`by = "cc_back"`), so branch-and-recombine algorithms — gap detection, core
-habitat, corridor identification — are expressed as named layers rather than
-hand-written loops, and the recipe carries its own provenance for audit. This
-is the analyst's counterpart to a fixed metric catalogue: not a menu of
-canned procedures, but a way to capture and reuse your own.
-
-A fourth verb, `sim`, runs the same object forward in time. It lives in
-[mundus](https://github.com/resonantia-earth/mundus) rather than here, but it is
-worth seeing because it consumes exactly what this package measures: given land
-types and demand targets, it reallocates cells over a number of steps until the
-targets are met — a scenario explorer driven by the same `msr_*` outputs the
-analysis side computes:
+Class-level results are in the categories of the layer, landscape-level results
+in the global slot:
 
 ```{r}
-types <- sim_landtype(name = "forest", produces = list(timber = 5, carbon = 10),
-                      allow = list(crop = list(strategy = sim_strategy("frontier")))) |>
-         sim_landtype(name = "crop", produces = list(food = 8))
-targets <- sim_target(name = "food",   target = 1000, match = "minimum") |>
-           sim_target(name = "carbon", target = 5000, match = "minimum")
-
-scenario <- sim(land_cover, types = types, targets = targets, n = 10)
+msk_categories(m)$cover
+msk_global(m)
 ```
 
-Run it once for a single scenario, or many times with `noise > 0` to obtain a
-*distribution* of reachable landscapes — the reference ensemble the next section
-builds on.
+The primitives are area, number, perimeter, adjacency, dissimilarity and cost,
+each measured at patch, class or landscape level.
 
-## Why mosaik has the shape it does
+## Composing a metric
 
-Five arguments motivate the design. Each is load-bearing for a different reader,
-with the core arguments below and detailed discussion elsewhere (linked).
+`msr()` computes a metric from an equation over primitives that have already
+been measured. A primitive is named as `metric.scale`, so `area.class` is the
+area of each class and `area.landscape` the area of the whole grid. The
+share of the grid each class covers, and its edge density:
 
-### Why measurement must be at the landscape level
+```{r}
+m <- m |>
+  msr(equation = "area.class / area.landscape * 100", label = "pland",
+      layer = "cover") |>
+  msr(equation = "perimeter.class / area.landscape", label = "edge_density",
+      layer = "cover")
 
-Three independent reasons, none reducible to the others.
-
-*Additionality and leakage are landscape properties.* A hectare of restored
-forest may be additional (a genuine gain over what would otherwise have
-happened) or non-additional (it would have regenerated anyway); the same hectare
-may displace conversion to a neighbouring parcel and net the gain to zero. Both
-require knowing the spatial alternatives the parcel could have produced and the
-configuration of surrounding land. A point assessment cannot reach them; a
-landscape assessment, with a defensible reference distribution, can.
-
-*Ecological function is carried by structure.* A 100 ha forest can be one block,
-ten blocks, or ten blocks with corridors — same area, radically different
-biodiversity outcomes. Patch shape, edge length, inter-patch distance, and the
-intervening matrix decide whether an area number translates into population
-persistence. Polygon-level reporting flattens this; cell-level structural
-metrics preserve it.
-
-*Temporal claims need a landscape baseline.* "Nature positive" is
-time-relative — positive compared to what? The candidate baselines all fail, for
-reasons developed next.
-
-### The reference-state reframing
-
-Condition accounting needs a reference: "good condition" relative to what? Every
-candidate fails. A historical baseline forces an unanswerable question — which
-year? Potential natural vegetation is a construct that may never have existed as
-a stable state. Least-disturbed reference sites are biased toward whatever
-happens to be left. The reason none works is that the question "what should this
-landscape look like" is normative, not empirical. No amount of better data
-resolves a value choice.
-
-mosaik's response is to stop hiding the value choice inside the word "natural"
-and make it explicit — then let the user, not the tool, set the reference. One
-powerful option this opens is to replace a fixed reference state with a
-*distribution of reachable configurations*: given a landscape's constraints,
-`sim` generates many configurations that satisfy them, and the distribution
-of metric values across that ensemble is the reference. An observed landscape is
-scored against the ensemble rather than against a single engineered number. This
-sidesteps the baseline problem (no fixed reference need be named) and the
-baseline-gaming that broke carbon markets (the reference is a distribution of
-plausible landscapes, not a number a developer can quietly engineer toward).
-mosaik does not impose this — it makes it constructible, alongside whatever
-reference a standard or user prefers. It is the same epistemic move the
-neutral-landscape-model community already makes, with a constrained optimiser in
-place of a randomiser.
-
-Letting each user set their own reference raises an obvious objection:
-cross-company comparability collapses if everyone picks a different objective.
-The resolution is not to deny that the choice is normative but to *make it so
-explicitly*. A standards body can prescribe a fixed objective function — a set
-of indicators with fixed weights — while acknowledging openly that this is a
-value choice, not a scientific fact. Companies then disclose against the
-prescribed objective; auditors check whether the landscape actually delivers it;
-researchers run alternative objectives to inform the next round of
-standard-setting. mosaik supports all three roles on one engine. This is a
-position the existing standards do not yet take, and it is mosaik's contribution
-to disclosure methodology: not a metric, but a defensible way to fix one.
-
-### Simple rules over process models
-
-Where a quantity must be modelled rather than measured, mosaik occupies a
-deliberate middle ground between adjacent-cell rules and full mechanistic
-process models: a *budget model*. Track where material enters (deposition maps,
-intensity proxies), follow flow direction (via `make_rivers`), apply a per-cell
-retention fraction from the empirical literature, and accumulate at endpoints.
-Structure does the work; the rules stay simple.
-
-This is defensible for disclosure (physically grounded, transparent,
-reproducible), fast at landscape scale (no iterative solver), and honest about
-what it omits (no seasonal dynamics, no explicit biological uptake, no
-groundwater — stated plainly). Full process models pay a high parameter cost
-because of system coupling, not modeller pedantry, and are wrong outside their
-parameterised regime; adjacent-cell rules break the moment a process couples
-non-locally (nitrogen routed 20 km down a stream network, colonisation depending
-on the whole configuration between source and target). The budget model is the
-honest level of detail for landscape-scale assessment. The guiding rule: do not
-make rules do what structure should do.
-
-### Pressure layers
-
-Some inputs the disclosure use case needs have no generative process — the data
-already exist. Pressure proxies are the clearest case: road density
-(OpenStreetMap), nighttime light (VIIRS), agricultural intensity, the Human
-Modification Index. These enter mosaik as ordinary user-supplied layers, where
-they can be combined into composite pressure scores or used to steer a
-simulation. No pressure generator is needed. The one discipline this demands:
-they are *activity proxies*, not measured ecosystem stresses — acceptable for 
-comparative exposure ranking, not for precise causal attribution, and they must 
-be labelled as such.
-
-### What biodiversity does — the question underneath
-
-The deepest gap is not tooling but theory, and it is worth stating because it
-bounds what any tool can honestly claim. Underneath every metric choice sits a
-question the field systematically avoids: what is biodiversity *for*, in the
-sense of which functional capacity we are trying to preserve — resilience to
-disturbance, continued service delivery, evolutionary potential, trophic
-structure? Each implies different indicators, scales, and dynamics. The dominant
-corporate metric, Mean Species Abundance, is spatially implicit and insensitive
-to landscape structure, yet persists because it is implemented and changing it
-disrupts existing reporting infrastructure. Patch-level landscape metrics are a
-necessary step beyond it but are themselves insufficient without process
-linkage. What is missing is *indicator theory*: a principled framework for which
-structural metrics are reliable proxies for which ecological processes under
-which conditions.
-
-mosaik does not solve this — no software can. What it provides is the
-infrastructure to attack it empirically: generate synthetic landscapes with
-controlled structure, measure them reproducibly, compare assessments across
-sites and scenarios, and demonstrate concretely what rigorous condition
-assessment looks like and how far current frameworks fall short. The gap between
-what frameworks accept as sufficient and what landscape science could deliver is
-itself a finding — and one that needs to be visible before biodiversity markets
-scale.
-
-## Where mosaik fits: the disclosure stack
-
-Six systems carry biodiversity disclosure today; none covers the full chain
-alone. They form a stack, and mosaik occupies one link the stack does not
-currently produce.
-
-| Layer | Standard | What it classifies |
-|---|---|---|
-| Activity | NACE / ISIC | economic sectors and production processes |
-| Activity → nature bridge | ENCORE | which services each process depends on, which pressures it exerts |
-| Ecosystem services | CICES | provisioning, regulation & maintenance, cultural contributions |
-| Ecosystem extent | IUCN GET | realms → biomes → functional groups |
-| Accounting glue | SEEA-EA | combines extent, services, and condition into ecosystem accounts |
-| Disclosure | TNFD, SBTN, GRI, CSRD/ESRS E4 | consume the layers above and produce disclosures |
-
-The stack stops at the polygon — a sourcing region, an administrative unit, a
-property boundary. mosaik operates one level down, at the cell, and supplies the
-spatially explicit evidence the polygon-level numbers are supposed to rest on:
-
-```
-ENCORE: "crop production depends on pollination"
-  → CICES 2.2.2.1: "pollination"
-  → mosaik: cell-level condition and structure, scored against a reachable ensemble
-  → SEEA-EA: aggregated to the administrative unit
-  → TNFD / CSRD: a line in the report
+msk_categories(m)$cover
 ```
 
-mosaik produces the substrate; an orchestrator layer above it — built
-separately — aggregates the cells upward and shapes them into a framework's
-format. The package stays vocabulary-neutral: a land type that `produces` named
-goods accepts arbitrary strings, not a fixed enumeration, and ontology codes
-(CICES, IUCN GET) live in the `@categories` slot as a convention the user
-maintains, carried through provenance but never validated by mosaik.
-Hard-coding any one standard would tie the package to a single disclosure regime
-and break its use in research and teaching.
+The result is stored where its length says it belongs: one value per class goes
+to the class level, a single value to the landscape level. Shannon diversity
+reduces over the classes, so it lands in the global slot:
 
-A single mechanism covers the service side of this chain. `make_service`, in
-mundus,
-materialises a per-cell service layer from category-attached rates and spreads
-it with a distribution kernel chosen by argument: isotropic decay for local
-services (pollination, microclimate), flow-routed for transported resources
-(nutrients down a stream network), point-to-point for first-order extraction
-(timber forest → sawmill), or a vertical sink that accumulates into a
-non-spatial scalar. This collapses what would otherwise be many bespoke
-per-service models (one per service, in the manner of InVEST) into one call.
+```{r}
+m <- msr(m, layer = "cover", label = "shannon",
+         equation = "-sum(area.class / area.landscape *
+                          log(area.class / area.landscape))")
+msk_global(m)$shannon
+```
 
-This works because mosaik does not model environmental realms as separate
-compartments — there is no "atmosphere" or "anthroposphere" object. Each
-resource that crosses a realm boundary is simply another layer (a vertical sink
-accumulates into a `@global` scalar rather than into a hidden domain), so the
-realms are implicit in which layers exist and how they connect. Everything stays
-an inspectable layer, consistent with mosaik's preference for transparent
-structure over opaque domains.
+No function was written for any of these metrics. That is the point of the
+package: a metric that no catalogue ships is one more equation.
 
-## Scope
+## Patches
 
-mosaik covers spatial production up to first-order extraction and stops there.
-It resolves spatial production into cell-level outputs; it does not resolve a
-product into its supply-chain inputs.
+Patch-level primitives work the same way. Here the forest class (47) is turned
+into a layer of its own, and every forest patch is measured:
 
-| Tier | Example | Coverage |
-|---|---|---|
-| 1. Local biophysical services | pollination, soil retention, microclimate | mosaik |
-| 2. Transported biophysical resources | water along rivers, sediment, nutrients | mosaik |
-| 3. First-order extraction | timber forest → sawmill, ore mine → smelter | mosaik |
-| 4. Second-order industrial processing | iron + coal → steel | out of scope — life-cycle assessment |
-| 5. Aspatial service goods | software, finance | out of scope — input–output footprinting |
+```{r}
+f <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  msr_area(scale = "patch", layer = "forest") |>
+  msr_perimeter(scale = "patch", layer = "forest") |>
+  msr(equation = "perimeter.patch / sqrt(area.patch)", label = "shape_index",
+      layer = "forest")
+```
 
-Beyond Tier 3 the right tools are life-cycle and input–output systems (openLCA,
-ecoinvent, EXIOBASE, GLORIA), which meet mosaik at the orchestrator layer.
+The patches are found once and kept in the object, so every patch-level
+measurement refers to the same patches. After binarising, the non-forest
+background is class 0, so the forest patches are the rows of class 1:
 
-What mosaik is *not*, stated so the boundary can be enforced: it does not render
-reports, validate classification vocabularies (CICES, EUNIS), maintain an
-activity–service mapping (ENCORE), or shape outputs into a TNFD/CSRD/SBTN
-report — those belong to the orchestrator above it. It is not a life-cycle or
-input–output tool. And it is not a physical predictive simulator: `sim`
-evolves a configuration toward targets under explicit strategies — a
-scenario explorer, not a physics engine — and no conservation laws are
-enforced unless the user wires them in. Absorbing any of these
-would make mosaik either redundant (a worse copy of a better-resourced tool) or
-unauditable (mixing scopes that need separate governance).
+```{r}
+p <- msk_patches(f)
+patches <- data.frame(p[-3])
+patches[patches$class == 1, ]
+```
 
-## Discussion: what mosaik solves, and what it leaves open
+## Modifying layers
 
-Rigorous landscape-condition measurement remains unsolved for four reasons;
-mosaik addresses one.
+The `mdf_*` functions are generic operations such as binarise, dilate, erode,
+mask and rescale. They do not know what a layer represents: eroding the forest
+by one cell gives its core, the forest that is not edge, because erosion was
+applied to forest, not because the operation knows about forests.
 
-1. **Normative.** Reference states and trade-off weights are value choices, not
-   empirical facts. Better methods make them explicit and auditable — the
-   reframing above. mosaik's contribution.
-2. **Institutional.** Statistics offices, conservation agencies, and financial
-   regulators built their frameworks independently; harmonisation is political,
-   not technical.
-3. **Data.** Condition accounts need in-situ validation at resolutions most
-   monitoring programmes do not provide.
-4. **Tooling.** No open, interoperable chain runs from raw spatial data to
-   standards-aligned outputs with full provenance while staying agnostic about
-   the value choices it encodes. **This agnostic substrate is the one mosaik
-   supplies.** The other three are not mosaik's to solve.
+```{r, fig.alt = "Forest and its core after eroding by one cell"}
+f <- mdf_erode(f, layer = "forest", add = "core")
+msk_vis(f, .layer("forest"), .layer("core"))
+```
 
-mosaik does not settle which structural metrics are reliable proxies for which
-ecological outcomes — the indicator-theory problem named above. It provides the
-infrastructure to test that empirically, and demonstrates concretely what
-rigorous assessment looks like. What is still owed, and where resonantia
-engages, is the indicator theory itself and the work of engaging disclosure
-frameworks before measurement conventions are locked in by commercial practice.
+## Every step is recorded
 
-A further direction, not yet committed to, is that mosaik's primitives may not
-be fundamentally spatial: area, number, adjacency, distance, and their
-composition have natural interpretations for abundance matrices, time series,
-and supply-chain networks, which would let the same measurement-and-composition
-machinery serve non-spatial disclosure domains. That generalisation is explored
-separately and is not a near-term commitment.
+Each operation appends an entry to the object's provenance: what was done, with
+which arguments, when, and by which version of mosaik.
 
-## Who this is for
+```{r}
+unlist(lapply(msk_provenance(f), names))
+```
 
-mosaik has several front doors; each community arrives with a different question
-and gets a use-case vignette that answers it without requiring this whole
-document.
+This record travels with the object, so a number read off it can be traced
+back through every step that produced it.
 
-- **You build neutral landscape models** (NLMR, nlmpy). mosaik gives you
-  process-based nulls — generated by a mechanism rather than a random field —
-  and an optimiser that can hold structural targets fixed while varying the
-  rest.
-- **You compute landscape metrics or morphology** (FRAGSTATS,
-  landscapemetrics, GUIDOS/MSPA). mosaik computes the same patch-, class-, and
-  landscape-level metrics reproducibly inside a provenance-tracked pipeline, and
-  treats morphology as one more measurement over the configuration primitive.
-- **You build land-change scenarios** (the CLUE family, CLUMondo, Dinamica).
-  Those models allocate area to satisfy a demand vector; `sim` allocates the
-  same way and is being extended to optimise structural targets — patch-size
-  distribution, connectivity — alongside area-to-meet-demand.
-- **You work in nature finance or disclosure** (ESRS E4, TNFD, SBTN;
-  biodiversity credits). You need a condition reference you can defend to an
-  auditor and spatial computation you can run in the same place. mosaik lets you
-  build the reference yourself rather than inherit one fixed inside a metric.
+## Your own data
 
-## A worked example of the claim
+A `SpatRaster` from terra becomes a mosaik object with `mosaik(rast = ...)`,
+and `msk_terra()` turns one back into a `SpatRaster`. Everything above then
+works unchanged.
 
-The argument above is that named methods decompose into a small set of
-operators. The [MSPA vignette](mspa.html) carries that out in full for one of
-them: morphological spatial pattern analysis, built from eight operators plus
-`mdf_loop()`, with no function written for the method. Its output matches the
-classification published with the original paper cell for cell, on the pattern
-that paper introduced (shipped as the `mspa` dataset).
+```{r, eval = FALSE}
+lc <- mosaik(rast = terra::rast("land_cover.tif"))
+```
 
-It is worth reading if you want to see what "compose it yourself" looks like in
-practice, including where the composition is awkward.
+## Where next
 
-*Maintained by resonantia research gUG (haftungsbeschränkt), Leipzig.*
-
-## References
-
-- Hobbs, R. J., Higgs, E., Harris, J. A. (2009). Novel ecosystems: implications
-  for conservation and restoration. *Trends in Ecology & Evolution*, 24(11),
-  599–605.
-- Ellis, E. C. (2015). Ecology in an anthropogenic biosphere. *Ecological
-  Monographs*, 85(3), 287–331.
-- IPBES (2019). *Global Assessment Report on Biodiversity and Ecosystem
-  Services*.
-- IPBES (2026). *Business and Biodiversity Assessment* (IPBES-12, Manchester,
-  February 2026).
-- Kupfer, J. A. (2011). Theory in landscape ecology and its relevance to
-  biogeography. In *SAGE Handbook of Biogeography*, ch. 4.
-- Li, H., Wu, J. (2004). Use and misuse of landscape indices. *Landscape
-  Ecology*, 19, 389–399.
-- McGarigal, K., Marks, B. J. (1995). *FRAGSTATS: Spatial Pattern Analysis
-  Program for Quantifying Landscape Structure*. USDA GTR PNW-GTR-351.
-- UN (2021). *System of Environmental-Economic Accounting — Ecosystem
-  Accounting* (SEEA-EA).
-- Venter, O., et al. (2016). Global terrestrial Human Footprint maps for 1993
-  and 2009. *Scientific Data*, 3, 160067.
+- `vignette("measurement")`: why landscape condition has to be measured at the
+  landscape level, and how mosaik approaches reference states and disclosure.
+- `vignette("recipes")`: pipelines defined once, without data, and replayed on
+  many rasters.
+- `vignette("mspa")`: Morphological Spatial Pattern Analysis built from the
+  primitives, matching the published classification cell for cell.

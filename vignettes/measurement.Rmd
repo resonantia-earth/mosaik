@@ -1,0 +1,323 @@
+---
+title: "Measuring landscape condition"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Measuring landscape condition}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Abstract
+
+Landscape measurement looks like a sprawl of incompatible methods — FRAGSTATS
+indices, morphological pattern analysis, connectivity models, condition
+accounts. It is not. Almost every named metric in common use decomposes into a
+small set of measurement primitives — area, number, perimeter, adjacency,
+dissimilarity, cost — composed over a stack of raster layers. mosaik is built
+on that decomposition rather than on a catalogue of named metrics: it modifies
+layers and measures the primitives, directly or by combining them into any
+metric.
+
+The landscape-metrics user, the morphology analyst, and the analyst who must
+produce a defensible biodiversity-condition number for disclosure today reach
+for separate tools with separate vocabularies. mosaik gives them one open,
+inspectable, provenance-tracked engine, and stays deliberately agnostic about
+the value choices the numbers encode. That neutrality is the contribution: not
+a missing metric, but a missing common substrate the field can build standards
+on before those standards are locked in by proprietary practice.
+
+This document explains the problem mosaik answers and why it is built the way
+it is. For how to use it, see `vignette("mosaik")` and `vignette("recipes")`.
+
+## Introduction: the measurement gap
+
+Biodiversity disclosure frameworks — the European Sustainability Reporting
+Standards E4 (ESRS E4), the Taskforce on Nature-related Financial Disclosures
+(TNFD), the Science Based Targets Network (SBTN) — specify *what* must be
+reported but provide no rigorous basis for *how* landscape condition is
+measured. The IPBES Business and Biodiversity Assessment (2026) records the gap
+directly: current metrics are insufficient to track the changes in nature that
+matter for business and society, and functional diversity beyond species
+richness lacks adequate indicators.
+
+In practice, corporate biodiversity reporting defaults to species counts at
+points, land-cover proportions inside arbitrary buffers, and qualitative site
+descriptions. These are measurable but ecologically thin: they treat
+biodiversity as a property of discrete sites rather than as an outcome of
+landscape-scale process. A forest patch surrounded by intensive agriculture is
+functionally different from the same patch in continuous woodland, even when
+internal species counts are identical.
+
+What is absent is not data and not another metric. It is an open, interoperable
+tool chain that runs from raw spatial data through landscape-structural
+measurement to standards-aligned outputs with full provenance — and that stays
+agnostic about the value choices the numbers encode. Existing global metrics
+tend to bake one such choice into the metric itself. The Ecosystem Integrity
+Index, for example, measures functional condition against a potential-natural
+baseline; that is a defensible choice, but it is *a* choice, written into the
+metric's definition rather than left open to the user. mosaik takes the
+opposite stance: it supplies the engine and lets the reference, the objective,
+and the vocabulary be set by the user or the standard, not by the tool. That is
+the gap mosaik exists to close.
+
+## The decomposition
+
+The decomposition is the whole design. Shannon diversity, contagion, edge
+density, mean patch size, evenness, a morphological class: each is one of a few
+primitives, or an arithmetic combination of them, computed over a stack of
+raster layers. mosaik measures the primitives and lets the user build any
+named metric from them. Two consequences fall out at once:
+
+- Morphological Spatial Pattern Analysis (core, edge, bridge, loop, branch,
+  islet) is a sequence of generic operators over the configuration, not a
+  separate program to wrap (`vignette("mspa")`).
+- The FRAGSTATS family of landscape indices is not special. Each is a named
+  combination of the primitives, computed by the same machinery — which is why
+  users can construct metrics that no fixed catalogue ships.
+
+This is the difference from a metrics catalogue such as landscapemetrics, which
+ships a fixed set of pre-baked indices: you can compute the ones it includes,
+but not ones it does not. And because every step records itself in the
+object's provenance, a sequence of steps can be defined once, without data, and
+replayed on many rasters (`vignette("recipes")`): not a menu of canned
+procedures, but a way to capture and reuse your own.
+
+## Why mosaik has the shape it does
+
+Four arguments motivate the design. Each is load-bearing for a different
+reader.
+
+### Why measurement must be at the landscape level
+
+Three independent reasons, none reducible to the others.
+
+*Additionality and leakage are landscape properties.* A hectare of restored
+forest may be additional (a genuine gain over what would otherwise have
+happened) or non-additional (it would have regenerated anyway); the same hectare
+may displace conversion to a neighbouring parcel and net the gain to zero. Both
+require knowing the spatial alternatives the parcel could have produced and the
+configuration of surrounding land. A point assessment cannot reach them; a
+landscape assessment, with a defensible reference distribution, can.
+
+*Ecological function is carried by structure.* A 100 ha forest can be one block,
+ten blocks, or ten blocks with corridors — same area, radically different
+biodiversity outcomes. Patch shape, edge length, inter-patch distance, and the
+intervening matrix decide whether an area number translates into population
+persistence. Polygon-level reporting flattens this; cell-level structural
+metrics preserve it.
+
+*Temporal claims need a landscape baseline.* "Nature positive" is
+time-relative — positive compared to what? The candidate baselines all fail, for
+reasons developed next.
+
+### The reference-state reframing
+
+Condition accounting needs a reference: "good condition" relative to what? Every
+candidate fails. A historical baseline forces an unanswerable question — which
+year? Potential natural vegetation is a construct that may never have existed as
+a stable state. Least-disturbed reference sites are biased toward whatever
+happens to be left. The reason none works is that the question "what should this
+landscape look like" is normative, not empirical. No amount of better data
+resolves a value choice.
+
+mosaik's response is to stop hiding the value choice inside the word "natural"
+and make it explicit — then let the user, not the tool, set the reference. One
+powerful option this opens is to replace a fixed reference state with a
+*distribution of reachable configurations*: given a landscape's constraints, a
+scenario model generates many configurations that satisfy them, and the
+distribution of metric values across that ensemble is the reference. Generating
+the ensemble is outside mosaik (the companion package mundus does it); measuring
+every member of it the same way is what mosaik is for. An observed landscape is
+scored against the ensemble rather than against a single engineered number. This
+sidesteps the baseline problem (no fixed reference need be named) and the
+baseline-gaming that broke carbon markets (the reference is a distribution of
+plausible landscapes, not a number a developer can quietly engineer toward).
+mosaik does not impose this — it makes it constructible, alongside whatever
+reference a standard or user prefers. It is the same epistemic move the
+neutral-landscape-model community already makes, with a constrained optimiser in
+place of a randomiser.
+
+Letting each user set their own reference raises an obvious objection:
+cross-company comparability collapses if everyone picks a different objective.
+The resolution is not to deny that the choice is normative but to *make it so
+explicitly*. A standards body can prescribe a fixed objective function — a set
+of indicators with fixed weights — while acknowledging openly that this is a
+value choice, not a scientific fact. Companies then disclose against the
+prescribed objective; auditors check whether the landscape actually delivers it;
+researchers run alternative objectives to inform the next round of
+standard-setting. mosaik measures for all three on one engine. This is a
+position the existing standards do not yet take, and it is mosaik's contribution
+to disclosure methodology: not a metric, but a defensible way to fix one.
+
+### Pressure layers
+
+Some inputs the disclosure use case needs have no generative process — the data
+already exist. Pressure proxies are the clearest case: road density
+(OpenStreetMap), nighttime light (VIIRS), agricultural intensity, the Human
+Modification Index. These enter mosaik as ordinary user-supplied layers, where
+they can be combined into composite pressure scores. No pressure generator is
+needed. The one discipline this demands:
+they are *activity proxies*, not measured ecosystem stresses — acceptable for 
+comparative exposure ranking, not for precise causal attribution, and they must 
+be labelled as such.
+
+### What biodiversity does — the question underneath
+
+The deepest gap is not tooling but theory, and it is worth stating because it
+bounds what any tool can honestly claim. Underneath every metric choice sits a
+question the field systematically avoids: what is biodiversity *for*, in the
+sense of which functional capacity we are trying to preserve — resilience to
+disturbance, continued service delivery, evolutionary potential, trophic
+structure? Each implies different indicators, scales, and dynamics. The dominant
+corporate metric, Mean Species Abundance, is spatially implicit and insensitive
+to landscape structure, yet persists because it is implemented and changing it
+disrupts existing reporting infrastructure. Patch-level landscape metrics are a
+necessary step beyond it but are themselves insufficient without process
+linkage. What is missing is *indicator theory*: a principled framework for which
+structural metrics are reliable proxies for which ecological processes under
+which conditions.
+
+mosaik does not solve this — no software can. What it provides is the
+infrastructure to attack it empirically: measure landscapes, real or
+synthetic, reproducibly, compare assessments across
+sites and scenarios, and demonstrate concretely what rigorous condition
+assessment looks like and how far current frameworks fall short. The gap between
+what frameworks accept as sufficient and what landscape science could deliver is
+itself a finding — and one that needs to be visible before biodiversity markets
+scale.
+
+## Where mosaik fits: the disclosure stack
+
+Six systems carry biodiversity disclosure today; none covers the full chain
+alone. They form a stack, and mosaik occupies one link the stack does not
+currently produce.
+
+| Layer | Standard | What it classifies |
+|---|---|---|
+| Activity | NACE / ISIC | economic sectors and production processes |
+| Activity → nature bridge | ENCORE | which services each process depends on, which pressures it exerts |
+| Ecosystem services | CICES | provisioning, regulation & maintenance, cultural contributions |
+| Ecosystem extent | IUCN GET | realms → biomes → functional groups |
+| Accounting glue | SEEA-EA | combines extent, services, and condition into ecosystem accounts |
+| Disclosure | TNFD, SBTN, GRI, CSRD/ESRS E4 | consume the layers above and produce disclosures |
+
+The stack stops at the polygon — a sourcing region, an administrative unit, a
+property boundary. mosaik operates one level down, at the cell, and supplies the
+spatially explicit evidence the polygon-level numbers are supposed to rest on:
+
+```
+ENCORE: "crop production depends on pollination"
+  → CICES 2.2.2.1: "pollination"
+  → mosaik: cell-level condition and structure, scored against a reachable ensemble
+  → SEEA-EA: aggregated to the administrative unit
+  → TNFD / CSRD: a line in the report
+```
+
+mosaik produces the substrate; an orchestrator layer above it — built
+separately — aggregates the cells upward and shapes them into a framework's
+format. The package stays vocabulary-neutral: category labels are arbitrary
+strings, not a fixed enumeration, and ontology codes (CICES, IUCN GET) live in the `@categories` slot as a convention the user
+maintains, carried through provenance but never validated by mosaik.
+Hard-coding any one standard would tie the package to a single disclosure regime
+and break its use in research and teaching.
+
+## Scope
+
+mosaik measures. It modifies and measures layers that exist, measured or
+synthetic, and stops there: it does not generate landscapes, model ecosystem
+services, or simulate change over time. Those belong to separate tools that
+hand their layers to mosaik, among them the companion package mundus.
+
+What mosaik is *not*, stated so the boundary can be enforced: it does not render
+reports, validate classification vocabularies (CICES, EUNIS), maintain an
+activity–service mapping (ENCORE), or shape outputs into a TNFD/CSRD/SBTN
+report — those belong to the orchestrator above it. It is not a life-cycle or
+input–output tool (openLCA, ecoinvent, EXIOBASE, GLORIA), which meet mosaik at
+the orchestrator layer. Absorbing any of these would make mosaik either
+redundant (a worse copy of a better-resourced tool) or unauditable (mixing
+scopes that need separate governance).
+
+## Discussion: what mosaik solves, and what it leaves open
+
+Rigorous landscape-condition measurement remains unsolved for four reasons;
+mosaik addresses one.
+
+1. **Normative.** Reference states and trade-off weights are value choices, not
+   empirical facts. Better methods make them explicit and auditable — the
+   reframing above. mosaik's contribution.
+2. **Institutional.** Statistics offices, conservation agencies, and financial
+   regulators built their frameworks independently; harmonisation is political,
+   not technical.
+3. **Data.** Condition accounts need in-situ validation at resolutions most
+   monitoring programmes do not provide.
+4. **Tooling.** No open, interoperable chain runs from raw spatial data to
+   standards-aligned outputs with full provenance while staying agnostic about
+   the value choices it encodes. **This agnostic substrate is the one mosaik
+   supplies.** The other three are not mosaik's to solve.
+
+mosaik does not settle which structural metrics are reliable proxies for which
+ecological outcomes — the indicator-theory problem named above. It provides the
+infrastructure to test that empirically, and demonstrates concretely what
+rigorous assessment looks like. What is still owed, and where resonantia
+engages, is the indicator theory itself and the work of engaging disclosure
+frameworks before measurement conventions are locked in by commercial practice.
+
+A further direction, not yet committed to, is that mosaik's primitives may not
+be fundamentally spatial: area, number, adjacency, distance, and their
+composition have natural interpretations for abundance matrices, time series,
+and supply-chain networks, which would let the same measurement-and-composition
+machinery serve non-spatial disclosure domains. That generalisation is explored
+separately and is not a near-term commitment.
+
+## Who this is for
+
+Two communities arrive with different questions.
+
+- **You compute landscape metrics or morphology** (FRAGSTATS,
+  landscapemetrics, GUIDOS/MSPA). mosaik computes the same patch-, class-, and
+  landscape-level metrics reproducibly inside a provenance-tracked pipeline, and
+  treats morphology as one more sequence of operators over the configuration.
+- **You work in nature finance or disclosure** (ESRS E4, TNFD, SBTN;
+  biodiversity credits). You need a condition reference you can defend to an
+  auditor and spatial computation you can run in the same place. mosaik lets you
+  build the reference yourself rather than inherit one fixed inside a metric.
+
+If you build neutral landscape models or land-change scenarios, those are
+generated rather than measured, and belong to mundus; mosaik measures what they
+produce.
+
+## A worked example of the claim
+
+The argument above is that named methods decompose into a small set of
+operators. The [MSPA vignette](mspa.html) carries that out in full for one of
+them: morphological spatial pattern analysis, built from eight operators plus
+`mdf_loop()`, with no function written for the method. Its output matches the
+classification published with the original paper cell for cell, on the pattern
+that paper introduced (shipped as the `mspa` dataset).
+
+It is worth reading if you want to see what "compose it yourself" looks like in
+practice, including where the composition is awkward.
+
+*Maintained by resonantia research gUG (haftungsbeschränkt), Leipzig.*
+
+## References
+
+- Hobbs, R. J., Higgs, E., Harris, J. A. (2009). Novel ecosystems: implications
+  for conservation and restoration. *Trends in Ecology & Evolution*, 24(11),
+  599–605.
+- Ellis, E. C. (2015). Ecology in an anthropogenic biosphere. *Ecological
+  Monographs*, 85(3), 287–331.
+- IPBES (2019). *Global Assessment Report on Biodiversity and Ecosystem
+  Services*.
+- IPBES (2026). *Business and Biodiversity Assessment* (IPBES-12, Manchester,
+  February 2026).
+- Kupfer, J. A. (2011). Theory in landscape ecology and its relevance to
+  biogeography. In *SAGE Handbook of Biogeography*, ch. 4.
+- Li, H., Wu, J. (2004). Use and misuse of landscape indices. *Landscape
+  Ecology*, 19, 389–399.
+- McGarigal, K., Marks, B. J. (1995). *FRAGSTATS: Spatial Pattern Analysis
+  Program for Quantifying Landscape Structure*. USDA GTR PNW-GTR-351.
+- UN (2021). *System of Environmental-Economic Accounting — Ecosystem
+  Accounting* (SEEA-EA).
+- Venter, O., et al. (2016). Global terrestrial Human Footprint maps for 1993
+  and 2009. *Scientific Data*, 3, 160067.

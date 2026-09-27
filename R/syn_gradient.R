@@ -36,9 +36,6 @@
 #'   values. Default \code{FALSE}.
 #' @param name [character(1)][character]\cr the layer name. Default
 #'   \code{"values"}.
-#' @param role [character(1)][character]\cr optional semantic role tag (e.g.
-#'   \code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-#'   auto-detect layer purpose.
 #' @param seed [integerish(1)][integer]\cr ignored (gradients are deterministic).
 #' @return A \code{\link{mosaik}} with gradient values scaled between 0 and 1.
 #' @references
@@ -71,7 +68,7 @@
 
 syn_gradient <- function(obj, origin = NULL, type = "planar",
                           angle = 0, position = c(0.5, 0.5), size = 0.3,
-                          invert = FALSE, name = "values", role = NULL,
+                          invert = FALSE, name = "values",
                           seed = NULL) {
 
   assertClass(x = obj, classes = "mosaik")
@@ -84,7 +81,6 @@ syn_gradient <- function(obj, origin = NULL, type = "planar",
   assertNumber(x = size, lower = 0, upper = 1)
   assertLogical(x = invert, len = 1)
   assertCharacter(x = name, len = 1)
-  assertCharacter(x = role, len = 1, null.ok = TRUE)
   assertIntegerish(x = seed, len = 1, null.ok = TRUE)
 
   ncols <- obj@dims[1]
@@ -203,5 +199,5 @@ syn_gradient <- function(obj, origin = NULL, type = "planar",
                      list(type = type, angle = angle, position = position,
                           size = size, invert = invert, name = name))
 
-  msk_set(obj, name, temp, prov, role = role)
+  msk_set(obj, name, temp, prov)
 }

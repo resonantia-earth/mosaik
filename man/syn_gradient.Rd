@@ -13,7 +13,6 @@ syn_gradient(
   size = 0.3,
   invert = FALSE,
   name = "values",
-  role = NULL,
   seed = NULL
 )
 }
@@ -50,10 +49,6 @@ values. Default \code{FALSE}.}
 
 \item{name}{\link[=character]{character(1)}\cr the layer name. Default
 \code{"values"}.}
-
-\item{role}{\link[=character]{character(1)}\cr optional semantic role tag (e.g.
-\code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-auto-detect layer purpose.}
 
 \item{seed}{\link[=integer]{integerish(1)}\cr ignored (gradients are deterministic).}
 }

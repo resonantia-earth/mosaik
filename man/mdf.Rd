@@ -16,8 +16,7 @@ recorded steps (see Details).}
 The mosaik after all recipe steps have been applied.
 }
 \description{
-Run a recorded sequence of \code{mdf_*} (and \code{msr_*}) calls on a real
-mosaik. A recipe is built by calling those functions with \code{obj = NULL}
+Run a recorded sequence of \code{mdf_*} calls on a real mosaik. A recipe is built by calling those functions with \code{obj = NULL}
 (or chaining them from an empty mosaik): each call records itself instead of
 executing, and the accumulated \code{@provenance} is the recipe. \code{mdf()}
 replays that sequence on \code{obj}, threading the result of each step into
@@ -30,14 +29,13 @@ via \code{add}. The chain therefore stays linear in execution while still
 expressing branch-and-recombine algorithms through named layers.
 }
 \examples{
-\dontrun{
-# define once
-gaps <- mdf_componentise(layer = "fg", add = "cc_fore") |>
-  mdf_componentise(layer = "bg", add = "cc_back") |>
-  mdf_dilate(layer = "fg", add = "closed") |>
-  mdf_mask(layer = "closed", by = "cc_back", add = "gaps")
+# define once, without data: the core of class 47, one cell in from its edge
+core <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_erode(layer = "forest", add = "core")
 
-# apply to many rasters
-result <- mdf(some_landscape, gaps)
-}
+# apply to any raster with a 'cover' layer
+result <- mdf(landscape, core)
+msk_names(result)
+
+rotated <- mdf(mdf_rotate(landscape, angle = 90), core)
 }

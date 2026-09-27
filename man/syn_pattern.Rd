@@ -11,7 +11,6 @@ syn_pattern(
   n = NULL,
   angle = 0,
   name = "values",
-  role = NULL,
   seed = NULL
 )
 }
@@ -40,10 +39,6 @@ Applies to \code{"stripes"} and \code{"waves"}.}
 
 \item{name}{\link[=character]{character(1)}\cr the layer name. Default
 \code{"values"}.}
-
-\item{role}{\link[=character]{character(1)}\cr optional semantic role tag (e.g.
-\code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-auto-detect layer purpose.}
 
 \item{seed}{\link[=integer]{integerish(1)}\cr ignored (patterns are deterministic),
 accepted for API consistency.}

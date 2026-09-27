@@ -56,5 +56,5 @@ mdf_componentise <- function(obj = NULL,
   prov <- msk_prov("mdf_componentise", list(connectivity = connectivity,
                      background = background, layer = out_layer))
   # componentising changes the layer's kind (-> patch IDs); drop any prior role
-  msk_set(obj, out_layer, temp, prov, keep_role = FALSE)
+  msk_set(obj, out_layer, temp, prov, keep = FALSE)
 }

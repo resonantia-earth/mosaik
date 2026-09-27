@@ -19,9 +19,6 @@
 #'   this are penalised. Default 0.1.
 #' @param name [character(1)][character]\cr the layer name. Default
 #'   \code{"values"}.
-#' @param role [character(1)][character]\cr optional semantic role tag (e.g.
-#'   \code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-#'   auto-detect layer purpose.
 #' @param seed [integerish(1)][integer]\cr random seed for reproducibility.
 #' @return A \code{\link{mosaik}} with integer region labels.
 #' @references
@@ -50,7 +47,7 @@
 #' @export
 
 syn_tessellation <- function(obj, type = "voronoi", n = 20L,
-                              interaction = 0.1, name = "values", role = NULL,
+                              interaction = 0.1, name = "values",
                               seed = NULL) {
 
   assertClass(x = obj, classes = "mosaik")
@@ -58,7 +55,6 @@ syn_tessellation <- function(obj, type = "voronoi", n = 20L,
   assertIntegerish(x = n, len = 1, lower = 2)
   assertNumber(x = interaction, lower = 0, upper = 1)
   assertCharacter(x = name, len = 1)
-  assertCharacter(x = role, len = 1, null.ok = TRUE)
   assertIntegerish(x = seed, len = 1, null.ok = TRUE)
 
   if (!is.null(seed)) set.seed(seed)
@@ -153,5 +149,5 @@ syn_tessellation <- function(obj, type = "voronoi", n = 20L,
                      list(type = type, n = n, interaction = interaction,
                           name = name, seed = seed))
 
-  msk_set(obj, name, as.numeric(vals), prov, role = role)
+  msk_set(obj, name, as.numeric(vals), prov)
 }

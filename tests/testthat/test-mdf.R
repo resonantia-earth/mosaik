@@ -405,35 +405,46 @@ test_that("mdf errors on a recipe with no steps", {
   expect_error(mdf(m, empty), "no recorded steps")
 })
 
-# --- role-tag handling on in-place overwrite -------------------------------
+# --- fields another package attached, on in-place overwrite ----------------
 
-# the role tag a layer carries, read straight off the slot
-.role_of <- function(obj, layer) obj@categories[[layer]]$role
-
-test_that("value-only mdf_* preserve a layer's role on overwrite", {
+# a layer carrying a field of the kind another package attaches to its
+# category entry, which mosaik does not interpret
+.tagged <- function() {
   g <- syn_gradient(mosaik(extent = c(0, 10, 0, 10), res = 1),
-                     name = "terrain", role = "surface")
+                    name = "terrain")
+  g@categories$terrain <- list(tag = "from another package")
+  g
+}
+.tag_of <- function(obj, layer) obj@categories[[layer]]$tag
+
+test_that("value-only mdf_* keep attached fields on overwrite", {
+  g <- .tagged()
   for (op in list(function(x) mdf_scale(x, range = c(0, 100), layer = "terrain"),
                   function(x) mdf_perturb(x, layer = "terrain"),
                   function(x) mdf_offset(x, value = 5, layer = "terrain"))) {
-    expect_equal(.role_of(op(g), "terrain"), "surface")
+    expect_equal(.tag_of(op(g), "terrain"), "from another package")
   }
 })
 
-test_that("kind-changing mdf_* drop the role on overwrite", {
-  g <- syn_gradient(mosaik(extent = c(0, 10, 0, 10), res = 1),
-                     name = "terrain", role = "surface")
-  expect_null(.role_of(mdf_binarise(g, thresh = 0.5, layer = "terrain"),
-                       "terrain"))
+test_that("kind-changing mdf_* drop attached fields on overwrite", {
+  g <- .tagged()
+  expect_null(.tag_of(mdf_binarise(g, thresh = 0.5, layer = "terrain"),
+                      "terrain"))
   b <- mdf_binarise(g, thresh = 0.5, layer = "terrain")
-  expect_null(.role_of(mdf_componentise(b, layer = "terrain"), "terrain"))
+  expect_null(.tag_of(mdf_componentise(b, layer = "terrain"), "terrain"))
 })
 
-test_that("writing to a new layer (add) leaves it role-less", {
-  g <- syn_gradient(mosaik(extent = c(0, 10, 0, 10), res = 1),
-                     name = "terrain", role = "surface")
-  s <- mdf_scale(g, range = c(0, 1), layer = "terrain", add = "scaled")
-  # the source keeps its role; the fresh layer has none to inherit
-  expect_equal(.role_of(s, "terrain"), "surface")
-  expect_null(.role_of(s, "scaled"))
+test_that("writing to a new layer (add) leaves it without attached fields", {
+  s <- mdf_scale(.tagged(), range = c(0, 1), layer = "terrain", add = "scaled")
+  # the source keeps its field; the fresh layer has none to inherit
+  expect_equal(.tag_of(s, "terrain"), "from another package")
+  expect_null(.tag_of(s, "scaled"))
+})
+
+test_that("a categorical write starts a fresh category entry", {
+  g <- .tagged()
+  m <- msk_set(g, "terrain", rep(1:2, each = 50), gid = 1:2,
+               val = c("low", "high"))
+  expect_null(.tag_of(m, "terrain"))
+  expect_equal(m@categories$terrain$val, c("low", "high"))
 })

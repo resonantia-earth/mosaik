@@ -79,11 +79,13 @@ new_mosaik <- function(extent,
       if (!is.list(entry) || is.data.frame(entry)) {
         stop("Categories entry '", gnm, "' must be a list (e.g. list(gid = ..., val = ...)).")
       }
-      # role-only entries (continuous layers tagged with a role but no
-      # categorical values) are valid — skip gid cross-check for those
+      # an entry without gid belongs to a continuous layer and carries fields
+      # another package attached to it; mosaik does not interpret those. Only
+      # labels without the group IDs they label are an error.
       if (!"gid" %in% names(entry)) {
-        if ("role" %in% names(entry)) next
-        stop("Categories entry '", gnm, "' must contain 'gid'.")
+        if ("val" %in% names(entry))
+          stop("Categories entry '", gnm, "' has 'val' but no 'gid'.")
+        next
       }
       # cross-check gid vs cell values
       layerVals <- layers[[gnm]]

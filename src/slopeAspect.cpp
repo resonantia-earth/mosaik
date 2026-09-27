@@ -50,10 +50,7 @@ List slopeAspectCpp(NumericVector elev, int nrow, int ncol,
         continue;
       }
 
-      // Horn's finite differences.
-      // dz/dx positive towards increasing column (east); dz/dy positive towards
-      // increasing row. Rows increase top-to-bottom (north-to-south) in this
-      // grid, so the downslope-facing aspect is derived accordingly below.
+      // dz/dx grows eastward, dz/dy southward (rows run north to south)
       double dzdx = ((cc + 2.0 * f + i) - (a + 2.0 * d + g)) / (8.0 * xres);
       double dzdy = ((g + 2.0 * h + i) - (a + 2.0 * b + cc)) / (8.0 * yres);
 
@@ -63,13 +60,8 @@ List slopeAspectCpp(NumericVector elev, int nrow, int ncol,
       if (mag == 0.0) {
         aspect[idx] = -1.0;  // flat: no defined aspect
       } else {
-        // Aspect = compass direction the slope FACES (downhill), clockwise
-        // from north. The gradient (dzdx, dzdy) points uphill; the slope faces
-        // downhill, i.e. the negated gradient direction.
-        // Row index increases southward, so a positive dzdy means uphill toward
-        // the south; the face direction in standard north-clockwise compass is:
-        double az = std::atan2(dzdx, dzdy);  // radians, clockwise from north (uphill)
-        // convert uphill bearing to downhill (faces opposite) and wrap to [0, 2pi)
+        // the gradient points uphill; the slope faces the opposite way
+        double az = std::atan2(dzdx, dzdy);
         az = az + M_PI;
         if (az < 0.0)        az += 2.0 * M_PI;
         if (az >= 2.0 * M_PI) az -= 2.0 * M_PI;

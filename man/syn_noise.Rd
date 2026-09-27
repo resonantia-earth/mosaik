@@ -4,14 +4,7 @@
 \alias{syn_noise}
 \title{Make a noise surface}
 \usage{
-syn_noise(
-  obj,
-  type = "white",
-  frequency = 4,
-  name = "values",
-  role = NULL,
-  seed = NULL
-)
+syn_noise(obj, type = "white", frequency = 4, name = "values", seed = NULL)
 }
 \arguments{
 \item{obj}{\link{mosaik}\cr the mosaik whose grid the noise is generated on.
@@ -26,10 +19,6 @@ Default 4.}
 
 \item{name}{\link[=character]{character(1)}\cr the layer name. Default
 \code{"values"}.}
-
-\item{role}{\link[=character]{character(1)}\cr optional semantic role tag (e.g.
-\code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-auto-detect layer purpose.}
 
 \item{seed}{\link[=integer]{integerish(1)}\cr random seed for reproducibility.}
 }

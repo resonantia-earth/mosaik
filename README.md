@@ -3,48 +3,51 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-**mosaik** is categorical raster algebra for landscape analysis.
+**mosaik** is categorical raster algebra for landscape analysis: a small set
+of general operations that synthesise fields, modify layers and measure them,
+and that combine into anything from a single index to a complete
+classification algorithm.
 
-## Core idea
+## Why a new raster class
 
-Landscape-metric software has largely been a matter of fixed metric lists: you
-get the metrics the author implemented, and a metric that is not on the list is
-a feature request. mosaik takes the other route. It exposes the **measurement
-primitives and the means of composing them**, so that a new metric is an
-expression rather than a new function.
+Landscape tools usually come as fixed lists: a catalogue of metrics, a
+programme for one pattern analysis, a generator for one kind of neutral
+landscape. Whatever is not on the list needs a new tool. mosaik offers the
+parts those tools are made of instead, so a new metric, a new morphological
+analysis or a new synthetic test field is a combination of existing operations, not a
+new function.
 
-Nearly every published landscape metric decomposes into five primitives —
-adjacency, area, perimeter, distance, dissimilarity — measured at patch, class,
-or landscape scale. `msr()` combines them from an equation written in
-`metric.scale` notation.
+Combining operations only works if they share what they know. An equation over
+the perimeter and the area of a patch needs both to refer to the same patch. A
+step that erodes the forest, finds what is left and measures it again needs the
+earlier results to still be there, under their own names. And a number that
+ends up in a report needs to be traceable back through every step that made
+it. On a numeric raster, with each tool finding the patches again and
+returning its results as a separate table, none of this survives from one tool
+to the next.
 
-Four things distinguish it:
+So the layers, the patches, the classes, the results and the history live in
+one object, and every operation keeps them consistent. That is why mosaik is a
+class and not a set of functions on top of terra. terra is used where data
+enters and leaves: `mosaik(rast = ...)` reads a `SpatRaster`, `msk_terra()`
+writes one.
 
-- **Categorical-first.** Cell values *are* group IDs, with `@categories` and
-  `@patches` as first-class slots. terra is numeric-first and treats categories
-  as levels bolted on.
-- **Native provenance.** `@provenance` is a slot that survives every operation,
-  recorded in the vocabulary of the W3C PROV ontology.
-- **Composability.** Mosaic in, mosaic out, so everything chains with the pipe.
-  A recorded sequence of operations is a recipe, replayable on any raster.
-- **Five primitives**, out of which the rest is composed.
+## What it does
 
-The `mspa` vignette is the demonstration: a published segmentation algorithm
-reproduced at full fidelity out of the primitives alone.
+| Prefix | Purpose | Examples |
+|---|---|---|
+| `syn_*` | synthesise an abstract field to analyse | `syn_noise()`, `syn_texture()`, `syn_gradient()` |
+| `mdf_*` | modify layers with generic operators | `mdf_binarise()`, `mdf_dilate()`, `mdf_mask()` |
+| `mdf()` | replay a recorded sequence of `mdf_*` steps on new data | `mdf(obj, recipe)` |
+| `msr_*` | measure a primitive | `msr_area()`, `msr_perimeter()`, `msr_adjacency()` |
+| `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.class / area.class", "edge_density")` |
+| `msk_*` | accessors and utilities | `msk_vis()`, `msk_categories()`, `msk_terra()` |
 
-## Architecture
-
-| Prefix | Purpose | Example |
-|--------|---------|---------|
-| `syn_*` | Synthesise an abstract field | `syn_noise()`, `syn_texture()`, `syn_gradient()` |
-| `mdf_*` | Modify layers | `mdf_erode()`, `mdf_blend()`, `mdf_mask()` |
-| `msr_*` | Measure primitives | `msr_area()`, `msr_perimeter()`, `msr_adjacency()` |
-| `msr()` | Compose a metric from an equation | `msr(m, equation = "perimeter.class / area.class", label = "edge_density")` |
-| `msk_*` | Utilities and accessors | `msk_vis()`, `msk_terra()`, `msk_extent()` |
-
-For **generating whole synthetic landscapes** — climate, soil, vegetation, land
-use, tenure — see the companion package
-[mundus](https://github.com/resonantia-earth/mundus), which builds on this class.
+The primitives are area, number, perimeter, adjacency, dissimilarity and cost
+(distance is the cost measured in metres), each at patch, class or landscape
+level. Results are written into the object at the level they describe:
+patch-level in `@patches`, class-level in `@categories`, landscape-level in
+`@global`.
 
 ## Installation
 
@@ -53,38 +56,39 @@ use, tenure — see the companion package
 remotes::install_github("resonantia-earth/mosaik")
 ```
 
-## Quick start
+## Example
 
 ``` r
 library(mosaik)
 
-# a synthetic field to analyse
-m <- mosaik(extent = c(0, 1000, 0, 1000), res = 10) |>
-  syn_noise(type = "perlin", name = "field") |>
-  mdf_binarise(thresh = 0.5, layer = "field") |>
-  mdf_componentise(layer = "field")
+# the share of the grid each land-cover class covers, and its edge density
+m <- landscape |>
+  msr_area(scale = "class", layer = "cover") |>
+  msr_area(scale = "landscape", layer = "cover") |>
+  msr_perimeter(scale = "class", layer = "cover") |>
+  msr(equation = "area.class / area.landscape * 100", label = "pland",
+      layer = "cover") |>
+  msr(equation = "perimeter.class / area.landscape", label = "edge_density",
+      layer = "cover")
 
-# measure the primitives
-m <- m |>
-  msr_area(scale = "class") |>
-  msr_perimeter(scale = "class")
-
-# compose a metric from them
-m <- msr(m, equation = "perimeter.class / area.class", label = "edge_density")
-
-msk_categories(m)
-msk_vis(m)
+msk_categories(m)$cover
 ```
 
-## Interactive metrics explorer
+## Learn more
 
-An interactive d3-based dependency graph with a built-in decision guide is
-hosted at
-[mosaik.resonantia.earth/metrics](https://mosaik.resonantia.earth/metrics/). It
-shows how the ~50 supported landscape metrics decompose into the measurement
-primitives, with a decision tree to find the right metric for your analysis and
-a "Show code" view giving the exact `msr()` call for each.
+- `vignette("mosaik")`: getting started, a tour of the verbs on the bundled
+  `landscape` data.
+- `vignette("measurement")`: why landscape condition has to be measured at the
+  landscape level, and how mosaik approaches reference states and disclosure.
+- `vignette("recipes")`: building pipelines that are defined once and replayed
+  on many rasters.
+- `vignette("mspa")`: Morphological Spatial Pattern Analysis rebuilt from the
+  primitives, matching the published classification cell for cell.
 
-## License
+An interactive explorer showing how about 50 published landscape metrics
+decompose into the primitives, with the `msr()` call for each, is at
+[mosaik.resonantia.earth/metrics](https://mosaik.resonantia.earth/metrics/).
 
-GPL (>= 3)
+Synthetic landscapes with a known ground truth (climate, soil, rivers,
+vegetation, land use) are generated by the companion package mundus, which
+returns mosaik objects. It is not yet published.

@@ -10,7 +10,6 @@ syn_tessellation(
   n = 20L,
   interaction = 0.1,
   name = "values",
-  role = NULL,
   seed = NULL
 )
 }
@@ -30,10 +29,6 @@ this are penalised. Default 0.1.}
 
 \item{name}{\link[=character]{character(1)}\cr the layer name. Default
 \code{"values"}.}
-
-\item{role}{\link[=character]{character(1)}\cr optional semantic role tag (e.g.
-\code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-auto-detect layer purpose.}
 
 \item{seed}{\link[=integer]{integerish(1)}\cr random seed for reproducibility.}
 }

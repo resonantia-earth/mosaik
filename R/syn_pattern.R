@@ -26,9 +26,6 @@
 #'   Applies to \code{"stripes"} and \code{"waves"}.
 #' @param name [character(1)][character]\cr the layer name. Default
 #'   \code{"values"}.
-#' @param role [character(1)][character]\cr optional semantic role tag (e.g.
-#'   \code{"surface"}, \code{"precipitation"}). Used by downstream functions to
-#'   auto-detect layer purpose.
 #' @param seed [integerish(1)][integer]\cr ignored (patterns are deterministic),
 #'   accepted for API consistency.
 #' @return A \code{\link{mosaik}} with pattern values.
@@ -49,7 +46,7 @@
 #' @export
 
 syn_pattern <- function(obj, type = "checkerboard", frequency = 10,
-                         n = NULL, angle = 0, name = "values", role = NULL,
+                         n = NULL, angle = 0, name = "values",
                          seed = NULL) {
 
   assertClass(x = obj, classes = "mosaik")
@@ -60,7 +57,6 @@ syn_pattern <- function(obj, type = "checkerboard", frequency = 10,
   assertIntegerish(x = n, len = 1, lower = 0, null.ok = TRUE)
   assertNumber(x = angle, finite = TRUE)
   assertCharacter(x = name, len = 1)
-  assertCharacter(x = role, len = 1, null.ok = TRUE)
   assertIntegerish(x = seed, len = 1, null.ok = TRUE)
 
   if (is.null(n)) {
@@ -153,5 +149,5 @@ syn_pattern <- function(obj, type = "checkerboard", frequency = 10,
                      list(type = type, frequency = frequency,
                           n = n, angle = angle, name = name))
 
-  msk_set(obj, name, vals, prov, role = role)
+  msk_set(obj, name, vals, prov)
 }

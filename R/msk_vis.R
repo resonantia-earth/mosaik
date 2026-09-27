@@ -59,17 +59,24 @@
 #'
 #' # an explicit colour per category, which fixes the meaning of each colour
 #' # across every figure in a series
-#' \dontrun{
-#' msk_vis(m, .layer("cover", colours = c(forest = "darkgreen",
-#'                                        crop   = "khaki")))
+#' m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+#' m <- msk_set(m, layer = "forest", values = msk_pull(m, "forest"),
+#'              gid = c(0L, 1L), val = c("open", "forest"))
+#' msk_vis(m, .layer("forest", colours = c(open = "khaki",
+#'                                         forest = "darkgreen")))
 #'
 #' # a variable drawn over shaded terrain: same panel, one legend each, and
-#' # the rivers stay saturated because only the terrain carries the shading
-#' msk_vis(m,
-#'         .layer("dem", panel = "flow", colours = "terrain",
-#'                hillshade = list(layer = "dem", exaggeration = 2)),
-#'         .layer("strahler", panel = "flow", colours = "Blues 2"))
-#' }
+#' # the flagged cells stay saturated because only the terrain carries the
+#' # shading
+#' t <- mosaik(extent = c(0, 10000, 0, 10000), res = 100) |>
+#'   syn_texture(name = "dem", hurst = 0.9, seed = 1) |>
+#'   mdf_scale(layer = "dem", range = c(0, 200))
+#' t <- mdf_binarise(t, thresh = 160, layer = "dem", add = "high")
+#' t <- mdf_mask(t, by = "high", layer = "high")
+#' msk_vis(t,
+#'         .layer("dem", panel = "relief", colours = "terrain",
+#'                hillshade = list(layer = "dem", exaggeration = 5)),
+#'         .layer("high", panel = "relief", colours = "red", legend = FALSE))
 #' @importFrom checkmate assertCharacter assertNumeric assertNumber assertList
 #'   assertSubset assertLogical
 #' @export

@@ -196,5 +196,5 @@ mdf_zonal <- function(obj = NULL,
                           neighbours = neighbours, connectivity = connectivity,
                           background = background, layer = out_layer))
   # a zonal summary is a new kind of value, not the input's
-  msk_set(obj, out_layer, temp, prov, keep_role = FALSE)
+  msk_set(obj, out_layer, temp, prov, keep = FALSE)
 }
