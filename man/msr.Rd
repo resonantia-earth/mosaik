@@ -31,9 +31,8 @@ primitives measured by \code{msr_*} functions. Variables in the equation use
 from; the result is stored automatically at the level implied by its length.
 }
 \details{
-Provenance is recorded with the equation, so that \code{sim_target()}
-can reference derived metrics by name and \code{sim()} can look up
-the equation for decomposition.
+Provenance is recorded with the equation and the label, so the metric can
+later be looked up and recomputed by name.
 
 The \code{cell} scale reads a per-cell internal layer named
 \code{"_<metric>"} (e.g. \code{distance.cell} reads \code{"_distance"},

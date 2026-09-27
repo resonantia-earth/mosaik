@@ -7,7 +7,7 @@ using namespace Rcpp;
 //' @param mat [matrix(numeric)][matrix]\cr object of which the cell coordinates
 //'   are converted to a data.frame.
 //' @return a data.frame of the cell coordinates
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 DataFrame cellToPointsCpp(NumericMatrix mat) {
   int mRows = mat.nrow(), mCols = mat.ncol();

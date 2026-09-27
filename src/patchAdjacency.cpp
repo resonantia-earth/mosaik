@@ -42,7 +42,7 @@ static void pa_union(std::vector<int> &parent, int a, int b) {
 //'   two contact cells belonging to the same patch pair are the same region if
 //'   they are queen-adjacent. This is independent of \code{eightconn}, which
 //'   only governs whether two patches are considered in contact at all.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 List patchAdjacencyCpp(IntegerVector &labels, int nrow, int ncol,
                        bool eightconn) {

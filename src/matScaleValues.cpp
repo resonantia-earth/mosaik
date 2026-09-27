@@ -10,7 +10,7 @@ using namespace Rcpp;
 //'   between which the values in \code{mat} shall be scaled.
 //' @family matrix modify functions
 //' @return a numeric matrix
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericMatrix scaleMatrixCpp(NumericMatrix mat, NumericVector range){
   int mRows = mat.nrow(), mCols = mat.ncol();

@@ -29,7 +29,7 @@ using namespace Rcpp;
 //'   8-deletability, and it is what makes the result independent of the scan
 //'   order. Ported from miallib's skel.c (stype 0: foreground 8-connected,
 //'   background 4-connected).
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 IntegerVector skeletoniseCpp(NumericVector &vals, int nrow, int ncol,
                              NumericVector anchor = NumericVector::create(),

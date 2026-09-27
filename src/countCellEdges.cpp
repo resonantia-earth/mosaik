@@ -12,7 +12,7 @@ using namespace Rcpp;
 //' @param ncol [integer(1)][integer]\cr number of columns in the grid
 //' @family count functions
 //' @return A data.frame of the unique values and their edges in X and Y
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 DataFrame countCellEdgesCpp(NumericVector &vals, int nrow, int ncol) {
   int n = vals.size();

@@ -9,7 +9,7 @@ using namespace Rcpp;
 //'   length.
 //' @param f [function(1)][function]\cr binary function to combine the vectors.
 //' @return a single numeric vector of the same length as the input vectors.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericVector reduceCpp(List lVals, Function f) {
   int n = lVals.size();

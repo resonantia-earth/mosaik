@@ -17,7 +17,7 @@ using namespace Rcpp;
 //' @details Uses nearest-neighbor interpolation. Each output cell maps back
 //'   to the closest input cell. This is equivalent to
 //'   \code{mmand::rescale()} with a box kernel for integer scaling factors.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 List rescaleGridCpp(NumericVector &vals, int nrow, int ncol,
                     double factorRow, double factorCol) {

@@ -11,7 +11,7 @@ using namespace Rcpp;
 //' @param ncol [integer(1)][integer]\cr number of columns in the grid
 //' @family count functions
 //' @return A data.frame of the unique values and their number
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 DataFrame countCellValuesCpp(NumericVector &vals, int nrow, int ncol) {
   int n = vals.size();

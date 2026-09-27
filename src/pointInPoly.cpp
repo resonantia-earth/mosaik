@@ -30,7 +30,7 @@ using namespace Rcpp;
 //' @family topological relationships
 //' @return an integer vector of the same length as there are points in
 //'   \code{vert} that indicates where the respective point is located.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 IntegerVector pointInPolyCpp(NumericMatrix &vert, NumericMatrix &geom, bool invert){
   int vRows = vert.nrow();

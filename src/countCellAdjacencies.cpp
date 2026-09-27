@@ -17,7 +17,7 @@ using namespace Rcpp;
 //'   orthogonal neighbours only).
 //' @family count functions
 //' @return A matrix of values*values with their adjacencies
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericMatrix countCellAdjacenciesCpp(NumericVector &vals, int nrow, int ncol,
                                       bool doublecount, bool eightconn = false) {

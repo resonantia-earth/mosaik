@@ -182,7 +182,7 @@ static MergeFunctionPtr mergeFuns[12] = {
 //'   entirely within the grid (TRUE) or is clipped at borders (FALSE).
 //' @return A numeric vector of the same length as \code{vals} with the
 //'   morphological operation applied.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericVector morphCpp(NumericVector &vals, int valRows, int valCols,
                        NumericMatrix &kernel, NumericVector &value,

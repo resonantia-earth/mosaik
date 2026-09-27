@@ -19,7 +19,7 @@ using namespace Rcpp;
 //' @family matrix modify functions
 //' @return A numeric matrix of the same dimensions as \code{mat} into which the
 //'   values of a height map have been written.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericMatrix diamondSquareCpp(NumericMatrix mat, NumericVector stepSize, double roughness, double startDev){
 

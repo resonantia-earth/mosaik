@@ -34,7 +34,7 @@ static void uf_union(std::vector<int> &parent, std::vector<int> &rank, int a, in
 //' @return An integer vector of the same length where each connected component
 //'   of non-NA cells sharing the same value has a unique label. NA cells remain
 //'   NA.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 IntegerVector componentsCpp(NumericVector &vals, int nrow, int ncol,
                             int connectivity = 4) {

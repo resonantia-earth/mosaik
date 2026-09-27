@@ -7,7 +7,7 @@ using namespace Rcpp;
 //' @param mat [matrix(numeric)][matrix]\cr the matrix from which to extract the values.
 //' @family extractor functions
 //' @return numeric vector of the values in \code{mat}
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericVector getValuesCpp(NumericMatrix &mat) {
   int mRows = mat.nrow(), mCols = mat.ncol();

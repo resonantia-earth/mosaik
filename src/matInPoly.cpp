@@ -19,7 +19,7 @@ using namespace Rcpp;
 //'   Users of this code must verify correctness for their application.
 //' @family topological relationships
 //' @return a numeric matrix
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericMatrix matInGeomCpp(NumericMatrix &mat, NumericMatrix &geom, bool negative){
   int mRows = mat.nrow(), mCols = mat.ncol();

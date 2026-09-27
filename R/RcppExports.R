@@ -9,7 +9,7 @@
 #' @param vals [numeric(.)][numeric]\cr flat vector of cell values.
 #' @param thresh [numeric(1)][numeric]\cr threshold value.
 #' @return A numeric vector of the same length with binary values.
-#' @export
+#' @noRd
 binariseCpp <- function(vals, thresh) {
     .Call(`_mosaik_binariseCpp`, vals, thresh)
 }
@@ -20,7 +20,7 @@ binariseCpp <- function(vals, thresh) {
 #' @param mat [matrix(numeric)][matrix]\cr object of which the cell coordinates
 #'   are converted to a data.frame.
 #' @return a data.frame of the cell coordinates
-#' @export
+#' @noRd
 cellToPointsCpp <- function(mat) {
     .Call(`_mosaik_cellToPointsCpp`, mat)
 }
@@ -39,7 +39,7 @@ cellToPointsCpp <- function(mat) {
 #' @return An integer vector of the same length where each connected component
 #'   of non-NA cells sharing the same value has a unique label. NA cells remain
 #'   NA.
-#' @export
+#' @noRd
 componentsCpp <- function(vals, nrow, ncol, connectivity = 4L) {
     .Call(`_mosaik_componentsCpp`, vals, nrow, ncol, connectivity)
 }
@@ -69,7 +69,7 @@ componentsCpp <- function(vals, nrow, ncol, connectivity = 4L) {
 #'       backwards from any target cell to reconstruct the path.}
 #'   }
 #' @family grid utility functions
-#' @export
+#' @noRd
 costDistanceCpp <- function(cost, from, nrow, ncol, diagonal) {
     .Call(`_mosaik_costDistanceCpp`, cost, from, nrow, ncol, diagonal)
 }
@@ -89,7 +89,7 @@ costDistanceCpp <- function(cost, from, nrow, ncol, diagonal) {
 #'   orthogonal neighbours only).
 #' @family count functions
 #' @return A matrix of values*values with their adjacencies
-#' @export
+#' @noRd
 countCellAdjacenciesCpp <- function(vals, nrow, ncol, doublecount, eightconn = FALSE) {
     .Call(`_mosaik_countCellAdjacenciesCpp`, vals, nrow, ncol, doublecount, eightconn)
 }
@@ -104,7 +104,7 @@ countCellAdjacenciesCpp <- function(vals, nrow, ncol, doublecount, eightconn = F
 #' @param ncol [integer(1)][integer]\cr number of columns in the grid
 #' @family count functions
 #' @return A data.frame of the unique values and their edges in X and Y
-#' @export
+#' @noRd
 countCellEdgesCpp <- function(vals, nrow, ncol) {
     .Call(`_mosaik_countCellEdgesCpp`, vals, nrow, ncol)
 }
@@ -118,7 +118,7 @@ countCellEdgesCpp <- function(vals, nrow, ncol) {
 #' @param ncol [integer(1)][integer]\cr number of columns in the grid
 #' @family count functions
 #' @return A data.frame of the unique values and their number
-#' @export
+#' @noRd
 countCellValuesCpp <- function(vals, nrow, ncol) {
     .Call(`_mosaik_countCellValuesCpp`, vals, nrow, ncol)
 }
@@ -140,7 +140,7 @@ countCellValuesCpp <- function(vals, nrow, ncol) {
 #' @family matrix modify functions
 #' @return A numeric matrix of the same dimensions as \code{mat} into which the
 #'   values of a height map have been written.
-#' @export
+#' @noRd
 diamondSquareCpp <- function(mat, stepSize, roughness, startDev) {
     .Call(`_mosaik_diamondSquareCpp`, mat, stepSize, roughness, startDev)
 }
@@ -170,7 +170,7 @@ distanceFromPointsCpp <- function(xmin, ymax, res_x, res_y, ncol, nrow, coords) 
 #' @param mat [matrix(numeric)][matrix]\cr the matrix from which to extract the values.
 #' @family extractor functions
 #' @return numeric vector of the values in \code{mat}
-#' @export
+#' @noRd
 getValuesCpp <- function(mat) {
     .Call(`_mosaik_getValuesCpp`, mat)
 }
@@ -181,7 +181,7 @@ getValuesCpp <- function(mat) {
 #' either 0 or 1.
 #' @param vals [numeric(.)][numeric]\cr flat vector of cell values.
 #' @return A single logical value.
-#' @export
+#' @noRd
 isBinaryCpp <- function(vals) {
     .Call(`_mosaik_isBinaryCpp`, vals)
 }
@@ -198,7 +198,7 @@ isBinaryCpp <- function(vals) {
 #'   \code{"euclidean"}, \code{"manhattan"} or \code{"chessboard"} to use.
 #' @family grid modify functions
 #' @return A numeric vector of the same length with distance values.
-#' @export
+#' @noRd
 distanceCpp <- function(vals, nrow, ncol, method) {
     .Call(`_mosaik_distanceCpp`, vals, nrow, ncol, method)
 }
@@ -221,7 +221,7 @@ distanceCpp <- function(vals, nrow, ncol, method) {
 #'   Users of this code must verify correctness for their application.
 #' @family topological relationships
 #' @return a numeric matrix
-#' @export
+#' @noRd
 matInGeomCpp <- function(mat, geom, negative) {
     .Call(`_mosaik_matInGeomCpp`, mat, geom, negative)
 }
@@ -234,7 +234,7 @@ matInGeomCpp <- function(mat, geom, negative) {
 #'   length.
 #' @param f [function(1)][function]\cr binary function to combine the vectors.
 #' @return a single numeric vector of the same length as the input vectors.
-#' @export
+#' @noRd
 reduceCpp <- function(lVals, f) {
     .Call(`_mosaik_reduceCpp`, lVals, f)
 }
@@ -248,7 +248,7 @@ reduceCpp <- function(lVals, f) {
 #'   between which the values in \code{mat} shall be scaled.
 #' @family matrix modify functions
 #' @return a numeric matrix
-#' @export
+#' @noRd
 scaleMatrixCpp <- function(mat, range) {
     .Call(`_mosaik_scaleMatrixCpp`, mat, range)
 }
@@ -277,7 +277,7 @@ scaleMatrixCpp <- function(mat, range) {
 #'   entirely within the grid (TRUE) or is clipped at borders (FALSE).
 #' @return A numeric vector of the same length as \code{vals} with the
 #'   morphological operation applied.
-#' @export
+#' @noRd
 morphCpp <- function(vals, valRows, valCols, kernel, value, blend, merge, rotateKernel, strictKernel) {
     .Call(`_mosaik_morphCpp`, vals, valRows, valCols, kernel, value, blend, merge, rotateKernel, strictKernel)
 }
@@ -304,7 +304,7 @@ morphCpp <- function(vals, valRows, valCols, kernel, value, blend, merge, rotate
 #'   two contact cells belonging to the same patch pair are the same region if
 #'   they are queen-adjacent. This is independent of \code{eightconn}, which
 #'   only governs whether two patches are considered in contact at all.
-#' @export
+#' @noRd
 patchAdjacencyCpp <- function(labels, nrow, ncol, eightconn) {
     .Call(`_mosaik_patchAdjacencyCpp`, labels, nrow, ncol, eightconn)
 }
@@ -367,7 +367,7 @@ perlinCpp <- function(ncol, nrow, freq, offset_x, offset_y) {
 #' @family topological relationships
 #' @return an integer vector of the same length as there are points in
 #'   \code{vert} that indicates where the respective point is located.
-#' @export
+#' @noRd
 pointInPolyCpp <- function(vert, geom, invert) {
     .Call(`_mosaik_pointInPolyCpp`, vert, geom, invert)
 }
@@ -388,7 +388,7 @@ pointInPolyCpp <- function(vert, geom, invert) {
 #' @details Uses nearest-neighbor interpolation. Each output cell maps back
 #'   to the closest input cell. This is equivalent to
 #'   \code{mmand::rescale()} with a box kernel for integer scaling factors.
-#' @export
+#' @noRd
 rescaleGridCpp <- function(vals, nrow, ncol, factorRow, factorCol) {
     .Call(`_mosaik_rescaleGridCpp`, vals, nrow, ncol, factorRow, factorCol)
 }
@@ -434,7 +434,7 @@ simplexCpp <- function(ncol, nrow, freq, offset_x, offset_y) {
 #'   8-deletability, and it is what makes the result independent of the scan
 #'   order. Ported from miallib's skel.c (stype 0: foreground 8-connected,
 #'   background 4-connected).
-#' @export
+#' @noRd
 skeletoniseCpp <- function(vals, nrow, ncol, anchor = as.numeric( c()), homotopic = FALSE) {
     .Call(`_mosaik_skeletoniseCpp`, vals, nrow, ncol, anchor, homotopic)
 }
@@ -449,7 +449,7 @@ slopeAspectCpp <- function(elev, nrow, ncol, xres, yres) {
 #' @param x [numeric(.)][numeric]\cr the vector of numeric values
 #' @family extractor functions
 #' @return a numeric vector of the unique and sorted values.
-#' @export
+#' @noRd
 sortUniqueCpp <- function(x) {
     .Call(`_mosaik_sortUniqueCpp`, x)
 }

@@ -8,7 +8,7 @@ using namespace Rcpp;
 //' @param x [numeric(.)][numeric]\cr the vector of numeric values
 //' @family extractor functions
 //' @return a numeric vector of the unique and sorted values.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericVector sortUniqueCpp(NumericVector x) {
   // [[Rcpp::plugins(cpp11)]]

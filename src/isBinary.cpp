@@ -7,7 +7,7 @@ using namespace Rcpp;
 //' either 0 or 1.
 //' @param vals [numeric(.)][numeric]\cr flat vector of cell values.
 //' @return A single logical value.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 bool isBinaryCpp(NumericVector &vals) {
   int n = vals.size();

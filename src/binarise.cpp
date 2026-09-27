@@ -9,7 +9,7 @@ using namespace Rcpp;
 //' @param vals [numeric(.)][numeric]\cr flat vector of cell values.
 //' @param thresh [numeric(1)][numeric]\cr threshold value.
 //' @return A numeric vector of the same length with binary values.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericVector binariseCpp(NumericVector &vals, double thresh) {
   int n = vals.size();

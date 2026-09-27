@@ -30,7 +30,7 @@ using namespace Rcpp;
 //'       backwards from any target cell to reconstruct the path.}
 //'   }
 //' @family grid utility functions
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 List costDistanceCpp(NumericVector cost, IntegerVector from,
                      int nrow, int ncol, bool diagonal) {

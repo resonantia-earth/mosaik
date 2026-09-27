@@ -204,7 +204,7 @@
 }
 
 
-#' Resolve layer name for sim_* and mdf_* functions
+#' Resolve layer name for mdf_* functions
 #'
 #' When \code{add = NULL}, returns \code{layer} (overwrite mode).
 #' When \code{add} is a character string, returns that string as the new layer

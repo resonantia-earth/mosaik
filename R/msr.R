@@ -5,9 +5,8 @@
 #' \code{metric.scale} notation to say which attribute table each value comes
 #' from; the result is stored automatically at the level implied by its length.
 #'
-#' Provenance is recorded with the equation, so that \code{sim_target()}
-#' can reference derived metrics by name and \code{sim()} can look up
-#' the equation for decomposition.
+#' Provenance is recorded with the equation and the label, so the metric can
+#' later be looked up and recomputed by name.
 #'
 #' @param obj [mosaik]\cr the mosaik with primitives already computed.
 #' @param equation [character(1)][character]\cr a mathematical expression using

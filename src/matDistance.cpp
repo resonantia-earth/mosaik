@@ -70,7 +70,7 @@ double cdtSep(double i, double x, int gI, int gX, int maxVal){
 //'   \code{"euclidean"}, \code{"manhattan"} or \code{"chessboard"} to use.
 //' @family grid modify functions
 //' @return A numeric vector of the same length with distance values.
-//' @export
+//' @noRd
 // [[Rcpp::export]]
 NumericVector distanceCpp(NumericVector &vals, int nrow, int ncol, String method){
 
