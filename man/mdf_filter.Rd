@@ -4,44 +4,34 @@
 \alias{mdf_filter}
 \title{Select cells by a predicate over layers}
 \usage{
-mdf_filter(
-  obj = NULL,
-  expr,
-  value = FALSE,
-  background = NA,
-  layer = NULL,
-  add = NULL
-)
+mdf_filter(obj = NULL, expr, value = FALSE, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
 \item{expr}{an expression evaluated in the context of layer values (e.g.
 \code{cover > 3}). Any layer of \code{obj} may be named.}
 
-\item{value}{\link[=logical]{logical(1)} or \link[=numeric]{numeric(1)}\cr what to write where the predicate
-holds. \code{FALSE} (default) keeps \code{layer}'s own values and sets
-everything else to \code{background} -- a filter. \code{TRUE} writes the
-predicate itself as a 1/0 mask. A number writes that number instead of 1.}
+\item{value}{\code{\link[=logical]{logical(1)}}\cr what to write. \code{FALSE} (default)
+writes the predicate as a mask: 1 where it holds, 0 elsewhere. \code{TRUE}
+keeps the values of \code{layer} where the predicate holds and writes
+\code{NA} elsewhere.}
 
-\item{background}{\link[=numeric]{numeric(1)}\cr the value for cells where the
-predicate does not hold. Defaults to \code{NA}; pass \code{0} for a
-ready-made mask that needs no following \code{\link{mdf_replace}}.}
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose values are kept
+when \code{value = TRUE}. Defaults to the first layer. With
+\code{value = FALSE} it is only the destination when \code{add} is
+\code{NULL}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to operate on. Defaults
-to the first layer. When \code{value} is set the layer is only the
-destination and its own values are not read.}
-
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
-A mosaik of the same dimensions as \code{obj}.
+A mosaik with the mask or the kept values.
 }
 \description{
 Evaluate a logical expression over the layers of a mosaik and write the
-result back into a layer, either keeping the cells that satisfy it or
-recording the predicate itself as a mask.
+result into a layer, either as a mask of the cells that satisfy it or as the
+values of \code{layer} at those cells.
 }
 \details{
 Because the predicate may name any layer, this one operator is the whole
@@ -55,23 +45,21 @@ intersection or difference operators:
 \item{complement}{\code{a == 0}}
 }
 
-Set operations want \code{value = TRUE, background = 0}, which yields a
-clean 1/0 mask. The default (\code{value = FALSE}) instead keeps the
-layer's values, which is what "filter this layer" means but is rarely what
-a set operation wants -- with the default, a predicate over other layers
-returns \code{layer}'s values at those cells, not the predicate.
+Cells where the predicate is \code{NA} count as not satisfying it.
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
+# the forest as a mask, and the canopy height of the forest cells only
+m <- landscape |>
+  mdf_filter(cover == 47, add = "forest") |>
+  mdf_filter(cover == 47, value = TRUE, layer = "canopy",
+             add = "forest_canopy")
+msk_vis(m, .layer("cover"), .layer("forest"), .layer("forest_canopy"))
 
-# keep the values of cells that satisfy the predicate
-mdf_filter(landscape, cover == 47)
-
-# record a set difference as a mask in a new layer
-forest |>
-  mdf_erode(add = "core") |>
-  mdf_filter(cover == 1 & core == 0, value = TRUE, background = 0,
-             add = "rim")
+# a set difference: the forest cells that are not core, i.e. its rim
+m <- m |>
+  mdf_erode(layer = "forest", add = "core") |>
+  mdf_filter(forest == 1 & core == 0, add = "rim")
+msk_vis(m, .layer("forest"), .layer("core"), .layer("rim"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -87,8 +75,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

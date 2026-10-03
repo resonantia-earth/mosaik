@@ -1,0 +1,42 @@
+---
+title: "What a patch borders"
+summary: "The number of different land-cover classes around each patch, its edge contrast."
+question: pressure
+about: forest
+scale: patch
+declares: []
+uses: [land-cover, patches, ecotone]
+result:
+  - {object: contrast, layer: classes, text: "its patch borders {v} land-cover classes"}
+---
+
+What lies around a patch acts on it. Counting the distinct classes along the
+outside of each patch measures its edge contrast: a patch surrounded by one
+kind of land borders one class, a patch between fields, roads and rivers many.
+
+```{r}
+library(mosaik)
+contrast <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_summarise(by = "patch", fun = "n_distinct", neighbours = TRUE,
+                layer = "cover", add = "classes")
+```
+
+```{r, fig.alt = "Forest patches, coloured by the number of classes they border"}
+msk_vis(contrast, .layer("forest"), .layer("classes"))
+```
+
+**Check.** Patch 3, in the north-east, lies in one large meadow and touches
+only the river and a fallow field besides; patches 4 and 5, in the west, lie
+among many kinds of land:
+
+```{r}
+classes <- tapply(msk_pull(contrast, "classes"), msk_pull(contrast, "patch"),
+                  unique)
+classes[c("3", "4", "5")]
+```
+
+```{r, include = FALSE}
+stopifnot(classes[["3"]] == 3, classes[["3"]] < min(classes[c("4", "5")]))
+```

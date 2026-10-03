@@ -24,8 +24,11 @@ NumericVector blendIdentity(NumericVector &temp, NumericVector &kernel){
 NumericVector blendEqual(NumericVector &temp, NumericVector &kernel){
   NumericVector out(1);
   out[0] = 1.0;
+  // an NA neighbour is unknown, so it cannot satisfy a pattern cell; compared
+  // directly, NA != x is false and would count as a match
   for(int i = 0; i < temp.size(); i++){
-    if(!is_na(kernel)[i] & (temp[i] != kernel[i])){
+    if(NumericVector::is_na(kernel[i])) continue;
+    if(NumericVector::is_na(temp[i]) || temp[i] != kernel[i]){
       out[0] = 0.0;
       break;
     }
@@ -177,7 +180,7 @@ static MergeFunctionPtr mergeFuns[12] = {
 //'   2=max, 3=all, 4=any, 5=!all, 6=!any, 7=sum, 8=mean, 9=median, 10=sd,
 //'   11=cv, 12=sumNa.
 //' @param rotateKernel [logical(1)][logical]\cr whether to try all 4 rotations
-//'   of the kernel (useful for hit-or-miss transforms).
+//'   of the kernel (useful for hit-or-miss transforms). Needs a square kernel.
 //' @param strictKernel [logical(1)][logical]\cr whether the kernel must fit
 //'   entirely within the grid (TRUE) or is clipped at borders (FALSE).
 //' @return A numeric vector of the same length as \code{vals} with the
@@ -191,6 +194,12 @@ NumericVector morphCpp(NumericVector &vals, int valRows, int valCols,
 
   int kRows = kernel.nrow(), kCols = kernel.ncol();
   int yMar = kRows / 2, xMar = kCols / 2;
+
+  // a quarter turn swaps rows and columns, so only a square kernel keeps its
+  // shape and can be rotated in place
+  if(rotateKernel && kRows != kCols){
+    stop("a kernel can only be rotated if it is square");
+  }
 
   NumericVector out = clone(vals);
   NumericVector tempMat, tempKernel;
@@ -218,8 +227,12 @@ NumericVector morphCpp(NumericVector &vals, int valRows, int valCols,
 
       // handle borders
       if(strictKernel){
-        // skip cells where the kernel doesn't fit entirely
-        if(mL < 0 || mR > valCols - 1 || mT < 0 || mB > valRows - 1) continue;
+        // a cell where the kernel doesn't fit entirely is not evaluated, so it
+        // gets no result rather than keeping its input value
+        if(mL < 0 || mR > valCols - 1 || mT < 0 || mB > valRows - 1){
+          out[idx] = NA_REAL;
+          continue;
+        }
       } else {
         if(mL < 0){
           kL = xMar - x;

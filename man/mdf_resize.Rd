@@ -7,12 +7,12 @@
 mdf_resize(obj = NULL, factor = NULL, layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{factor}{\link[=numeric]{numeric(1)}\cr an integer larger than 1 for
+\item{factor}{\code{\link[=numeric]{numeric(1)}}\cr an integer larger than 1 for
 up-scaling and a fraction for down-scaling (see Details).}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 }
 \value{
@@ -28,12 +28,15 @@ interpolation.
 down-scaled. Allowed values are integers or inverse integers (1/n).
 }
 \examples{
-mdf_resize(landscape, factor = 2)
-mdf_resize(landscape, factor = 1/4)
+# twice and a quarter the number of cells along each side
+m <- mdf_resize(landscape, factor = 2)
+msk_vis(m, .layer("cover"))
+
+m <- mdf_resize(landscape, factor = 1/4)
+msk_vis(m, .layer("cover"))
 }
 \seealso{
 Other operators to modify the overall object: 
-\code{\link{mdf_blend}()},
-\code{\link{mdf_layerise}()}
+\code{\link{mdf_blend}()}
 }
 \concept{operators to modify the overall object}

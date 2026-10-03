@@ -1,0 +1,383 @@
+---
+title: "Techniques for combining operations"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Techniques for combining operations}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6,
+                      fig.height = 3)
+```
+
+```{r}
+library(mosaik)
+```
+
+Each operation in mosaik does one small thing. What makes them useful is how
+they combine, and this vignette goes through the ways they do.
+
+## Defining recipes
+
+At some point the analysis done for one map has to be done for another one.
+Usually that means digging out the old script and hoping it still runs.
+
+In mosaik the steps can be written down first and run later. Any `mdf_*` or
+`msr_*` function called without an object does not compute anything, it just
+records itself. A chain of such calls is a recipe, and `mdf()` runs it on
+whatever mosaik it is given. The core of a forest is the forest minus its edge:
+
+```{r}
+core <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_erode(layer = "forest", add = "core")
+```
+
+At this point there is no map anywhere, so nothing has been computed. That
+happens here:
+
+```{r}
+result <- mdf(landscape, core)
+msk_names(result)
+```
+
+The recipe only needs a layer called `cover`, so it runs on any map that has
+one. For lack of a second example map, here is the first one turned on its
+side. Turning a forest should not change how much of it is core, so both maps
+should have the same number of core cells:
+
+```{r}
+rotated <- mdf(mdf_rotate(landscape, angle = 90), core)
+c(original = sum(msk_pull(result, "core") == 1),
+  rotated  = sum(msk_pull(rotated, "core") == 1))
+```
+
+## Referring to any earlier layer
+
+In an ordinary R pipe, each step sees only the output of the step before it.
+In `x |> f() |> g() |> h()`, the function `h()` gets what `g()` returned and
+nothing else. To combine the result of `f()` with the result of `g()`, the pipe
+has to be broken up into temporary variables.
+
+mosaik works differently on purpose. Every step writes its result as a layer
+under the name given in `add`, and that layer stays in the object. Any later
+step can name any earlier layer, so a recipe can branch and join again while
+still being written as one pipe.
+
+The holes in the patches of class 41 are the filled patches minus the original
+patches. The last step subtracts `class41`, which was made two steps earlier,
+from `filled`, which was made by the step before:
+
+```{r}
+holes <- mdf_binarise(match = 41, layer = "cover", add = "class41") |>
+  mdf_fill(layer = "class41", add = "filled") |>
+  mdf_blend(layers = c("filled", "class41"), fun = "-", add = "holes")
+
+h <- mdf(landscape, holes)
+```
+
+```{r, fig.alt = "Class 41 and the holes enclosed by its patches"}
+msk_vis(h, .layer("class41"), .layer("holes"))
+```
+
+## Measuring inside a recipe
+
+Measurements can go into a recipe too, anywhere between the other steps. So a
+recipe can measure something, change the map, and measure again. This one
+measures the forest, erodes it to its core, measures the core, and works out
+what share of the map the core takes up:
+
+```{r}
+core_share <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  msr_area(scale = "class", layer = "forest") |>
+  mdf_erode(layer = "forest", add = "core") |>
+  msr_area(scale = "class", layer = "core") |>
+  msr_area(scale = "landscape", layer = "core") |>
+  msr(equation = "area.class / area.landscape * 100", label = "pcore",
+      layer = "core")
+
+r <- mdf(landscape, core_share)
+msk_categories(r, layer = "forest")$area
+msk_categories(r, layer = "core")
+```
+
+```{r, include = FALSE}
+forest_cells <- msk_categories(r, layer = "forest")$area[2]
+core_cells <- msk_categories(r, layer = "core")$area[2]
+core_pct <- round(msk_categories(r, layer = "core")$pcore[2], 1)
+```
+
+The forest has `r forest_cells` cells, its core `r core_cells` of them, and
+the core covers `r core_pct` % of the map (class 1 of `core`; class 0 is
+everything else). Every number
+from the recipe is in the object, next to the layer it describes, and the
+recipe runs unchanged on the next map.
+
+An equation can also combine the results of several layers. A variable names
+its layer after an underscore: `area.class_forest` is the class area of the
+layer `forest`, while `area.class` without a suffix refers to the layer given
+in `layer`. The share of the forest that is core:
+
+```{r}
+r <- msr(r, equation = "area.class_core / area.class_forest * 100",
+         label = "core_of_forest", layer = "core")
+msk_categories(r, layer = "core")$core_of_forest
+```
+
+Just under half the forest is core (class 1). This works because both layers
+have the same classes, 0 and 1. Patches are different: eroding a forest patch
+can leave several pieces of core or none, so the patches of `core` and of
+`forest` do not correspond, and `msr()` refuses to combine them. The core
+share of each forest patch is found by summing the core within each forest
+patch with `mdf_summarise()`, described below.
+
+## Metrics built on metrics
+
+An equation in `msr()` can name any value stored in the object, and that
+includes a metric computed by an earlier `msr()` call. So a metric can be
+built from other metrics, as many levels deep as needed. Here the share of
+each class (`pland`), then Shannon diversity from those shares, then evenness
+from Shannon diversity and the number of classes:
+
+```{r}
+m <- landscape |>
+  msr_area(scale = "class", layer = "cover") |>
+  msr_area(scale = "landscape", layer = "cover") |>
+  msr(equation = "area.class / area.landscape * 100", label = "pland",
+      layer = "cover") |>
+  msr(equation = "-sum(pland.class / 100 * log(pland.class / 100))",
+      label = "shannon", layer = "cover") |>
+  msr(equation = "shannon.landscape / log(length(pland.class))",
+      label = "evenness", layer = "cover")
+
+msk_global(m, layer = "cover")
+```
+
+Evenness is 1 when all classes cover the same share and falls towards 0 as
+one class dominates. Written this way, each metric states what it is made of,
+and a variation (a different reference, a weighting) changes one line.
+
+A metric is computed once, when `msr()` runs. Measuring the area again
+afterwards does not update `pland`, `shannon` or `evenness`; to recompute
+them, run the chain again, or put it in a recipe.
+
+## Reducing many values to one
+
+Reducing means combining many values into one: a sum, a maximum, a mean, a
+count. It happens in several places in mosaik, and the difference between them
+is only which values are combined:
+
+| over | operation | example |
+|---|---|---|
+| layers | `mdf_blend(fun = ...)` | the sum of several layers, cell by cell |
+| a neighbourhood | `mdf_morph(merge = ...)` | the mean of each cell's surroundings |
+| a zone | `mdf_summarise(fun = ...)` | the size of the patch a cell belongs to |
+| classes or patches | `msr()` | `sum()` over classes in Shannon diversity |
+
+`mdf_summarise()` is the one without a counterpart in most raster tools. It
+reduces the values of a whole zone, for example a patch, and writes the result
+back onto every cell of that zone. Here each forest cell gets the size of its
+patch:
+
+```{r}
+z <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")
+```
+
+```{r, fig.alt = "Forest patches, each coloured by its size in cells"}
+msk_vis(z, .layer("forest"), .layer("size"))
+```
+
+`by` names the zones and `layer` the values that are reduced within them.
+Counting cells needs no values of its own, so here both are the patch layer.
+With a different `layer`, the same step answers the question left open above,
+how much of each forest patch is core: the core cells summed within each
+patch, divided by the patch size.
+
+```{r}
+z <- z |>
+  mdf_erode(layer = "forest", add = "core") |>
+  mdf_summarise(by = "patch", fun = "sum", layer = "core", add = "core_cells") |>
+  mdf_blend(layers = c("core_cells", "size"), fun = "/", add = "core_share")
+```
+
+```{r, fig.alt = "Forest patches, each coloured by the share of it that is core"}
+msk_vis(z, .layer("forest"), .layer("core_share"))
+```
+
+A neighbourhood operation cannot do this, because it does not know in advance
+how far a patch reaches.
+
+## Neighbourhood operations
+
+Dilation, erosion and smoothing look like different operations, but they are
+one: `mdf_morph()`. It visits every cell, lays a small pattern (the
+structuring element, from `msk_struct()`) over the cell and its neighbours,
+and computes a new value for the cell in two steps.
+
+The structuring element is itself a small grid of values, for example 3 by 3
+cells, whose centre sits on the cell being computed. Each of its cells
+belongs to one neighbour. A 1 includes that neighbour; a cell left empty
+excludes it, which is how a disc or a cross gets its shape. Values other than
+1 act as weights. The two steps are:
+
+1. **blend**: each covered value is combined with the matching value of the
+   pattern, for example kept as it is (`identity`), tested for equality
+   (`equal`) or multiplied (`product`);
+2. **merge**: the blended values are reduced to one, for example with `max`,
+   `min`, `mean` or `all`.
+
+Choosing the two gives the familiar operations, and many others:
+
+| blend | merge | result |
+|---|---|---|
+| `identity` | `max` | dilation: a cell becomes 1 if any neighbour is 1 |
+| `identity` | `min` | erosion: a cell stays 1 only if all neighbours are 1 |
+| `identity` | `mean` | smoothing: the average of the neighbourhood |
+| `product` | `mean` | weighted smoothing, with the pattern as weights |
+
+`mdf_dilate()` and `mdf_erode()` do what the first two rows do. The shape of
+the neighbourhood is the pattern: a square, a disc, a diamond, a cross, or any
+shape given by hand. Here the canopy height smoothed over a 5 by 5 square:
+
+```{r, fig.alt = "The canopy height and its smoothed version"}
+s <- landscape |>
+  mdf_morph(struct = msk_struct("square", width = 5, height = 5),
+            blend = "identity", merge = "mean", layer = "canopy",
+            add = "smooth")
+msk_vis(s, .layer("canopy"), .layer("smooth"))
+```
+
+## Repeating steps
+
+Some algorithms repeat a step until nothing changes anymore. `mdf_loop()` does
+that, either a set number of times or until the map stops changing.
+
+Here one forest cell grows into its neighbours, but only where there is forest.
+Once it has nowhere left to grow, it has covered the patch it started in:
+
+```{r}
+m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+m <- mdf_distance(m, source = "background", layer = "forest", add = "depth")
+start <- which.max(msk_pull(m, "depth"))             # the deepest forest cell
+seed <- as.numeric(seq_len(msk_ncells(m)) == start)
+m <- msk_add(m, seed = seed)
+
+grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "seed") |>
+  mdf_filter(seed == 1 & forest == 1,
+             add = "seed")
+
+m <- mdf_loop(m, grow, stable = TRUE, layer = "seed")
+```
+
+```{r, eval = FALSE}
+msk_vis(m, .layer("forest"), .layer("seed"))
+```
+
+```{r, grow-animation, echo = FALSE, eval = requireNamespace("gifski", quietly = TRUE), fig.show = "animate", animation.hook = "gifski", interval = 0.15, fig.alt = "The seed spreading through its forest patch, one step at a time"}
+# the figure of the call above, drawn as an animation: one frame per round of
+# the loop, from the single seed cell to the whole patch, with the last frame
+# held so the result can be seen
+cur <- msk_add(mdf_binarise(landscape, match = 47, layer = "cover",
+                            add = "forest"), seed = seed)
+repeat {
+  msk_vis(cur, .layer("forest"), .layer("seed"))
+  nxt <- mdf(cur, grow)
+  if (identical(msk_pull(nxt, "seed"), msk_pull(cur, "seed"))) break
+  cur <- nxt
+}
+for (i in 1:10) msk_vis(cur, .layer("forest"), .layer("seed"))
+```
+
+```{r, echo = FALSE, eval = !requireNamespace("gifski", quietly = TRUE), fig.alt = "The forest and the one patch reached from the seed cell"}
+# without gifski the figure is the final state only
+msk_vis(m, .layer("forest"), .layer("seed"))
+```
+
+`mdf_componentise()` finds patches faster, and here it serves as a referee: if
+the loop is right, the seed covers exactly the cells of the patch
+`mdf_componentise()` finds around the starting cell. The square kernel reaches
+diagonal neighbours, so the patches are counted with eight neighbours too:
+
+```{r}
+m <- mdf_componentise(m, connectivity = 8L, layer = "forest", add = "patches")
+p <- msk_pull(m, "patches")
+identical(which(msk_pull(m, "seed") == 1), which(p == p[start]))
+```
+
+But growing a seed can do what numbering patches cannot, because both the
+start and the rule of growth are free:
+
+- **the start**: seeds placed at chosen cells, say a nest site or where a river
+  enters, find only the patches connected to those places;
+- **the rule**: growth can be limited to any condition over the layers, not
+  only "is forest", for example forest below a certain slope;
+- **the distance**: stopping after `times = n` rounds gives everything within
+  n steps of the seed when travelling only through forest, a distance that a
+  straight line across a gap does not measure.
+
+Grow, restrict, repeat is how many published methods work, and this is how
+they are written in mosaik.
+
+## Provenance: what was done
+
+Every step records itself in the object it returns. Each entry holds the
+function, all its arguments (defaults included), the layer it read, the layer
+it wrote, the version of mosaik and the time. The entries use the vocabulary of
+the W3C PROV standard for provenance. This is the entry for the fill step of
+the holes recipe:
+
+```{r}
+str(msk_provenance(h)[[3]])
+```
+
+Printing the object lists the steps in short form:
+
+```{r}
+h
+```
+
+The record is not only documentation, it can be run again. The recipes at the
+start of this vignette worked because a function called without an object
+records itself instead of computing anything. A recipe is therefore a mosaik
+that holds a history of steps and no data. A result such as `h` holds the same
+kind of history, only with data next to it. `mdf()` reads nothing but the
+history, so it accepts either one: the recipe `holes`, or any result made with
+it.
+
+That means an analysis does not have to be written as a recipe in advance.
+Any result can serve as one later. Here the rotated map stands in for next
+year's map, and it gets exactly the treatment that `h` received, taken from
+`h` itself:
+
+```{r}
+next_map <- mdf_rotate(landscape, angle = 90)
+again <- mdf(next_map, h)
+msk_names(again)
+```
+
+Running the original recipe gives the same result:
+
+```{r}
+identical(msk_pull(again, "holes"),
+          msk_pull(mdf(next_map, holes), "holes"))
+```
+
+One kind of step cannot be repeated: one whose input was too large to record
+(over 10 kB), such as a whole layer of cell values given to `msk_add()`. The history keeps only a
+fingerprint (digest) of such an input, which is enough to tell whether two
+inputs were the same but not to rebuild it, and `mdf()` stops with an error
+that names the step.
+
+This matters wherever a number has to be defended. A figure in a report or a
+monitoring series can be traced back to every step and argument that produced
+it, a reviewer can rerun those steps, and the same method is applied to each
+new map without anyone retyping it. A changed argument between two years shows
+up in the record instead of hiding in a script.
+
+`vignette("mspa")` takes all of this further and rebuilds Morphological
+Spatial Pattern Analysis, a published classification method, from eight
+operators and `mdf_loop()`.

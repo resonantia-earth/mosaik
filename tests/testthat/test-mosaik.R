@@ -36,13 +36,17 @@ test_that("mosaik() constructor adds provenance", {
   expect_length(msk_provenance(m), 1)
 })
 
-test_that("new_mosaik() builds valid objects", {
-  m <- new_mosaik(extent = c(0, 5, 0, 5), dims = c(5L, 5L),
-                  layers = list(a = rep(1, 25)),
-                  categories = list(), patches = list(),
-                  global = list(), crs = NA_character_,
-                  provenance = list())
-  expect_s4_class(m, "mosaik")
+test_that("the class validity rejects inconsistent objects", {
+  expect_s4_class(methods::new("mosaik", extent = c(0, 5, 0, 5), dims = c(5L, 5L),
+                               layers = list(a = rep(1, 25)),
+                               crs = NA_character_), "mosaik")
+  expect_error(methods::new("mosaik", extent = c(0, 5, 0, 5), dims = c(5L, 5L),
+                            layers = list(a = rep(1, 24)),
+                            crs = NA_character_), "24 values")
+  expect_error(methods::new("mosaik", extent = c(0, 5, 0, 5), dims = c(5L, 5L),
+                            layers = list(a = rep(1, 25)),
+                            categories = list(b = list(gid = 1)),
+                            crs = NA_character_), "does not match any layer")
 })
 
 test_that("show method runs without error", {

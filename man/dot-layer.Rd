@@ -16,50 +16,51 @@
 )
 }
 \arguments{
-\item{layer}{\link[=character]{character(1)}\cr name of the layer to draw.}
+\item{layer}{\code{\link[=character]{character(1)}}\cr name of the layer to draw.}
 
-\item{panel}{\link[=character]{character(1)}\cr which panel this layer belongs to.
+\item{panel}{\code{\link[=character]{character(1)}}\cr which panel this layer belongs to.
 Layers sharing a value are drawn into the same panel, and the value is that
 panel's title. \code{NULL} (default) gives the layer a panel of its own,
 titled after the layer.}
 
-\item{colours}{\link{character}\cr the layer's colour scale: ramp stops
+\item{colours}{\code{\link{character}}\cr the layer's colour scale: ramp stops
 (\code{c("black", "white")}), a palette name
 (\code{"viridis"}; see \code{grDevices::hcl.pals}), or a \strong{named}
 vector mapping category labels to colours
 (\code{c(forest = "darkgreen", crop = "khaki")}). \code{NULL} takes the
-theme's \code{colours}.}
+colours of the layer's categories where they carry a \code{colour} field,
+else the theme's \code{colours}.}
 
-\item{limits}{\link[=numeric]{numeric(2)}\cr \code{c(min, max)} forcing this
+\item{limits}{\code{\link[=numeric]{numeric(2)}}\cr \code{c(min, max)} forcing this
 layer's colour scale, instead of taking the range from its own values.
 Cells outside are clamped to the end colours rather than dropped.}
 
-\item{bins}{\link[=numeric]{numeric(1)}\cr number of colour steps for a continuous
+\item{bins}{\code{\link[=numeric]{numeric(1)}}\cr number of colour steps for a continuous
 layer. \code{NULL} takes the theme's \code{scale.bins}.}
 
-\item{hillshade}{\link[=list]{named list}\cr shade this layer by terrain relief.
+\item{hillshade}{\code{\link[=list]{named list}}\cr shade this layer by terrain relief.
 The shading multiplies the layer's own colours, so any layer can be draped
 over the relief. \code{NULL} (default) disables it. Elements:
 \itemize{
-\item \code{layer} \link[=character]{character(1)} name of the elevation layer
+\item \code{layer} \code{\link[=character]{character(1)}} name of the elevation layer
 to shade by (required).
-\item \code{azimuth} \link{numeric} light direction in degrees
+\item \code{azimuth} \code{\link{numeric}} light direction in degrees
 clockwise from north, default 315. Give several to average them into a
 multi-directional hillshade, e.g. \code{c(225, 270, 315, 360)}, which
 keeps slopes facing away from a single light from going flat.
-\item \code{altitude} \link[=numeric]{numeric(1)} light height in degrees above
+\item \code{altitude} \code{\link[=numeric]{numeric(1)}} light height in degrees above
 the horizon, default 45.
-\item \code{exaggeration} \link[=numeric]{numeric(1)} vertical exaggeration of
+\item \code{exaggeration} \code{\link[=numeric]{numeric(1)}} vertical exaggeration of
 the elevation before the gradient is taken, default 1.
-\item \code{intensity} \link[=numeric]{numeric(1)} strength of the effect in
+\item \code{intensity} \code{\link[=numeric]{numeric(1)}} strength of the effect in
 \code{[0, 1]}, default 1.
 }}
 
-\item{legend}{\link[=logical]{logical(1)}\cr give this layer its own legend
+\item{legend}{\code{\link[=logical]{logical(1)}}\cr give this layer its own legend
 (\code{TRUE}, default). Set \code{FALSE} for a layer that needs no scale of
 its own, such as a hillshade base.}
 
-\item{title}{\link[=character]{character(1)}\cr heading for this layer's legend.
+\item{title}{\code{\link[=character]{character(1)}}\cr heading for this layer's legend.
 \code{NULL} uses the layer name.}
 }
 \value{
@@ -86,19 +87,16 @@ msk_vis(landscape, .layer("cover", colours = "viridis", limits = c(0, 60)))
 # an explicit colour per category, which fixes the meaning of each colour
 # across every figure in a series
 m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
-m <- msk_set(m, layer = "forest", values = msk_pull(m, "forest"),
-             gid = c(0L, 1L), val = c("open", "forest"))
-msk_vis(m, .layer("forest", colours = c(open = "khaki",
-                                        forest = "darkgreen")))
+msk_vis(m, .layer("forest", colours = c("0" = "khaki", "1" = "darkgreen")))
 
 # a variable drawn over shaded terrain: same panel, one legend each, and
 # the flagged cells stay saturated because only the terrain carries the
 # shading
 t <- mosaik(extent = c(0, 10000, 0, 10000), res = 100) |>
-  syn_texture(name = "dem", hurst = 0.9, seed = 1) |>
+  drw_texture(name = "dem", hurst = 0.9, seed = 1) |>
   mdf_scale(layer = "dem", range = c(0, 200))
 t <- mdf_binarise(t, thresh = 160, layer = "dem", add = "high")
-t <- mdf_mask(t, by = "high", layer = "high")
+t <- mdf_filter(t, high == 1, value = TRUE, layer = "high")
 msk_vis(t,
         .layer("dem", panel = "relief", colours = "terrain",
                hillshade = list(layer = "dem", exaggeration = 5)),

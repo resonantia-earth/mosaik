@@ -7,52 +7,37 @@
 mdf_distance(
   obj = NULL,
   source = "foreground",
-  coords = NULL,
-  snap = TRUE,
   method = "euclidean",
   layer = NULL,
   add = NULL
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{source}{\link[=character]{character(1)}\cr what to measure distance from:
-\code{"foreground"} (default) or \code{"background"} for the two edges of a
-binary layer, or the name of a layer holding target points with matching
-patch IDs. Ignored when \code{coords} is provided. See Details.}
+\item{source}{\code{\link[=character]{character(1)}}\cr what to measure distance from:
+\code{"foreground"} (default) or \code{"background"} for the two sides of a
+binary layer, or the name of a layer holding target cells with matching
+patch numbers. See Details.}
 
-\item{coords}{\link{matrix}\cr optional two-column matrix of source
-coordinates (x, y) in CRS space. When provided, \code{source} is ignored
-and \code{obj} does not need to be binary.}
-
-\item{snap}{\link[=logical]{logical(1)}\cr only used when \code{coords} is
-provided. If \code{TRUE} (default), source coordinates are snapped to the
-nearest cell centroid and the fast Meijster algorithm is used. If
-\code{FALSE}, exact Euclidean distances from the original coordinates are
-computed (slower but precise).}
-
-\item{method}{\link[=character]{character(1)}\cr the distance measure to
+\item{method}{\code{\link[=character]{character(1)}}\cr the distance measure to
 calculate. Either \code{"euclidean"} (default), \code{"manhattan"} or
-\code{"chessboard"}. Only used with the Meijster algorithm (binary layer
-or \code{snap = TRUE}).}
+\code{"chessboard"}. Applies to \code{"foreground"} and
+\code{"background"}; distances to target cells are always Euclidean.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
-A mosaik of the same dimension as \code{obj}, where cell values have
-been replaced with the distance to the nearest source. Distances are in
-cell units when using the Meijster algorithm, or in CRS units when using
-exact coordinates (\code{snap = FALSE}).
+A mosaik in which each cell carries its distance to the nearest
+source, in cells.
 }
 \description{
 Replace each cell value with its distance to the nearest source, where the
-source is one edge of a binary layer, a set of labelled target points, or
-explicit coordinates.
+source is one side of a binary layer or a set of labelled target cells.
 }
 \details{
 The three modes of \code{source}:
@@ -61,31 +46,37 @@ The three modes of \code{source}:
 nearest foreground cell. Input must be binary.}
 \item{\code{"background"}}{distance from each foreground cell to the
 nearest background cell (internal edge distance). Input must be binary.}
-\item{a layer name}{distance from each cell to the target point sharing
-its value. \code{layer} holds patch IDs (e.g. from
+\item{a layer name}{distance from each cell to the target cell sharing
+its value. \code{layer} holds patch numbers (e.g. from
 \code{\link{mdf_componentise}}) and the named \code{source} layer holds
-sparse points with matching IDs (e.g. from \code{\link{mdf_centroid}});
-cells with no matching target get \code{NA}.}
+single cells with matching numbers (e.g. from
+\code{\link{mdf_centroid}}); cells with no matching target get
+\code{NA}.}
 }
+
+To measure the distance from points, lines or polygons, rasterise them
+with \code{\link{msk_rasterise}} first and binarise the result.
 }
 \examples{
-# distance from foreground cells in a binary layer
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_distance(forest)
-mdf_distance(forest, method = "manhattan")
+# distance from the forest, outward and inward
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_distance(layer = "forest", add = "outward") |>
+  mdf_distance(source = "background", layer = "forest", add = "inward")
+msk_vis(m, .layer("forest"), .layer("outward"), .layer("inward"))
 
-# distance from each foreground cell to nearest background (edge distance)
-mdf_distance(forest, source = "background")
+# euclidean, manhattan and chessboard distance from the forest
+m <- m |>
+  mdf_distance(method = "manhattan", layer = "forest", add = "manhattan") |>
+  mdf_distance(method = "chessboard", layer = "forest", add = "chessboard")
+msk_vis(m, .layer("outward"), .layer("manhattan"), .layer("chessboard"))
 
-# distance from each cell to its own patch centroid (GYRATE workflow)
-forest |>
-  mdf_componentise(add = "patches") |>
+# distance from each cell to the centroid of its own patch
+m <- m |>
+  mdf_componentise(layer = "forest", add = "patches") |>
   mdf_centroid(layer = "patches", add = "centroids") |>
-  mdf_distance(source = "centroids", layer = "patches", add = "dist")
-
-# distance from explicit coordinates
-mdf_distance(landscape, coords = matrix(c(30, 28), ncol = 2),
-             layer = "cover")
+  mdf_distance(source = "centroids", layer = "patches", add = "to_centroid")
+msk_vis(m, .layer("patches"), .layer("to_centroid"))
 }
 \references{
 Meijster, A., Roerdink, J.B.T.M., Hesselink, W.H., 2000. A
@@ -107,8 +98,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

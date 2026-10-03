@@ -2,23 +2,31 @@
 #'
 #' The permutation of a set of cell values leads to a systematic
 #' (re)arrangement of all the members of the set.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param type [character(1)][character]\cr the permutation type. Either
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param type [`character(1)`][character]\cr the permutation type. Either
 #'   \code{"invert"}, \code{"revert"}, \code{"descending"}, \code{"ascending"}
 #'   or \code{"cycle"}.
-#' @param by [integerish(1)][integer]\cr value by which to apply the
+#' @param by [`integerish(1)`][integer]\cr value by which to apply the
 #'   permutation; only for \code{type = "cycle"}.
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimensions as \code{obj}.
 #' @examples
-#' mdf_permute(landscape, type = "invert", layer = "cover")
-#' mdf_permute(landscape, type = "revert", layer = "cover")
-#' mdf_permute(landscape, type = "ascending", layer = "intensity")
-#' mdf_permute(landscape, type = "descending", layer = "intensity")
-#' mdf_permute(landscape, type = "cycle", by = 2L, layer = "cover")
+#' # the land-cover classes in inverted, reverted and cycled order
+#' m <- landscape |>
+#'   mdf_permute(type = "invert", layer = "cover", add = "invert") |>
+#'   mdf_permute(type = "revert", layer = "cover", add = "revert") |>
+#'   mdf_permute(type = "cycle", by = 2L, layer = "cover", add = "cycle")
+#' msk_vis(m, .layer("cover"), .layer("invert"), .layer("revert"),
+#'         .layer("cycle"))
+#'
+#' # the canopy heights in ascending and descending order
+#' m <- landscape |>
+#'   mdf_permute(type = "ascending", layer = "canopy", add = "ascending") |>
+#'   mdf_permute(type = "descending", layer = "canopy", add = "descending")
+#' msk_vis(m, .layer("canopy"), .layer("ascending"), .layer("descending"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertChoice assertIntegerish
 #'   assertCharacter
@@ -30,7 +38,8 @@ mdf_permute <- function(obj = NULL,
                         layer = NULL,
                         add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -67,7 +76,5 @@ mdf_permute <- function(obj = NULL,
   }
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_permute", list(type = type, by = by, layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

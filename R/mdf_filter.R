@@ -1,25 +1,23 @@
 #' Select cells by a predicate over layers
 #'
 #' Evaluate a logical expression over the layers of a mosaik and write the
-#' result back into a layer, either keeping the cells that satisfy it or
-#' recording the predicate itself as a mask.
+#' result into a layer, either as a mask of the cells that satisfy it or as the
+#' values of \code{layer} at those cells.
 #'
-#' @param obj [mosaik]\cr the mosaik to modify.
+#' @param obj [`mosaik`]\cr the mosaik to modify.
 #' @param expr an expression evaluated in the context of layer values (e.g.
 #'   \code{cover > 3}). Any layer of \code{obj} may be named.
-#' @param value [logical(1)][logical] or [numeric(1)][numeric]\cr what to write where the predicate
-#'   holds. \code{FALSE} (default) keeps \code{layer}'s own values and sets
-#'   everything else to \code{background} -- a filter. \code{TRUE} writes the
-#'   predicate itself as a 1/0 mask. A number writes that number instead of 1.
-#' @param background [numeric(1)][numeric]\cr the value for cells where the
-#'   predicate does not hold. Defaults to \code{NA}; pass \code{0} for a
-#'   ready-made mask that needs no following \code{\link{mdf_replace}}.
-#' @param layer [character(1)][character]\cr the layer to operate on. Defaults
-#'   to the first layer. When \code{value} is set the layer is only the
-#'   destination and its own values are not read.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param value [`logical(1)`][logical]\cr what to write. \code{FALSE} (default)
+#'   writes the predicate as a mask: 1 where it holds, 0 elsewhere. \code{TRUE}
+#'   keeps the values of \code{layer} where the predicate holds and writes
+#'   \code{NA} elsewhere.
+#' @param layer [`character(1)`][character]\cr the layer whose values are kept
+#'   when \code{value = TRUE}. Defaults to the first layer. With
+#'   \code{value = FALSE} it is only the destination when \code{add} is
+#'   \code{NULL}.
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
-#' @return A mosaik of the same dimensions as \code{obj}.
+#' @return A mosaik with the mask or the kept values.
 #' @details
 #'   Because the predicate may name any layer, this one operator is the whole
 #'   boolean algebra over layers, and mosaik therefore has no separate union,
@@ -32,41 +30,39 @@
 #'     \item{complement}{\code{a == 0}}
 #'   }
 #'
-#'   Set operations want \code{value = TRUE, background = 0}, which yields a
-#'   clean 1/0 mask. The default (\code{value = FALSE}) instead keeps the
-#'   layer's values, which is what "filter this layer" means but is rarely what
-#'   a set operation wants -- with the default, a predicate over other layers
-#'   returns \code{layer}'s values at those cells, not the predicate.
+#'   Cells where the predicate is \code{NA} count as not satisfying it.
 #' @examples
-#' forest <- mdf_binarise(landscape, match = 47, layer = "cover")
+#' # the forest as a mask, and the canopy height of the forest cells only
+#' m <- landscape |>
+#'   mdf_filter(cover == 47, add = "forest") |>
+#'   mdf_filter(cover == 47, value = TRUE, layer = "canopy",
+#'              add = "forest_canopy")
+#' msk_vis(m, .layer("cover"), .layer("forest"), .layer("forest_canopy"))
 #'
-#' # keep the values of cells that satisfy the predicate
-#' mdf_filter(landscape, cover == 47)
-#'
-#' # record a set difference as a mask in a new layer
-#' forest |>
-#'   mdf_erode(add = "core") |>
-#'   mdf_filter(cover == 1 & core == 0, value = TRUE, background = 0,
-#'              add = "rim")
+#' # a set difference: the forest cells that are not core, i.e. its rim
+#' m <- m |>
+#'   mdf_erode(layer = "forest", add = "core") |>
+#'   mdf_filter(forest == 1 & core == 0, add = "rim")
+#' msk_vis(m, .layer("forest"), .layer("core"), .layer("rim"))
 #' @family operators to modify cell values
-#' @importFrom checkmate assertClass assertCharacter assertNumber
+#' @importFrom checkmate assertClass assertCharacter assertFlag
 #' @export
 
 mdf_filter <- function(obj = NULL,
                        expr,
                        value = FALSE,
-                       background = NA,
                        layer = NULL,
                        add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
+  assertFlag(x = value)
   if(is.null(layer)) layer <- names(obj@layers)[1]
   assertCharacter(x = layer, len = 1, null.ok = FALSE)
   assertCharacter(x = add, len = 1, null.ok = TRUE)
-  assertNumber(x = background, na.ok = TRUE)
 
   # pull data ----
   env <- lapply(names(obj@layers), function(nm) msk_pull(obj, nm))
@@ -89,18 +85,14 @@ mdf_filter <- function(obj = NULL,
   }
   hit <- mask & !is.na(mask)
 
-  if(isFALSE(value)){
+  if(value){
     vals <- msk_pull(obj, layer)
-    vals[!hit] <- background
+    vals[!hit] <- NA
   } else {
-    fill <- if(isTRUE(value)) 1 else value
-    vals <- rep(background, prod(obj@dims))
-    vals[hit] <- fill
+    vals <- as.numeric(hit)
   }
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_filter", list(expr = deparse(predicate),
-                                        layer = out_layer))
-  msk_set(obj, out_layer, vals, prov)
+  # a mask is a new kind of value; kept values stay what they were
+  .update_mosaik(obj, values = vals, keep = value, step = step)
 }

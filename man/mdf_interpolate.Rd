@@ -7,16 +7,16 @@
 mdf_interpolate(obj = NULL, struct = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{struct}{\link[=struct]{struct(1)}\cr the structuring element whose values
+\item{struct}{\code{\link[=struct]{struct(1)}}\cr the structuring element whose values
 serve as weights. Defaults to a 3x3 disc (uniform weights). See
 \code{\link{msk_struct}}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to filter. Defaults to
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to filter. Defaults to
 the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -29,9 +29,12 @@ This is a convenience wrapper around \code{\link{mdf_morph}} with
 \code{blend = "product"} and \code{merge = "mean"}.
 }
 \examples{
-mdf_interpolate(landscape, layer = "intensity")
-mdf_interpolate(landscape, struct = msk_struct("square", width = 5),
-                layer = "intensity")
+# the canopy height smoothed over the default disc and over a 5 x 5 square
+m <- landscape |>
+  mdf_interpolate(layer = "canopy", add = "smoothed") |>
+  mdf_interpolate(struct = msk_struct("square", width = 5),
+                  layer = "canopy", add = "smoothed_5")
+msk_vis(m, .layer("canopy"), .layer("smoothed"), .layer("smoothed_5"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -47,8 +50,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

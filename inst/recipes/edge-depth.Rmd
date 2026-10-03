@@ -1,0 +1,62 @@
+---
+title: "The edge-depth curve"
+summary: "How far the effect of a forest edge reaches into the forest."
+question: state
+about: forest
+scale: zone
+declares: ["the width of a ring (cells)"]
+uses: [canopy, distance, zones]
+result:
+  - {object: depth, layer: ring_mean, text: "the canopy this far into the forest stands {v} m tall on average", digits: 1}
+---
+
+At an old forest edge, light, wind and the land outside reach into the forest,
+and the trees there grow lower than in the interior. The edge-depth curve
+shows how far that effect reaches: the forest is divided into rings by their
+distance from the edge, and the mean canopy height of each ring is plotted
+against its depth.
+
+```{r}
+library(mosaik)
+depth <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_filter(forest == 1, value = TRUE, layer = "depth") |>
+  mdf_categorise(breaks = 1:8, layer = "depth", add = "ring") |>
+  mdf_summarise(by = "ring", fun = "mean", layer = "canopy",
+                add = "ring_mean")
+```
+
+`depth` is the distance of each forest cell to the nearest cell outside the
+forest, so the outermost cells have depth 1. `mdf_categorise()` cuts it into
+rings one cell wide, and `mdf_summarise()` writes the mean canopy height of
+each ring onto its cells:
+
+```{r, fig.alt = "The depth of each forest cell, its ring, and the mean canopy height of the ring"}
+msk_vis(depth, .layer("depth"), .layer("ring"), .layer("ring_mean"))
+```
+
+The curve takes one value per ring:
+
+```{r, fig.alt = "The mean canopy height of each ring against its depth", fig.width = 4, fig.height = 3}
+curve <- tapply(msk_pull(depth, "ring_mean"), msk_pull(depth, "ring"), unique)
+plot(as.numeric(names(curve)), curve, type = "b", xlab = "depth (cells)",
+     ylab = "mean canopy height (m)")
+```
+
+**Check.** The canopy should rise over the first three rings and then level
+off, so the edge effect reaches about three cells in. The deepest ring is
+lower again: few cells lie that deep, and many of them belong to the younger
+stand in the south-west, which is lower throughout:
+
+```{r}
+round(curve, 1)
+```
+
+```{r, include = FALSE}
+stopifnot(all(diff(curve[1:3]) > 0), curve[3] - curve[1] > 5,
+          abs(curve[4] - curve[3]) < 2)
+```
+
+The curve averages over all edges of the forest, old and new; the recipe
+"Old and new edges" separates them.

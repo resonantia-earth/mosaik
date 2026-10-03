@@ -8,3 +8,4 @@ _misc
 ^\.claude$
 ^inst/design$
 ^robots\.md$
+^data-raw$

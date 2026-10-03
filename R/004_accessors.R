@@ -3,6 +3,12 @@
 #' Simple functions to access properties of a \code{\link{mosaik}} object.
 #'
 #' @param x a \code{\link{mosaik}} object.
+#' @param layer [`character(1)`][character]\cr for \code{msk_categories},
+#'   \code{msk_patches} and \code{msk_global}: the layer whose results to
+#'   return. Defaults to the first layer.
+#' @return For \code{msk_categories}, \code{msk_patches} and
+#'   \code{msk_global}: the class, patch or landscape-level results of
+#'   \code{layer}, as a list, or \code{NULL} if none have been measured.
 #' @name accessors
 #' @examples
 #' msk <- mosaik(extent = c(0, 10, 0, 10), res = 1,
@@ -13,6 +19,9 @@
 #' msk_ncells(msk)
 #' msk_crs(msk)
 #' msk_names(msk)
+#'
+#' msk <- msr_area(msk, scale = "class", layer = "cover")
+#' msk_categories(msk, layer = "cover")
 NULL
 
 #' @rdname accessors
@@ -48,12 +57,21 @@ msk_names <- function(x) names(x@layers)
 
 #' @rdname accessors
 #' @export
-msk_categories <- function(x) x@categories
+msk_categories <- function(x, layer = NULL) .layer_entry(x, "categories", layer)
 
 #' @rdname accessors
 #' @export
-msk_patches <- function(x) x@patches
+msk_patches <- function(x, layer = NULL) .layer_entry(x, "patches", layer)
 
 #' @rdname accessors
 #' @export
-msk_global <- function(x) x@global
+msk_global <- function(x, layer = NULL) .layer_entry(x, "global", layer)
+
+# the entry of one layer in a per-layer slot; NULL if nothing is stored for it
+.layer_entry <- function(x, slot, layer) {
+  if (is.null(layer)) layer <- names(x@layers)[1]
+  if (!layer %in% names(x@layers)) {
+    stop("layer '", layer, "' not found in 'x'.", call. = FALSE)
+  }
+  methods::slot(x, slot)[[layer]]
+}

@@ -1,0 +1,68 @@
+---
+title: "The structure of a protected area"
+summary: "How much of a declared area is forest, how much of that is core, and into how many patches it falls."
+question: arrangement
+about: area
+scale: zone
+declares: ["the area", "the edge width (cells)"]
+uses: [protected-area, patches, core]
+result:
+  - {object: protected, layer: area, text: "inside the protected area"}
+  - {object: protected, layer: core_share, text: "{v} % of the protected area is forest core", percent: true}
+---
+
+A protected area is usually given as a polygon. `msk_rasterise()` writes it
+onto the grid of the map, and from there its structure is measured like
+anything else: how much of it is forest, how much of that forest is core,
+more than two cells from any edge, and into how many patches the forest falls.
+
+```{r}
+library(mosaik)
+area <- data.frame(x = c(3, 25, 25, 3), y = c(25, 25, 53, 53), id = 1)
+
+protected <- landscape |>
+  msk_rasterise(geom = area, name = "area") |>
+  mdf_replace(old = NA, new = 0, layer = "area") |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(area == 1 & forest == 1, add = "area_forest") |>
+  mdf_erode(struct = msk_struct("square", width = 5), layer = "area_forest",
+            add = "area_core") |>
+  mdf_componentise(connectivity = 8L, layer = "area_forest",
+                   add = "area_patch") |>
+  mdf_summarise(by = "area", fun = "mean", layer = "forest",
+                add = "forest_share") |>
+  mdf_summarise(by = "area", fun = "mean", layer = "area_core",
+                add = "core_share") |>
+  mdf_summarise(by = "area", fun = "n_distinct", layer = "area_patch",
+                add = "patches")
+```
+
+```{r, fig.alt = "The protected area, its forest, and the core of that forest"}
+msk_vis(protected, .layer("area"), .layer("area_forest"), .layer("area_core"))
+```
+
+Each summary is written onto every cell of the area, so it is read from any of
+them:
+
+```{r}
+in_area <- msk_pull(protected, "area") == 1
+structure <- c(forest = unique(msk_pull(protected, "forest_share")[in_area]),
+               core = unique(msk_pull(protected, "core_share")[in_area]),
+               patches = unique(msk_pull(protected, "patches")[in_area]))
+structure
+```
+
+**Check.** The area covers patch 4, but the patch is not all forest: a windthrow,
+the fresh clear-cut and the road lie inside it, and the rectangle reaches into
+open land around it. The forest should therefore cover less than half of the
+area, the core much less. The road cuts the patch, so the forest falls into
+more than one patch.
+
+```{r, include = FALSE}
+stopifnot(structure[["forest"]] < 0.5,
+          structure[["core"]] < structure[["forest"]] / 2,
+          structure[["patches"]] > 1)
+```
+
+The recipe "What the road costs" measures how much of this structure is due
+to the road.

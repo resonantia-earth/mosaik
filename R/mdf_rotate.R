@@ -2,16 +2,17 @@
 #'
 #' Rotate the grid clockwise by 90, 180, or 270 degrees. Extent and dimensions
 #' are adjusted accordingly.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param angle [integerish(1)][integer]\cr rotation angle in degrees. Must be
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param angle [`integerish(1)`][integer]\cr rotation angle in degrees. Must be
 #'   one of \code{90}, \code{180}, or \code{270}.
-#' @param layer [character(1)][character]\cr the layer to rotate. If
+#' @param layer [`character(1)`][character]\cr the layer to rotate. If
 #'   \code{NULL} (default), all layers are rotated.
 #' @return A mosaik with rotated cell values and adjusted extent/dimensions.
 #' @examples
-#' mdf_rotate(landscape, angle = 90)
-#' mdf_rotate(landscape, angle = 180)
-#' mdf_rotate(landscape, angle = 270)
+#' # the map turned by 90, 180 and 270 degrees
+#' msk_vis(mdf_rotate(landscape, angle = 90), .layer("cover"))
+#' msk_vis(mdf_rotate(landscape, angle = 180), .layer("cover"))
+#' msk_vis(mdf_rotate(landscape, angle = 270), .layer("cover"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
@@ -20,7 +21,8 @@ mdf_rotate <- function(obj = NULL,
                        angle = 90L,
                        layer = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -88,16 +90,12 @@ mdf_rotate <- function(obj = NULL,
   }
 
   # build output ----
-  prov <- msk_prov("mdf_rotate", list(angle = angle, layer = layer))
 
-  new_mosaik(
-    extent     = new_ext,
-    dims       = new_dims,
-    layers     = new_layers,
-    categories = obj@categories,
-    patches    = list(),
-    global     = list(),
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 extent = new_ext,
+                 dims = new_dims,
+                 layers = new_layers,
+                 patches = list(),
+                 global = list(),
+                 step = step)
 }

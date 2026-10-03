@@ -1,0 +1,73 @@
+---
+title: "Connectivity through the land"
+summary: "How hard it is to get from each patch of forest to the next, crossing the land as it is."
+question: arrangement
+about: forest
+scale: patch
+declares: ["the cost of crossing each kind of land"]
+uses: [land-cover, patches, distance]
+result:
+  - {object: connectivity, layer: hardness, text: "getting from its patch to the nearest other is {v} times as hard as the straight distance suggests", digits: 1}
+---
+
+The straight distance between two patches says little about whether an animal
+gets from one to the other. A road or a settlement in between is hard to
+cross, a hedgerow or a meadow easy. A cost surface gives every kind of land a
+cost of crossing it, and the cheapest path between two patches sums the costs
+along the way.
+
+The costs are a declaration and depend on the species. Here they are those of
+an animal of the forest that crosses extensive grassland and fallow readily,
+fields reluctantly, and roads, settlements and the river hardly at all:
+
+```{r}
+library(mosaik)
+cost <- c("1" = 20, "11" = 5, "21" = 4, "24" = 2, "27" = 2, "31" = 30,
+          "35" = 50, "41" = 3, "44" = 3, "47" = 1)
+
+connectivity <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_replace(old = as.numeric(names(cost)), new = cost, layer = "cover",
+              add = "friction") |>
+  msr_cost(scale = "patch", layer = "forest") |>
+  msr_cost(scale = "patch", cost = "friction", layer = "forest") |>
+  msr(equation = "min(distance.patch)", label = "straight", layer = "forest") |>
+  msr(equation = "min(friction.patch)", label = "through", layer = "forest")
+p <- msk_patches(connectivity, layer = "forest")
+```
+
+For each patch, `straight` is the straight distance to the nearest other
+patch, and `through` the cost of the cheapest path to the nearest other patch
+across the land. Their ratio says how much harder the land makes the way:
+
+```{r}
+connectivity <- connectivity |>
+  mdf_replace(old = p$patch, new = p$through / p$straight, layer = "patch",
+              add = "hardness")
+```
+
+```{r, fig.alt = "The cost of crossing each cell, and for each patch how much harder the land makes the way to its neighbour"}
+msk_vis(connectivity, .layer("friction"), .layer("hardness"))
+```
+
+**Check.** Crossing a cell costs at least 1, so no way can be cheaper than
+the straight distance, and every ratio is at least 1. Many patches lie
+exactly two cells from their nearest neighbour, one cell of open land
+between them. If the land in between matters, their costs through the land
+should differ, although their straight distances are the same:
+
+```{r}
+ratio <- data.frame(patch = p$patch, straight = round(p$straight, 1),
+                    through = round(p$through, 1))
+print(ratio[ratio$straight == 2, ], row.names = FALSE)
+```
+
+```{r, include = FALSE}
+stopifnot(all(p$through >= p$straight),
+          length(unique(ratio$through[ratio$straight == 2])) > 2)
+```
+
+The recipe on isolation measures the straight distance only. Two patches
+equally far apart can be well connected or cut off, and only the land in
+between tells which.

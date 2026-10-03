@@ -1,0 +1,97 @@
+---
+title: "What the road costs"
+summary: "The core habitat a road destroys in a protected area: the undisturbed forest interior lost along both sides of it."
+question: cause
+about: road
+scale: zone
+declares: ["the area", "the edge width (cells)", "the counterfactual: forest in place of the road where it cuts through the forest"]
+uses: [protected-area, declared, patches, core]
+result:
+  - {object: road, layer: lost, text: "core habitat the road destroys: undisturbed forest interior without the road"}
+---
+
+Many forest species need core habitat: forest far enough from any edge to be
+free of the light, wind, noise and predators that come in from outside. Here
+that is forest more than two cells from an edge. A road through a forest
+takes far more core habitat than its own surface, because it makes a new
+edge on both sides: along the road, a band two cells deep on either side
+stops being core. A road one or two cells wide therefore destroys core in a
+band about six cells wide.
+
+How much of the core habitat of a protected area the road destroys needs a
+counterfactual: the same area without the road. Here it is declared as forest
+in place of the road, but only where the road cuts through the forest. Where
+the road runs along the edge of the forest or through open land, forest in
+its place would widen the forest beyond what it ever was. The cells where the
+road cuts through are those that closing the forest by one cell covers:
+
+```{r}
+library(mosaik)
+area <- data.frame(x = c(3, 25, 25, 3), y = c(25, 25, 53, 53), id = 1)
+square <- msk_struct("square", width = 3)
+wide <- msk_struct("square", width = 5)
+
+road <- landscape |>
+  msk_rasterise(geom = area, name = "area") |>
+  mdf_replace(old = NA, new = 0, layer = "area") |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_dilate(struct = square, layer = "forest", add = "closed") |>
+  mdf_erode(struct = square, layer = "closed") |>
+  mdf_filter(area == 1 & cover == 35 & closed == 1, add = "through") |>
+  mdf_filter(area == 1 & forest == 1, add = "with_road") |>
+  mdf_filter(area == 1 & (forest == 1 | through == 1), add = "without_road")
+```
+
+The core habitat is then measured on both, and `lost` is the core habitat
+that exists only without the road: what the road destroys. It includes the
+road's own cells, which would be core habitat had the forest not been cut.
+
+```{r}
+road <- road |>
+  mdf_erode(struct = wide, layer = "with_road", add = "core") |>
+  mdf_erode(struct = wide, layer = "without_road", add = "core_without") |>
+  mdf_componentise(connectivity = 8L, layer = "with_road", add = "patch") |>
+  mdf_componentise(connectivity = 8L, layer = "without_road",
+                   add = "patch_without") |>
+  mdf_filter(core_without == 1 & core == 0, add = "lost")
+```
+
+```{r, fig.alt = "The road where it cuts through the forest, the core habitat as it would be without the road, and the core habitat the road destroys"}
+msk_vis(road, .layer("through"), .layer("core_without"), .layer("lost"))
+```
+
+**Check.** Where the road crosses the forest, the core habitat on both sides
+of it is lost, so without the road there should be more core habitat, and
+the two parts of the patch the road separates should be one again:
+
+```{r}
+cost <- c(core = sum(msk_pull(road, "core")),
+          core_without_road = sum(msk_pull(road, "core_without")),
+          patches = length(unique(na.omit(msk_pull(road, "patch")))),
+          patches_without_road =
+            length(unique(na.omit(msk_pull(road, "patch_without")))))
+cost
+```
+
+```{r, include = FALSE}
+stopifnot(cost[["core_without_road"]] > cost[["core"]],
+          cost[["patches_without_road"]] == cost[["patches"]] - 1)
+```
+
+Where the road cuts through the forest of the area, it covers only a few
+cells, but the core habitat it destroys is nearly twice that, since most of
+it lies on forest that still stands beside the road:
+
+```{r}
+c(road_through_forest = sum(msk_pull(road, "through")),
+  core_habitat_lost = sum(msk_pull(road, "lost")))
+```
+
+```{r, include = FALSE}
+stopifnot(sum(msk_pull(road, "lost")) > 1.5 * sum(msk_pull(road, "through")))
+```
+
+The difference holds only against the declared counterfactual: had the land
+under the road been something other than forest, the difference would be
+another. The recipe "What each stretch of road costs" shows where along the
+road the core habitat is lost.

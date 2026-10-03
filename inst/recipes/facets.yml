@@ -1,0 +1,121 @@
+# The facets of the recipe library. Every recipe names one value of each facet
+# in its YAML header; the site filters by them. The order here is the order in
+# which they are shown.
+
+question:
+  label: "Question"
+  values:
+    amount:
+      label: "How much?"
+      text: "The amount of some land, in total or within reach of each place."
+    arrangement:
+      label: "How is it arranged?"
+      text: "Patches, cores, edges, holes, corridors and the gaps between them."
+    state:
+      label: "What state is it in?"
+      text: "Condition, measured against a reference or along a gradient."
+    pressure:
+      label: "What acts on it?"
+      text: "Pressure from use, from neighbours and from the surrounding land."
+    change:
+      label: "What changed?"
+      text: "Differences between two dates: loss, gain and changed arrangement."
+    cause:
+      label: "What caused it?"
+      text: "A part of a result attributed to one cause, against a counterfactual."
+
+about:
+  label: "About"
+  values:
+    forest: {label: "forest"}
+    river: {label: "river"}
+    road: {label: "road"}
+    area: {label: "a declared area"}
+    landscape: {label: "the whole landscape"}
+
+scale:
+  label: "Reports per"
+  values:
+    cell: {label: "cell"}
+    patch: {label: "patch"}
+    zone: {label: "zone"}
+    landscape: {label: "landscape"}
+
+# The objects the recipes are built from, on two axes. An input is a map the
+# user supplies, of one kind: what the ecosystem is, or what society has laid
+# over it. A state is another version of the maps: observed at an earlier
+# date, or declared, such as a reference or a counterfactual. Now is always
+# there and is not listed. An output is what the method derives from the
+# inputs; "from" names the objects it is derived from.
+kinds:
+  ecosystem: {label: "ecosystem"}
+  society: {label: "society"}
+objects:
+  land-cover:
+    side: input
+    kind: ecosystem
+    label: "land cover"
+    text: "The map of classes: forest, fields, water, roads."
+  canopy:
+    side: input
+    kind: ecosystem
+    label: "canopy height"
+    text: "The height of the vegetation on each cell."
+  protected-area:
+    side: input
+    kind: society
+    label: "protected area"
+    text: "An area under a designation, such as a reserve, usually given as a polygon."
+  earlier:
+    side: state
+    label: "an earlier time"
+    text: "The same land at an earlier date, observed or, where no map exists, declared."
+  declared:
+    side: state
+    label: "a declared state"
+    text: "A state someone sets rather than observes: a reference, or the land as it would be without a given cause."
+  class:
+    side: output
+    label: "class"
+    text: "The cells of one class or a group of classes, such as forest or natural land."
+    from: [land-cover]
+  patches:
+    side: output
+    label: "patches"
+    text: "The connected areas of a class, each with its own number."
+    from: [class]
+  distance:
+    side: output
+    label: "distance"
+    text: "How far each cell lies from the boundary of a class, inside or outside it."
+    from: [class]
+  ecotone:
+    side: output
+    label: "ecotone"
+    text: "The zone of transition between a patch and the land next to it (Holland 1988)."
+    from: [class]
+  neighbourhood:
+    side: output
+    label: "neighbourhood"
+    text: "What lies within reach of each cell."
+    from: [class]
+  holes:
+    side: output
+    label: "holes"
+    text: "The land a patch encloses: glades, windthrows, clearings, the inside of a loop."
+    from: [patches]
+  core:
+    side: output
+    label: "core"
+    text: "The part of a patch far enough from its edge not to be affected by what lies outside."
+    from: [distance]
+  zones:
+    side: output
+    label: "zones"
+    text: "The groups a value is summarised over: rings, stretches, areas."
+    from: [distance, protected-area]
+  corridors:
+    side: output
+    label: "corridors"
+    text: "The narrow parts of a patch: links between cores, dead ends, hedgerows."
+    from: [patches, core]

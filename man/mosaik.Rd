@@ -14,13 +14,13 @@ mosaik(
 )
 }
 \arguments{
-\item{extent}{\link[=numeric]{numeric(4)}\cr the extent as \code{c(xmin, xmax,
+\item{extent}{\code{\link[=numeric]{numeric(4)}}\cr the extent as \code{c(xmin, xmax,
 ymin, ymax)}. Ignored when \code{rast} is supplied.}
 
-\item{res}{\link[=numeric]{numeric(1) | numeric(2)}\cr the cell size (resolution).
+\item{res}{\code{\link[=numeric]{numeric(1) | numeric(2)}}\cr the cell size (resolution).
 Recycled if length 1. Ignored when \code{rast} is supplied.}
 
-\item{crs}{\link[=character]{character(1)}\cr coordinate reference system (proj4
+\item{crs}{\code{\link[=character]{character(1)}}\cr coordinate reference system (proj4
 string), or \code{NA_character_} for cartesian (the default). Ignored when
 \code{rast} is supplied (CRS is read from the raster).}
 
@@ -31,7 +31,7 @@ string), or \code{NA_character_} for cartesian (the default). Ignored when
 \item{rast}{a \code{SpatRaster} object to import. When supplied,
 \code{extent}, \code{res}, \code{crs}, and \code{vals} are ignored.}
 
-\item{group}{\link[=logical]{logical(1)}\cr if \code{TRUE} and the raster has no
+\item{group}{\code{\link[=logical]{logical(1)}}\cr if \code{TRUE} and the raster has no
 categories, unique values are stored as categories. Only used when
 \code{rast} is supplied.}
 }

@@ -7,15 +7,15 @@
 .straight_path(fromCells, toCells, cellCost, accumulate, dims)
 }
 \arguments{
-\item{fromCells}{\link[=integer]{integer(.)}\cr cell indices of the source patch.}
+\item{fromCells}{\code{\link[=integer]{integer(.)}}\cr cell indices of the source patch.}
 
-\item{toCells}{\link[=integer]{integer(.)}\cr cell indices of the target patch.}
+\item{toCells}{\code{\link[=integer]{integer(.)}}\cr cell indices of the target patch.}
 
-\item{cellCost}{\link[=numeric]{numeric(.)}\cr the per-cell cost surface.}
+\item{cellCost}{\code{\link[=numeric]{numeric(.)}}\cr the per-cell cost surface.}
 
-\item{accumulate}{\link[=character]{character(1)}\cr the reduction to apply.}
+\item{accumulate}{\code{\link[=character]{character(1)}}\cr the reduction to apply.}
 
-\item{dims}{\link[=integer]{integer(2)}\cr grid dimensions, columns then rows.}
+\item{dims}{\code{\link[=integer]{integer(2)}}\cr grid dimensions, columns then rows.}
 }
 \value{
 A single numeric value, \code{NA} when the line crosses an

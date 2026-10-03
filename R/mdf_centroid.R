@@ -1,20 +1,26 @@
 #' Determine the centroid of patches
 #'
 #' The centroid is the average location of all cells of a foreground patch.
-#' @param obj [mosaik]\cr the mosaik (with patches) to modify.
-#' @param background [integerish(1)][integer]\cr the value any cell with value
+#' @param obj [`mosaik`]\cr the mosaik (with patches) to modify.
+#' @param background [`integerish(1)`][integer]\cr the value any cell with value
 #'   NA should have.
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
-#' @return A mosaik of the same dimension as \code{obj}, in which the centroid
-#'   of each foreground patch has the value of the patch number and all other
-#'   cells have the value \code{background}.
+#' @return A mosaik in which the centroid cell of each patch carries the patch
+#'   number.
 #' @examples
-#' forest <- mdf_binarise(landscape, match = 41, layer = "cover")
-#' forest <- mdf_componentise(forest)
-#' mdf_centroid(forest)
+#' # the forest patches and the centroid of each
+#' m <- landscape |>
+#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_componentise(layer = "forest", add = "patch") |>
+#'   mdf_centroid(layer = "patch", add = "centroid")
+#' msk_vis(m, .layer("patch"),
+#'         .layer("forest", panel = "centroids", colours = c("grey92", "grey70"),
+#'                legend = FALSE),
+#'         .layer("centroid", panel = "centroids", colours = c("black", "black"),
+#'                legend = FALSE))
 #' @family operators to determine objects
 #' @importFrom checkmate assertClass assertIntegerish assertCharacter
 #' @export
@@ -24,7 +30,8 @@ mdf_centroid <- function(obj = NULL,
                          layer = NULL,
                          add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -65,7 +72,5 @@ mdf_centroid <- function(obj = NULL,
   }
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_centroid", list(background = background, layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

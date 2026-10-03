@@ -1,0 +1,82 @@
+---
+title: "What each stretch of road costs"
+summary: "Where along the road the forest core is lost, stretch by stretch."
+question: cause
+about: road
+scale: zone
+declares: ["the length of a stretch", "the edge width (cells)", "the counterfactual: forest in place of the stretch"]
+uses: [declared, core, zones]
+result:
+  - {object: stretches, layer: cost, text: "this stretch of road costs {v} cells of forest core", omit: 0}
+---
+
+The recipe on what the road costs treats the road as one thing. Where along
+the road the cost arises is a different question, and the one a decision
+about the road needs: which stretch to move, to bridge, or to leave alone.
+The road is cut into stretches, and each stretch in turn is replaced by forest
+while the rest of the road stays. The core gained is what that stretch costs.
+
+The stretches are the parts of the road within squares of six by six cells:
+
+```{r}
+library(mosaik)
+stretches <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_binarise(thresh = 2, layer = "depth", add = "core") |>
+  drw_pattern(type = "checkerboard", frequency = 6, n = 0, name = "square") |>
+  mdf_binarise(match = 35, layer = "cover", add = "road") |>
+  mdf_blend(layers = c("road", "square"), fun = "*", add = "stretch")
+
+# the core habitat of a forest layer "without", recorded once as a recipe
+core_of <- mdf_distance(source = "background", layer = "without", add = "d") |>
+  mdf_binarise(thresh = 2, layer = "d", add = "c")
+
+ids <- sort(setdiff(unique(msk_pull(stretches, "stretch")), 0))
+core_now <- sum(msk_pull(stretches, "core"))
+
+# for each stretch, the core habitat with forest in place of that stretch only
+gained <- vapply(ids, function(k) {
+  counterfactual <- stretches |>
+    mdf_filter(forest == 1 | stretch == k, add = "without") |>
+    mdf(core_of)
+  sum(msk_pull(counterfactual, "c")) - core_now
+}, numeric(1))
+
+stretches <- stretches |>
+  mdf_replace(old = ids, new = gained, layer = "stretch", add = "cost") |>
+  mdf_filter(road == 1, value = TRUE, layer = "cost")
+```
+
+```{r, fig.alt = "The road, and the forest core each stretch of it costs"}
+msk_vis(stretches, .layer("road"), .layer("cost"))
+```
+
+**Check.** Most of the road runs through open land and beside the river,
+where replacing it by forest gains no core. Only the stretches through patch 4
+should cost any:
+
+```{r}
+data.frame(stretch = ids, core_cost = gained)[gained > 0, ]
+```
+
+Adding up the stretches does not give the cost of the whole road. With forest
+in place of all of it at once, the core gained is:
+
+```{r}
+whole <- stretches |>
+  mdf_filter(forest == 1 | road == 1, add = "without") |>
+  mdf(core_of)
+c(stretches_added_up = sum(gained),
+  whole_road = sum(msk_pull(whole, "c")) - core_now)
+```
+
+```{r, include = FALSE}
+stopifnot(sum(gained > 0) <= 4, sum(gained) > 0,
+          sum(msk_pull(whole, "c")) - core_now > sum(gained))
+```
+
+The whole road costs more than its stretches added up. Losses of core do not
+add up: two cuts close together destroy core that neither would destroy
+alone, so removing one stretch while its neighbours remain gives back less
+than its share.

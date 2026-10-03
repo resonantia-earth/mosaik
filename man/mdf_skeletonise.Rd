@@ -14,23 +14,23 @@ mdf_skeletonise(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr a binarised mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr a binarised mosaik to modify.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr the value any cell with value
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr the value any cell with value
 NA should have.}
 
-\item{anchor}{\link[=character]{character(1)}\cr the name of a layer whose non-zero
+\item{anchor}{\code{\link[=character]{character(1)}}\cr the name of a layer whose non-zero
 cells anchor the skeleton: they are never removed during thinning, so the
 skeleton stays connected to them and its free ends rest on them. If
 \code{NULL} (default) the ordinary unanchored skeleton is computed.}
 
-\item{method}{\link[=character]{character(1)}\cr the thinning algorithm,
+\item{method}{\code{\link[=character]{character(1)}}\cr the thinning algorithm,
 \code{"zhangSuen"} (default) or \code{"homotopic"}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -50,9 +50,12 @@ that order, and is what MSPA builds on (see
 \code{vignette("mspa", package = "mosaik")}).
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_skeletonise(forest)
-mdf_skeletonise(forest, method = "homotopic")
+# the skeleton of the forest, by thinning and by homotopic thinning
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_skeletonise(layer = "forest", add = "zhangSuen") |>
+  mdf_skeletonise(method = "homotopic", layer = "forest", add = "homotopic")
+msk_vis(m, .layer("forest"), .layer("zhangSuen"), .layer("homotopic"))
 }
 \references{
 Ranwez, V. & Soille, P. (2002). Order independent homotopic

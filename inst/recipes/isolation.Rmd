@@ -1,0 +1,66 @@
+---
+title: "Isolation"
+summary: "The distance from each patch to its nearest neighbour."
+question: arrangement
+about: forest
+scale: patch
+declares: ["how distance is measured (straight or through a cost surface)"]
+uses: [patches, distance]
+result:
+  - {object: isolation, layer: gap, text: "{v} cells of open land lie between its patch and the nearest other", digits: 1}
+---
+
+How far a patch lies from its nearest neighbour is a primitive of its own: the
+cost of getting from one patch to another, here measured as straight distance.
+Its minimum over the other patches is the distance to the nearest one.
+
+```{r}
+library(mosaik)
+isolation <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  msr_area(scale = "patch", layer = "forest") |>
+  msr_cost(scale = "patch", routing = "straight", layer = "forest") |>
+  msr(equation = "min(distance.patch)", label = "nearest", layer = "forest")
+p <- msk_patches(isolation, layer = "forest")
+```
+
+The result is a table with one row per patch. Replacing each patch number in
+the layer `patch` by the patch's distance draws it as a map:
+
+```{r}
+isolation <- isolation |>
+  mdf_replace(old = p$patch, new = p$nearest, layer = "patch",
+              add = "nearest") |>
+  mdf_offset(fun = "-", value = 1, layer = "nearest", add = "gap")
+```
+
+The distance runs from the centre of a cell to the centre of another, so two
+patches with one cell of open land between them are 2 apart. `gap` subtracts
+that one cell and gives the open land between the patches.
+
+```{r, fig.alt = "Forest patches, coloured by the distance to their nearest neighbour"}
+msk_vis(isolation, .layer("forest"), .layer("gap"))
+```
+
+**Check.** The patch at the southern edge of the map lies furthest from any
+other forest, and the three large patches 3, 4 and 5 lie closest together,
+only a road or a river apart:
+
+```{r}
+nearest <- data.frame(patch = p$patch, area = p$area, nearest = p$nearest)
+print(nearest[order(-nearest$nearest), ][1:3, ], row.names = FALSE)
+print(nearest[nearest$patch %in% 3:5, ], row.names = FALSE)
+```
+
+```{r, include = FALSE}
+far <- nearest$patch[which.max(nearest$nearest)]
+cells <- msk_pull(isolation, "patch") == far
+rows <- ceiling(which(cells) / msk_dims(isolation)[1])
+stopifnot(min(rows) > msk_dims(isolation)[2] - 6,
+          all(nearest$nearest[nearest$patch %in% 3:5] <= 3))
+```
+
+With a cost surface instead of straight distance (`msr_cost(cost = ...)`),
+the same recipe measures isolation for an animal that crosses a road
+reluctantly and follows hedgerows readily.

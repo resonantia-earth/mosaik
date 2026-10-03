@@ -1,0 +1,54 @@
+---
+title: "Corridors"
+summary: "Narrow strips of forest that join two cores, told apart from dead ends."
+question: arrangement
+about: forest
+scale: patch
+declares: ["the edge width (cells)"]
+uses: [core, corridors]
+result:
+  - {object: corridors, layer: joins, text: "{label}", labels: {"0": "on a narrow strip without any core, such as a hedgerow", "1": "on a dead end: a narrow strip that leaves one core", "2": "in a corridor between two cores"}}
+---
+
+A corridor is a narrow strip of forest joining two cores. The skeleton of the
+forest, its centre line, runs through cores and corridors alike; removing the
+cores leaves the pieces of skeleton between them. A piece that touches two
+different cores is a corridor, a piece that touches one is a dead end: a
+branch, a loop that returns to its core, or a corridor that has been
+interrupted.
+
+The cores are the forest more than two cells from its edge:
+
+```{r}
+library(mosaik)
+corridors <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_binarise(thresh = 2, layer = "depth", add = "core") |>
+  mdf_componentise(connectivity = 8L, background = 0, layer = "core",
+                   add = "core_id") |>
+  mdf_skeletonise(layer = "forest", add = "skeleton") |>
+  mdf_filter(skeleton == 1 & core == 0, add = "piece") |>
+  mdf_componentise(connectivity = 8L, layer = "piece", add = "piece_id") |>
+  mdf_summarise(by = "piece_id", fun = "n_distinct", neighbours = TRUE,
+                layer = "core_id", add = "joins")
+```
+
+```{r, fig.alt = "Cores, and the skeleton pieces between them by the number of cores they join"}
+msk_vis(corridors, .layer("core"), .layer("joins"))
+```
+
+**Check.** One corridor joins two cores: the one in patch 5, between the core
+of its northern lobe and its round core in the south. The other pieces reach
+one core, or none at all: those are the centre lines of hedgerows and islets,
+which have no core of their own:
+
+```{r}
+joins <- tapply(msk_pull(corridors, "joins"), msk_pull(corridors, "piece_id"),
+                unique)
+table(joins)
+```
+
+```{r, include = FALSE}
+stopifnot(sum(joins == 2) == 1, all(joins <= 2))
+```

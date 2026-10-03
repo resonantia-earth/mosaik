@@ -1,0 +1,69 @@
+---
+title: "Old and new edges"
+summary: "Edges cut recently, which have not yet grown the lower mantle of old ones."
+question: change
+about: forest
+scale: zone
+declares: ["the forest at the earlier date"]
+uses: [canopy, earlier, ecotone]
+result:
+  - {object: edges, layer: edge, text: "on {label}", labels: {"1": "an old forest edge", "2": "a new forest edge"}}
+---
+
+Over decades, a forest edge grows a mantle of shrubs and lower trees, so the
+canopy rises gradually from the edge into the forest. A new edge has not had
+that time: the trees that stood inside the forest stand at the edge at their
+full height. An average over all edges mixes the two states.
+
+A new edge is one that was not an edge at the earlier date. `landscape` holds
+only today's map, so the forest of the earlier date is declared, as in the
+recipe on conversion: patch 4 was whole, the fallow and shrub inside its
+closed outline and the road through it were forest. The outermost row of
+today's forest is then split into the cells that were edge already and those
+that lay inside the forest then:
+
+```{r}
+library(mosaik)
+square <- msk_struct("square", width = 3)
+seven <- msk_struct("square", width = 7)
+edges <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest_now") |>
+  mdf_componentise(connectivity = 8L, layer = "forest_now", add = "patch") |>
+  mdf_filter(patch == 4, add = "four") |>
+  mdf_dilate(struct = seven, layer = "four", add = "whole") |>
+  mdf_erode(struct = seven, layer = "whole") |>
+  mdf_dilate(struct = square, layer = "forest_now", add = "closed") |>
+  mdf_erode(struct = square, layer = "closed") |>
+  mdf_filter(forest_now == 1 | (whole == 1 & cover == 27) |
+               (cover == 35 & closed == 1), add = "forest_then") |>
+  mdf_distance(source = "background", layer = "forest_now", add = "depth_now") |>
+  mdf_distance(source = "background", layer = "forest_then", add = "depth_then") |>
+  mdf_filter(forest_now == 1 & depth_now < 2, add = "rim") |>
+  mdf_filter(rim == 1 & depth_then < 2, add = "old_edge") |>
+  mdf_filter(rim == 1 & depth_then >= 2, add = "new_edge") |>
+  mdf_blend(layers = c("old_edge", "new_edge"), fun = "+", weights = c(1, 2),
+            add = "edge") |>
+  mdf_filter(edge > 0, value = TRUE, layer = "edge") |>
+  mdf_summarise(by = "edge", fun = "mean", layer = "canopy",
+                add = "edge_mean")
+```
+
+```{r, fig.alt = "The canopy height, the old (1) and new (2) edges, and their mean canopy height"}
+msk_vis(edges, .layer("canopy"), .layer("edge"), .layer("edge_mean"))
+```
+
+**Check.** The new edges run along the road and the fresh clear-cuts, where
+the trees stand at full height. Their mean canopy should lie well above that
+of the old edges, whose outermost trees belong to the mantle:
+
+```{r}
+means <- tapply(msk_pull(edges, "edge_mean"), msk_pull(edges, "edge"), unique)
+round(means, 1)
+```
+
+```{r, include = FALSE}
+stopifnot(means[["2"]] > means[["1"]] + 5)
+```
+
+An edge-depth curve over a forest with many new edges therefore shows less of
+an edge effect than will develop along them.

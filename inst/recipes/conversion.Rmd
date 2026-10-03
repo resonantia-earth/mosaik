@@ -1,0 +1,64 @@
+---
+title: "Conversion of natural ecosystems"
+summary: "Natural land at an earlier date that is no longer natural today."
+question: change
+about: forest
+scale: landscape
+declares: ["the forest at the earlier date", "what counts as natural"]
+uses: [earlier, class]
+result:
+  - {object: conversion, layer: converted, text: "forest converted since the earlier date"}
+---
+
+Conversion compares two maps: one from an earlier date and one from today.
+Natural land on the first that is not natural on the second has been
+converted.
+
+`landscape` holds only today's map, so the recipe first declares the forest of
+the earlier date. The declaration is that patch 4, the large patch in the
+north-west, was whole: the fallow and shrub inside the outline it has when
+closed by three cells were forest, and so was the road where closing the
+forest by one cell covers it. This is an assumption about the past, not an
+observation, and the result holds only as far as the assumption does:
+
+```{r}
+library(mosaik)
+square <- msk_struct("square", width = 3)
+seven <- msk_struct("square", width = 7)
+then_and_now <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest_now") |>
+  mdf_componentise(connectivity = 8L, layer = "forest_now", add = "patch") |>
+  mdf_filter(patch == 4, add = "four") |>
+  mdf_dilate(struct = seven, layer = "four", add = "whole") |>
+  mdf_erode(struct = seven, layer = "whole") |>
+  mdf_dilate(struct = square, layer = "forest_now", add = "closed") |>
+  mdf_erode(struct = square, layer = "closed") |>
+  mdf_filter(forest_now == 1 | (whole == 1 & cover == 27) |
+               (cover == 35 & closed == 1), add = "forest_then")
+```
+
+With a map of the earlier date at hand, the recipe starts here: the
+conversion is what was forest then and is not now.
+
+```{r}
+conversion <- then_and_now |>
+  mdf_filter(forest_then == 1 & forest_now == 0, add = "converted")
+```
+
+```{r, fig.alt = "The forest then, the forest now, and what was converted"}
+msk_vis(conversion, .layer("forest_then"), .layer("forest_now"),
+        .layer("converted"))
+```
+
+**Check.** The map was made with 39 cells of fresh clear-cut in patch 4, and
+with the road crossing it. The converted cells should be these 39 cells, now
+fallow and shrub (27), plus the road where it crosses the forest (35):
+
+```{r}
+converted <- table(msk_pull(conversion, "cover")[msk_pull(conversion, "converted") == 1])
+converted
+```
+
+```{r, include = FALSE}
+stopifnot(identical(names(converted), c("27", "35")), converted[["27"]] == 39)
+```

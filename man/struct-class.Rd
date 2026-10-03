@@ -19,11 +19,11 @@ The cells of a structuring element can have four values: NA (indifferent), 0,
 \section{Slots}{
 
 \describe{
-\item{\code{pattern}}{\link[=matrix]{matrix(.)}\cr the pattern matrix.}
+\item{\code{pattern}}{\code{\link[=matrix]{matrix(.)}}\cr the pattern matrix.}
 
-\item{\code{rotate}}{\link[=logical]{logical(1)}\cr whether the pattern shall be applied
+\item{\code{rotate}}{\code{\link[=logical]{logical(1)}}\cr whether the pattern shall be applied
 in all rotations.}
 
-\item{\code{background}}{\link[=numeric]{numeric(1)}\cr the value of background cells.}
+\item{\code{background}}{\code{\link[=numeric]{numeric(1)}}\cr the value of background cells.}
 }}
 

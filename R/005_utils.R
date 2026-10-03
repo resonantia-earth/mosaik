@@ -3,14 +3,15 @@
 #' These utility functions are meant to immitate the tidy dplyr logic on the
 #' tables of a mosaik. \code{msk_select} keeps only the specified layers,
 #' \code{msk_remove} drops them, \code{msk_add} brings layers in from a second
-#' mosaik on the same grid. \code{msk_pull} extracts cell values from a layer as
-#' a vector (like \code{dplyr::pull}). To select cells rather than layers, see
-#' \code{\link{mdf_filter}}.
+#' mosaik on the same grid, or from vectors of cell values. \code{msk_pull}
+#' extracts cell values from a layer as a vector (like \code{dplyr::pull}).
 #'
-#' @param obj [mosaik][mosaik]\cr the mosaik object.
+#' @param obj [`mosaik`][mosaik]\cr the mosaik object.
 #' @param ... layer names (unquoted or character strings). For
 #'   \code{msk_select} and \code{msk_remove} these name layers of \code{obj},
-#'   for \code{msk_add} they name layers of \code{from}.
+#'   for \code{msk_add} they name layers of \code{from}. \code{msk_add} also
+#'   takes \code{name = values} pairs, which add a vector of cell values as a
+#'   new layer of that name.
 #' @name utils
 NULL
 
@@ -23,12 +24,13 @@ NULL
 #' msk_select(landscape, cover)
 #'
 #' # layer names may also be given as strings
-#' msk_select(landscape, "cover", "intensity")
+#' msk_select(landscape, "cover", "canopy")
 #' @importFrom checkmate assertClass
 #' @export
 
 msk_select <- function(obj, ...){
 
+  step <- .step()
   assertClass(x = obj, classes = "mosaik")
 
   vars <- as.character(match.call(expand.dots = FALSE)$...)
@@ -39,21 +41,13 @@ msk_select <- function(obj, ...){
     stop("none of the requested layers found: ", paste(vars, collapse = ", "))
   }
 
-  new_layers <- obj@layers[keep]
-  new_categories <- obj@categories[intersect(keep, names(obj@categories))]
-
-  prov <- msk_prov("msk_select", list(layers = paste(keep, collapse = ", ")))
-
-  new_mosaik(
-    extent     = obj@extent,
-    dims       = obj@dims,
-    layers     = new_layers,
-    categories = new_categories,
-    patches    = obj@patches,
-    global     = obj@global,
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 layers = obj@layers[keep],
+                 categories = obj@categories[intersect(keep, names(obj@categories))],
+                 patches = .unlink_patches(obj@patches[intersect(keep, names(obj@patches))],
+                                           keep),
+                 global = obj@global[intersect(keep, names(obj@global))],
+                 step = step)
 }
 
 # --- msk_remove ---------------------------------------------------------------
@@ -62,15 +56,16 @@ msk_select <- function(obj, ...){
 #' @return \code{msk_remove}: A mosaik without the named layers.
 #' @examples
 #' # drop a layer, keeping the rest
-#' msk_remove(landscape, intensity)
+#' msk_remove(landscape, canopy)
 #'
 #' # removing every layer is refused
-#' try(msk_remove(landscape, cover, intensity))
+#' try(msk_remove(landscape, cover, canopy))
 #' @importFrom checkmate assertClass
 #' @export
 
 msk_remove <- function(obj, ...){
 
+  step <- .step()
   assertClass(x = obj, classes = "mosaik")
 
   vars <- as.character(match.call(expand.dots = FALSE)$...)
@@ -82,41 +77,34 @@ msk_remove <- function(obj, ...){
     stop("removing ", paste(drop, collapse = ", "), " would leave no layer.")
   }
 
-  new_layers <- obj@layers[keep]
-  new_categories <- obj@categories[intersect(keep, names(obj@categories))]
-
-  prov <- msk_prov("msk_remove", list(layers = paste(drop, collapse = ", ")))
-
-  new_mosaik(
-    extent     = obj@extent,
-    dims       = obj@dims,
-    layers     = new_layers,
-    categories = new_categories,
-    patches    = obj@patches,
-    global     = obj@global,
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 layers = obj@layers[keep],
+                 categories = obj@categories[intersect(keep, names(obj@categories))],
+                 patches = .unlink_patches(obj@patches[intersect(keep, names(obj@patches))],
+                                           keep),
+                 global = obj@global[intersect(keep, names(obj@global))],
+                 step = step)
 }
 
 # --- msk_add ------------------------------------------------------------------
 
 #' @rdname utils
-#' @param from [mosaik][mosaik]\cr the mosaik to take layers from. Must sit on
+#' @param from [`mosaik`][mosaik]\cr the mosaik to take layers from. Must sit on
 #'   the same grid as \code{obj}, i.e. carry the same \code{extent},
-#'   \code{dims} and \code{crs}.
-#' @param rename [character(.)][character]\cr optional names under which the
-#'   layers should be stored in \code{obj}, in the order they are given in
-#'   \code{...}. Needed when a name is already taken.
-#' @return \code{msk_add}: A mosaik with the layers of \code{from} added.
+#'   \code{dims} and \code{crs}. Not needed when only vectors of values are
+#'   added.
+#' @param rename [`character(.)`][character]\cr optional names under which the
+#'   layers of \code{from} should be stored in \code{obj}, in the order they
+#'   are given in \code{...}. Needed when a name is already taken.
+#' @return \code{msk_add}: A mosaik with the layers added.
 #' @details \code{msk_add} is the inverse of \code{msk_select} and the way to
 #'   combine two mosaiks: operators such as \code{\link{mdf_blend}} work within
 #'   a single object, so a layer computed elsewhere is brought in first and
 #'   combined afterwards. The grid is checked here, which is why no operator
-#'   needs to check it again. Any \code{@categories} entry belonging to an added
-#'   layer travels with it; \code{@patches} and \code{@global} do not, since
-#'   they describe the landscape a measurement ran on rather than a single
-#'   layer.
+#'   needs to check it again. Whatever was measured on an added layer (its
+#'   class, patch and landscape-level results) travels with it. Its patches
+#'   stay measurable only if the layer holding their numbers (see
+#'   \code{\link{mdf_componentise}}) is added as well.
 #' @examples
 #' # a second mosaik on the same grid as 'landscape'
 #' other <- mosaik(extent = c(0, 60, 0, 56), res = 1,
@@ -130,86 +118,128 @@ msk_remove <- function(obj, ...){
 #' twin <- msk_select(landscape, cover)
 #' try(msk_add(landscape, twin, cover))
 #' msk_names(msk_add(landscape, twin, cover, rename = "cover2"))
+#'
+#' # a vector of cell values becomes a layer of its own
+#' seed <- as.numeric(seq_len(msk_ncells(landscape)) == 100)
+#' msk_names(msk_add(landscape, seed = seed))
 #' @importFrom checkmate assertClass assertCharacter
 #' @export
 
-msk_add <- function(obj, from, ..., rename = NULL){
+msk_add <- function(obj, from = NULL, ..., rename = NULL){
 
+  step <- .step()
   assertClass(x = obj, classes = "mosaik")
-  assertClass(x = from, classes = "mosaik")
+  assertClass(x = from, classes = "mosaik", null.ok = TRUE)
   assertCharacter(x = rename, null.ok = TRUE, any.missing = FALSE)
 
-  # grid conformity ----
-  if(!isTRUE(all.equal(obj@extent, from@extent))){
-    stop("'from' does not sit on the same extent as 'obj'.", call. = FALSE)
-  }
-  if(!identical(obj@dims, from@dims)){
-    stop("'from' does not have the same dimensions as 'obj'.", call. = FALSE)
-  }
-  if(!identical(obj@crs, from@crs)){
-    stop("'from' does not have the same crs as 'obj'.", call. = FALSE)
-  }
+  # unnamed arguments name layers of 'from', named ones are vectors of values
+  dots <- match.call(expand.dots = FALSE)$...
+  nms <- names(dots)
+  if(is.null(nms)) nms <- rep("", length(dots))
+  vars <- as.character(dots[!nzchar(nms)])
+  values <- list()
+  for(i in which(nzchar(nms))) values[[nms[i]]] <- ...elt(i)
 
-  # resolve which layers to take ----
-  vars <- as.character(match.call(expand.dots = FALSE)$...)
-  if(length(vars) == 0) vars <- names(from@layers)
+  new_layers <- obj@layers
+  new_categories <- obj@categories
+  new_patches <- obj@patches
+  new_global <- obj@global
+  provenance <- obj@provenance
 
-  missing <- setdiff(vars, names(from@layers))
-  if(length(missing) > 0){
-    stop("layer(s) not found in 'from': ", paste(missing, collapse = ", "),
-         call. = FALSE)
-  }
+  if(!is.null(from)){
 
-  # resolve target names ----
-  if(is.null(rename)){
-    target <- vars
-  } else {
-    if(length(rename) != length(vars)){
-      stop("'rename' must name as many layers as are added.", call. = FALSE)
+    # grid conformity ----
+    if(!isTRUE(all.equal(obj@extent, from@extent))){
+      stop("'from' does not sit on the same extent as 'obj'.", call. = FALSE)
     }
-    target <- rename
+    if(!identical(obj@dims, from@dims)){
+      stop("'from' does not have the same dimensions as 'obj'.", call. = FALSE)
+    }
+    if(!identical(obj@crs, from@crs)){
+      stop("'from' does not have the same crs as 'obj'.", call. = FALSE)
+    }
+
+    # resolve which layers to take ----
+    if(length(vars) == 0 && length(values) == 0) vars <- names(from@layers)
+
+    missing <- setdiff(vars, names(from@layers))
+    if(length(missing) > 0){
+      stop("layer(s) not found in 'from': ", paste(missing, collapse = ", "),
+           call. = FALSE)
+    }
+
+    # resolve target names ----
+    if(is.null(rename)){
+      target <- vars
+    } else {
+      if(length(rename) != length(vars)){
+        stop("'rename' must name as many layers as are added.", call. = FALSE)
+      }
+      target <- rename
+    }
+
+    for(i in seq_along(vars)){
+      new_layers[[target[i]]] <- from@layers[[vars[i]]]
+      cats <- from@categories[[vars[i]]]
+      if(!is.null(cats)) new_categories[[target[i]]] <- cats
+      # the patch record keeps its link to the layer holding the patch numbers
+      # only if that layer comes along too, under its new name
+      rec <- from@patches[[vars[i]]]
+      if(!is.null(rec)){
+        if(!is.null(rec$ids)){
+          j <- match(rec$ids, vars)
+          if(is.na(j)) rec$ids <- NULL else rec$ids <- target[j]
+        }
+        new_patches[[target[i]]] <- rec
+      }
+      if(!is.null(from@global[[vars[i]]])) new_global[[target[i]]] <- from@global[[vars[i]]]
+    }
+    provenance <- c(provenance, from@provenance)
+
+  } else {
+    if(length(vars) > 0){
+      stop("layer names were given without 'from' to take them from.", call. = FALSE)
+    }
+    target <- character()
   }
 
-  clash <- intersect(target, names(obj@layers))
+  if(length(values) == 0 && length(target) == 0){
+    stop("nothing to add.", call. = FALSE)
+  }
+
+  clash <- intersect(c(target, names(values)), names(obj@layers))
   if(length(clash) > 0){
     stop("layer(s) already present in 'obj': ", paste(clash, collapse = ", "),
          ". Use 'rename' to store them under a different name.", call. = FALSE)
   }
 
-  # body ----
-  new_layers <- obj@layers
-  new_categories <- obj@categories
-  for(i in seq_along(vars)){
-    new_layers[[target[i]]] <- from@layers[[vars[i]]]
-    cats <- from@categories[[vars[i]]]
-    if(!is.null(cats)) new_categories[[target[i]]] <- cats
+  for(nm in names(values)){
+    if(length(values[[nm]]) != msk_ncells(obj)){
+      stop("'", nm, "' has ", length(values[[nm]]), " values but the grid has ",
+           msk_ncells(obj), " cells.", call. = FALSE)
+    }
+    new_layers[[nm]] <- values[[nm]]
   }
 
-  prov <- msk_prov("msk_add", list(layers = paste(vars, collapse = ", "),
-                                     as = paste(target, collapse = ", ")))
-
-  new_mosaik(
-    extent     = obj@extent,
-    dims       = obj@dims,
-    layers     = new_layers,
-    categories = new_categories,
-    patches    = obj@patches,
-    global     = obj@global,
-    crs        = obj@crs,
-    provenance = c(obj@provenance, from@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 layers = new_layers,
+                 categories = new_categories,
+                 patches = new_patches,
+                 global = new_global,
+                 provenance = provenance,
+                 step = step)
 }
 
 # --- msk_pull ------------------------------------------------------------------
 
 #' @rdname utils
-#' @param layer [character(1)][character]\cr the layer to pull values from.
+#' @param layer [`character(1)`][character]\cr the layer to pull values from.
 #'   Defaults to the first layer.
 #' @return \code{msk_pull}: A numeric/integer vector of cell values.
 #' @examples
 #' # cell values as a plain vector, ready for base R
-#' head(msk_pull(landscape, "intensity"))
-#' mean(msk_pull(landscape, "intensity"))
+#' head(msk_pull(landscape, "canopy"))
+#' mean(msk_pull(landscape, "canopy"))
 #'
 #' # without a layer name the first layer is pulled
 #' head(msk_pull(landscape))
@@ -228,104 +258,30 @@ msk_pull <- function(obj, layer = NULL){
   if (inherits(v, "rle")) inverse.rle(v) else v
 }
 
-# --- msk_set ------------------------------------------------------------------
+# --- .cell ----------------------------------------------------------------------
 
-#' Write a layer into a mosaik
+#' Find the cell that points lie in
 #'
-#' Return a copy of \code{obj} with one layer's values replaced, or a new layer
-#' added, and the provenance entry appended. Every \code{mdf_*} and \code{syn_*}
-#' function writes its result through this, and it is the way for another
-#' package to write computed values into a mosaik.
-#'
-#' To combine layers that already sit in another mosaik, use
-#' \code{\link{msk_add}} instead: it checks that both objects share the same
-#' grid and carries the layers' category tables along.
-#'
-#' @details
-#' \strong{Continuous or categorical.} Passing \code{gid} and \code{val} writes
-#' a categorical layer: its category table is set from them, and only those
-#' \code{gid}s that occur in \code{values} are registered. Omitting them writes
-#' a continuous layer.
-#'
-#' \strong{What is carried forward.} Another package may attach its own fields
-#' to a layer's category entry. When a continuous layer is overwritten in place,
-#' those fields are kept by default, because an operator that only changes
-#' values (\code{\link{mdf_scale}}, \code{\link{mdf_perturb}}, ...) does not
-#' change what the layer is. An operator that does change it
-#' (\code{\link{mdf_binarise}} turning a field into a mask,
-#' \code{\link{mdf_componentise}} turning it into patch IDs) passes
-#' \code{keep = FALSE}. A categorical write always starts a fresh entry.
-#'
-#' @param obj [mosaik][mosaik]\cr the mosaik to write into.
-#' @param layer [character(1)][character]\cr name of the layer to write. A name
-#'   not already present adds a new layer.
-#' @param values [numeric(.)][numeric]\cr the new cell values, one per cell.
-#'   Compressed with \code{\link[base]{rle}} automatically when that is smaller.
-#' @param prov [list][list]\cr a provenance entry from \code{\link{msk_prov}},
-#'   appended to \code{obj}'s history.
-#' @param keep [logical(1)][logical]\cr keep the fields other packages attached
-#'   to the layer's category entry when overwriting it in place. \code{FALSE}
-#'   for an operator that changes what the layer is. Default \code{TRUE}.
-#' @param gid [integer(.)][integer]\cr categorical: the group IDs occurring in
-#'   \code{values}.
-#' @param val [character(.)][character]\cr categorical: the label for each
-#'   \code{gid}.
-#' @return The mosaik, with the layer written and \code{prov} appended.
-#' @seealso \code{\link{msk_add}} to take layers from another mosaik,
-#'   \code{\link{msk_prov}} for the provenance entry, \code{\link{mosaik}} for
-#'   creating an object in the first place.
-#' @examples
-#' m <- mosaik(extent = c(0, 10, 0, 10), res = 1)
-#'
-#' # a continuous layer
-#' m <- msk_set(m, "elevation", runif(100) * 800,
-#'              prov = msk_prov("example", list(range = c(0, 800))))
-#'
-#' # a categorical one
-#' m <- msk_set(m, "cover", rep(1:2, each = 50),
-#'              gid = 1:2, val = c("forest", "crop"),
-#'              prov = msk_prov("example", list()))
-#' msk_categories(m)
-#' @export
+#' @param obj the mosaik.
+#' @param x,y map coordinates of the points to look up.
+#' @return the number of the cell each point lies in, as it indexes a pulled
+#'   layer; \code{NA} for points outside the extent.
+#' @noRd
+.cell <- function(obj, x, y){
 
-msk_set <- function(obj, layer, values, prov = NULL, keep = TRUE,
-                    gid = NULL, val = NULL) {
+  assertClass(x = obj, classes = "mosaik")
+  assertNumeric(x = x, any.missing = FALSE)
+  assertNumeric(x = y, any.missing = FALSE, len = length(x))
 
-  new_layers <- obj@layers
-  # auto-compress
-  rv <- rle(values)
-  if (utils::object.size(rv) < utils::object.size(values)) {
-    new_layers[[layer]] <- rv
-  } else {
-    new_layers[[layer]] <- values
-  }
-
-  # what another package attached to this layer, besides the category table
-  prior <- obj@categories[[layer]]
-  extra <- if (keep && is.null(gid) && !is.null(prior))
-             prior[setdiff(names(prior), c("gid", "val"))] else list()
-
-  new_categories <- obj@categories
-  new_categories[[layer]] <- NULL
-
-  if (!is.null(gid)) {
-    # register only those gids that actually occur in the output
-    present <- gid %in% unique(values[!is.na(values)])
-    new_categories[[layer]] <- list(gid = gid[present], val = val[present])
-  } else if (length(extra)) {
-    new_categories[[layer]] <- extra
-  }
-
-  new_mosaik(
-    extent     = obj@extent,
-    dims       = obj@dims,
-    layers     = new_layers,
-    categories = new_categories,
-    patches    = obj@patches,
-    global     = obj@global,
-    crs        = obj@crs,
-    provenance = if (is.null(prov)) obj@provenance else c(obj@provenance, list(prov))
-  )
+  ext <- obj@extent
+  res <- msk_res(obj)
+  # cells are numbered row by row from the top-left corner; a point on the
+  # right or lower edge of the extent belongs to the last column or row
+  col <- pmin(floor((x - ext[1]) / res[1]) + 1, obj@dims[1])
+  row <- pmin(floor((ext[4] - y) / res[2]) + 1, obj@dims[2])
+  out <- (row - 1) * obj@dims[1] + col
+  out[x < ext[1] | x > ext[2] | y < ext[3] | y > ext[4]] <- NA
+  out
 }
 
 # --- msk_terra ----------------------------------------------------------------
@@ -333,7 +289,7 @@ msk_set <- function(obj, layer, values, prov = NULL, keep = TRUE,
 #' Convert a mosaik to a SpatRaster
 #'
 #' Requires the \pkg{terra} package (listed in Suggests).
-#' @param obj [mosaik][mosaik]\cr the mosaik to convert.
+#' @param obj [`mosaik`][mosaik]\cr the mosaik to convert.
 #' @return A \code{SpatRaster} with one layer per mosaik layer.
 #' @examples
 #' \dontrun{
@@ -388,4 +344,71 @@ msk_terra <- function(obj){
   }
 
   return(out)
+}
+
+# --- msk_spaghettify ----------------------------------------------------------
+
+#' Turn vector geometries into a table of coordinates
+#'
+#' Take sf or terra vector geometries apart into the table of vertices that
+#' \code{\link{msk_rasterise}} reads: coordinates without topology, the
+#' "spaghetti" form of vector data. Requires the \pkg{sf} package (listed in
+#' Suggests).
+#' @param x an \code{sf} or \code{sfc} object, or a terra \code{SpatVector},
+#'   holding one kind of geometry: points, lines or polygons, each possibly as
+#'   multi-geometries.
+#' @return A \code{data.frame} with one row per vertex and the columns
+#'   \code{x}, \code{y}, \code{id} and \code{part}.
+#' @details \code{id} is the row of the geometry in \code{x}, so attributes of
+#'   \code{x} can be matched to it, and \code{part} numbers the pieces of one
+#'   geometry: the parts of a multi-geometry and the rings of a polygon, holes
+#'   included. Coordinates are taken as they are; reproject \code{x} to the
+#'   coordinate system of the mosaik first.
+#' @examples
+#' \dontrun{
+#' nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"))
+#' head(msk_spaghettify(nc))
+#' }
+#' @export
+
+msk_spaghettify <- function(x){
+
+  if(!requireNamespace("sf", quietly = TRUE)){
+    stop("package 'sf' must be installed to use msk_spaghettify().",
+         call. = FALSE)
+  }
+  if(inherits(x, "SpatVector")) x <- sf::st_as_sf(x)
+  if(inherits(x, "sf")) x <- sf::st_geometry(x)
+  if(!inherits(x, "sfc")){
+    stop("'x' must be an sf, sfc or SpatVector object.", call. = FALSE)
+  }
+
+  kinds <- unique(sub("^MULTI", "", as.character(sf::st_geometry_type(x))))
+  if(length(kinds) != 1 || !kinds %in% c("POINT", "LINESTRING", "POLYGON")){
+    stop("'x' must hold one kind of geometry (points, lines or polygons), ",
+         "but holds ", paste(kinds, collapse = ", "), ".", call. = FALSE)
+  }
+
+  # st_coordinates numbers the nesting levels L1, L2, ..., the last of which
+  # is the feature; the levels below it identify the piece within the feature
+  if(length(unique(as.character(sf::st_geometry_type(x)))) > 1){
+    x <- sf::st_cast(x, paste0("MULTI", kinds))
+  }
+  co <- sf::st_coordinates(x)
+  lvl <- co[, grepl("^L[0-9]$", colnames(co)), drop = FALSE]
+  if(ncol(lvl) == 0){
+    id <- seq_len(nrow(co))
+    part <- rep(1L, nrow(co))
+  } else {
+    id <- lvl[, ncol(lvl)]
+    # a point needs no parts; a single line or polygon ring has one
+    within <- if(ncol(lvl) > 1 && kinds != "POINT") {
+      do.call(paste, as.data.frame(lvl[, -ncol(lvl), drop = FALSE]))
+    } else rep("1", nrow(co))
+    part <- stats::ave(match(within, unique(within)), id,
+                       FUN = function(v) match(v, unique(v)))
+  }
+
+  data.frame(x = unname(co[, "X"]), y = unname(co[, "Y"]),
+             id = as.numeric(id), part = as.numeric(part))
 }

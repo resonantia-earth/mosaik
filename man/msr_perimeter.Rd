@@ -4,25 +4,27 @@
 \alias{msr_perimeter}
 \title{Perimeter length}
 \usage{
-msr_perimeter(obj, scale = "patch", unit = "cells", layer = NULL)
+msr_perimeter(obj = NULL, scale = "patch", unit = "cells", layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to measure.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{scale}{\link[=character]{character(1)}\cr scale at which to calculate;
+\item{scale}{\code{\link[=character]{character(1)}}\cr scale at which to calculate;
 \code{"patch"}, \code{"class"} or \code{"landscape"}.}
 
-\item{unit}{\link[=character]{character(1)}\cr \code{"cells"} (default) or
+\item{unit}{\code{\link[=character]{character(1)}}\cr \code{"cells"} (default) or
 \code{"map"} (in map units).}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with a \code{perimeter} column added to
-\code{@patches} (for \code{scale = "patch"}),
-\code{@categories} (for \code{scale = "class"}), or
-\code{@global} (for \code{scale = "landscape"}).
+The input mosaik with a \code{perimeter} value added to the results
+of \code{layer}: its patches (for \code{scale = "patch"}, which must have
+been numbered with \code{\link{mdf_componentise}} first, see
+\code{\link{msk_patches}}), its classes (\code{scale = "class"}, see
+\code{\link{msk_categories}}) or the layer as a whole
+(\code{scale = "landscape"}, see \code{\link{msk_global}}).
 }
 \description{
 Calculate the length of boundaries between objects in a mosaik and attach
@@ -31,29 +33,31 @@ the result to the attribute table.
 \examples{
 # landscape-level: total perimeter
 m <- msr_perimeter(landscape, scale = "landscape")
-m@global$perimeter
+msk_global(m)$perimeter
 
 # class-level: perimeter per class
 m <- msr_perimeter(landscape, scale = "class")
-m@categories$cover$perimeter
+msk_categories(m)$perimeter
 
-# patch-level: perimeter per patch
-m <- msr_perimeter(landscape, scale = "patch")
-m@patches$perimeter
+# patch-level: perimeter per patch, of the patches numbered first
+p <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
+                      add = "patch")
+m <- msr_perimeter(p, scale = "patch")
+msk_patches(m)$perimeter
 
 # derive: edge density (perimeter / landscape area)
 m <- msr_perimeter(landscape, scale = "class")
 m <- msr_area(m, scale = "landscape")
 m <- msr(m, equation = "perimeter.class / area.landscape",
          label = "edge_density")
-m@categories$cover$edge_density
+msk_categories(m)$edge_density
 
 # derive: shape index per patch
-m <- msr_perimeter(landscape, scale = "patch")
+m <- msr_perimeter(p, scale = "patch")
 m <- msr_area(m, scale = "patch")
 m <- msr(m, equation = "perimeter.patch / sqrt(area.patch)",
          label = "shape_index")
-m@patches$shape_index
+msk_patches(m)$shape_index
 }
 \seealso{
 Other measure: 

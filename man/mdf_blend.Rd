@@ -7,22 +7,27 @@
 mdf_blend(obj = NULL, layers = NULL, fun = "+", weights = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{layers}{\link[=character]{character(.)}\cr the layers to blend, at least two.
+\item{layers}{\code{\link[=character]{character(.)}}\cr the layers to blend, at least two.
 Defaults to all layers of \code{obj}, in the order they are stored.}
 
-\item{fun}{\link[=character]{character(1) or function(1)}\cr how values are
-combined. For character, one of the arithmetic operators
-(\code{"+", "-", "*", "/", "\%\%", "\%/\%", "^", "**"}), applied
-successively from left to right. For function, a function taking a numeric
-vector of one value per layer and returning a scalar (evaluated per cell
-via \code{reduceCpp}).}
+\item{fun}{\code{\link[=character]{character(1)}} or \code{\link{function}}\cr how the
+values of a cell are combined. Either an arithmetic operator written as
+text (\code{"+"}, \code{"-"}, \code{"*"}, \code{"/"}, \code{"\%\%"},
+\code{"\%/\%"}, \code{"^"}), applied from the first layer to the last; one
+of the summaries shared with \code{\link{mdf_summarise}}: \code{"max"},
+\code{"min"}, \code{"sum"}, \code{"mean"}, \code{"median"}, \code{"any"}
+(any non-zero value present), \code{"all"}, \code{"n"} (number of layers),
+\code{"n_distinct"} (number of distinct non-zero values) or
+\code{"unique"} (the one non-zero value present, \code{NA} if there are
+several); or a function that takes the values of one cell, one per layer,
+and returns a single value.}
 
-\item{weights}{\link[=numeric]{numeric(.)}\cr optional weights, one per layer, by
+\item{weights}{\code{\link[=numeric]{numeric(.)}}\cr optional weights, one per layer, by
 which values are multiplied before \code{fun} is applied.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 the first blended layer; if a string, write to a new layer with that name.}
 }
 \value{
@@ -43,29 +48,35 @@ one place and makes the inputs of a blend visible as named layers:
     mdf_blend(layers = c("cover", "suitability"), fun = "*")
   }
 
-Character \code{fun} is the fast path and covers most cases. A function is
-for reductions no operator expresses, such as \code{max} or \code{var}
-across layers.
+An operator works on whole layers at once and is fast. A summary or a
+function is evaluated once per cell, so it is slower.
 }
 \examples{
-# blend two named layers
-mdf_blend(landscape, layers = c("cover", "intensity"), fun = "*")
+# the distance to the forest, to the river, and to whichever is nearer
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_binarise(match = 1, layer = "cover", add = "river") |>
+  mdf_distance(layer = "forest", add = "to_forest") |>
+  mdf_distance(layer = "river", add = "to_river") |>
+  mdf_blend(layers = c("to_forest", "to_river"), fun = "min",
+            add = "to_either")
+msk_vis(m, .layer("to_forest"), .layer("to_river"), .layer("to_either"))
 
-# blend every layer, weighted, into a new layer
-mdf_blend(landscape, fun = "+", weights = c(0.3, 0.7), add = "score")
+# the forest as 1, the river as 2, both counted: a weighted sum of 0/1 layers
+m <- mdf_blend(m, layers = c("forest", "river"), fun = "+",
+               weights = c(1, 2), add = "forest_river")
+msk_vis(m, .layer("forest"), .layer("river"), .layer("forest_river"))
 
-# a reduction that no arithmetic operator expresses
-mdf_blend(landscape, fun = max)
-
-# a layer held in another mosaik is brought in first, then blended
-other <- mosaik(extent = c(0, 60, 0, 56), res = 1,
-                vals = list(elevation = runif(60 * 56, 0, 800)))
-msk_add(landscape, other, elevation) |>
-  mdf_blend(layers = c("intensity", "elevation"), fun = "+", add = "sum")
+# a layer held in another mosaik is brought in first: here the canopy height
+# is damped by a gradient that falls from west to east
+other <- mosaik(extent = c(0, 60, 0, 56), res = 1) |>
+  drw_gradient(type = "planar", invert = TRUE, name = "damping")
+m <- msk_add(landscape, other, damping) |>
+  mdf_blend(layers = c("canopy", "damping"), fun = "*", add = "damped")
+msk_vis(m, .layer("canopy"), .layer("damping"), .layer("damped"))
 }
 \seealso{
 Other operators to modify the overall object: 
-\code{\link{mdf_layerise}()},
 \code{\link{mdf_resize}()}
 }
 \concept{operators to modify the overall object}

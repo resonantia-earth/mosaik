@@ -1,0 +1,67 @@
+---
+title: "Indentations"
+summary: "Bays cut into a patch from its edge, the shape a clear-cut leaves, found by closing the patch."
+question: arrangement
+about: forest
+scale: patch
+declares: ["the widest indentation to count (k)"]
+uses: [patches, holes]
+result:
+  - {object: cut, layer: notch, text: "in an indentation of patch 4"}
+---
+
+An indentation is a bay cut into a patch from its edge. It is the shape a
+clear-cut typically leaves: cut in from the edge, so it is not enclosed and is
+no hole. The shape alone does not tell what made it, whatever the land in it
+is now, but it marks the likely clear-cuts of a forest from the forest's
+outline alone. Closing the patch finds it: growing the patch by `k` cells and
+shrinking it again by `k` cells fills every indentation narrower than about
+`2k` cells and leaves the rest of the outline where it was. Growing by `k`
+cells is one dilation with a square `2k + 1` cells wide. What closing adds,
+apart from the holes, are the indentations.
+
+The recipe works on one patch at a time, so that neighbouring patches do not
+grow into each other. Here patch 4, the large patch in the north-west:
+
+```{r}
+library(mosaik)
+one <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_filter(patch == 4, add = "one") |>
+  mdf_fill(layer = "one", add = "one_filled")
+
+k <- 3
+sq <- msk_struct("square", width = 2 * k + 1, height = 2 * k + 1)
+cut <- one |>
+  mdf_dilate(struct = sq, layer = "one", add = "closed") |>
+  mdf_erode(struct = sq, layer = "closed") |>
+  mdf_filter(closed == 1 & one_filled == 0, add = "notch")
+```
+
+```{r, fig.alt = "Patch 4 and what closing it by three cells adds"}
+msk_vis(cut, .layer("one"), .layer("notch"))
+```
+
+**Check.** The check repeats the recipe for `k` from 1 to 4 and counts, for
+each `k`, how many cells closing adds to the patch outside its holes. The
+clear-cut in patch 4 is six cells wide, so it only closes from `k = 3` on,
+since `2k` must reach six. With `k = 1` and `k = 2`, the count should stay
+small, made up of the little bays along the outline. At `k = 3` it should jump
+by the size of the clear-cut, about 30 cells, and at `k = 4` grow only a
+little more:
+
+```{r}
+added <- sapply(1:4, function(k) {
+  sq <- msk_struct("square", width = 2 * k + 1, height = 2 * k + 1)
+  closed <- one |>
+    mdf_dilate(struct = sq, layer = "one") |>
+    mdf_erode(struct = sq, layer = "one")
+  sum(msk_pull(closed, "one") == 1 & msk_pull(one, "one_filled") == 0)
+})
+added
+```
+
+```{r, include = FALSE}
+stopifnot(added[3] - added[2] > 20, added[4] - added[3] < added[3] - added[2])
+```

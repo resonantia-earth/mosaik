@@ -7,7 +7,7 @@
 \S4method{show}{struct}(object)
 }
 \arguments{
-\item{object}{\link{struct}\cr the structuring element to print.}
+\item{object}{\code{\link{struct}}\cr the structuring element to print.}
 }
 \description{
 Print the structuring element

@@ -1,0 +1,55 @@
+---
+title: "Interrupted corridors"
+summary: "Patches separated only by a narrow break, such as a road or a river."
+question: arrangement
+about: forest
+scale: patch
+declares: ["the widest break to bridge (cells)"]
+uses: [patches]
+result:
+  - {object: joined, layer: joined, text: "its patch is one of {v} patches separated only by narrow breaks", omit: 1}
+---
+
+A road or a river can cut a corridor, but the break is narrow. Closing the
+forest by one cell bridges such breaks; patches that were apart and are joined
+afterwards were separated only by a narrow break.
+
+```{r}
+library(mosaik)
+joined <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_dilate(layer = "forest", add = "closed") |>
+  mdf_erode(layer = "closed") |>
+  mdf_componentise(connectivity = 8L, layer = "closed", add = "group") |>
+  mdf_summarise(by = "group", fun = "n_distinct", layer = "patch",
+                add = "joined") |>
+  mdf_filter(forest == 1, value = TRUE, layer = "joined")
+```
+
+The large patches are drawn in colour: 3 in the north-east, 4 in the
+north-west and 5 in the south-west.
+
+```{r, fig.width = 9, fig.alt = "Forest patches, the groups they form after closing, and how many patches each group joins"}
+cols <- rep("grey75", 17)
+cols[3:5] <- c("#e66101", "#2166ac", "#1b7837")
+msk_vis(joined, .layer("patch", colours = cols), .layer("group"),
+        .layer("joined"))
+```
+
+**Check.** The river cuts the corridor between patches 4 and 3, and the road
+separates patch 4 from patch 5. Across these breaks, the three patches become
+one group. Three smaller patches lie within one cell of patch 5 and join the
+same group: the strip of forest south of it and two fragments to its west. The
+group should therefore hold six patches:
+
+```{r}
+g <- unique(msk_pull(joined, "group")[msk_pull(joined, "patch") %in% 3:5])
+members <- sort(unique(msk_pull(joined, "patch")[msk_pull(joined, "group") %in% g]))
+length(g)
+members
+```
+
+```{r, include = FALSE}
+stopifnot(length(g) == 1, length(members) == 6, all(3:5 %in% members))
+```

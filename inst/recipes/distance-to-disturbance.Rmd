@@ -1,0 +1,54 @@
+---
+title: "Distance to disturbance"
+summary: "How far each part of the forest lies from the road and the settlements."
+question: pressure
+about: forest
+scale: cell
+declares: ["what counts as a source of disturbance"]
+uses: [class, distance]
+result:
+  - {object: disturbance, layer: from_disturbance, text: "{v} cells from the nearest road or settlement", digits: 1}
+---
+
+Noise, light, traffic and people reach into the forest from roads and
+settlements. How far each part of the forest lies from them says how much of
+it is quiet. Which land counts as a source of disturbance is a declaration;
+here it is the road and the settlements.
+
+```{r}
+library(mosaik)
+disturbance <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_binarise(match = c(31, 35), layer = "cover", add = "source") |>
+  mdf_distance(layer = "source", add = "distance") |>
+  mdf_filter(forest == 1, value = TRUE, layer = "distance",
+             add = "from_disturbance")
+```
+
+```{r, fig.alt = "The road and the settlements, and the distance of each forest cell from them"}
+msk_vis(disturbance, .layer("source"), .layer("from_disturbance"))
+```
+
+**Check.** The road runs through patch 4, and a settlement lies right beside
+patch 5, so the forest of both should lie about equally close to
+disturbance. Patch 3 lies east of the river, away from the road, and should
+be the quietest of the three large patches. The quietest forest of all should
+be the small patch in the south-east corner, which lies far from both:
+
+```{r}
+d <- msk_pull(disturbance, "from_disturbance")
+patch <- msk_pull(mdf_componentise(disturbance, connectivity = 8L,
+                                   layer = "forest", add = "patch"), "patch")
+round(tapply(d, patch, median)[c("3", "4", "5")], 1)
+patch[which.max(d)]
+```
+
+```{r, include = FALSE}
+med <- tapply(d, patch, median)
+stopifnot(abs(med[["4"]] - med[["5"]]) < 2,
+          med[["3"]] > max(med[["4"]], med[["5"]]) + 3,
+          patch[which.max(d)] == max(patch, na.rm = TRUE))
+```
+
+Core and distance to disturbance can disagree: a cell can be deep inside the
+forest and still lie near a road that runs through it.

@@ -12,26 +12,29 @@ msk_select(obj, ...)
 
 msk_remove(obj, ...)
 
-msk_add(obj, from, ..., rename = NULL)
+msk_add(obj, from = NULL, ..., rename = NULL)
 
 msk_pull(obj, layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik object.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik object.}
 
 \item{...}{layer names (unquoted or character strings). For
 \code{msk_select} and \code{msk_remove} these name layers of \code{obj},
-for \code{msk_add} they name layers of \code{from}.}
+for \code{msk_add} they name layers of \code{from}. \code{msk_add} also
+takes \code{name = values} pairs, which add a vector of cell values as a
+new layer of that name.}
 
-\item{from}{\link{mosaik}\cr the mosaik to take layers from. Must sit on
+\item{from}{\code{\link{mosaik}}\cr the mosaik to take layers from. Must sit on
 the same grid as \code{obj}, i.e. carry the same \code{extent},
-\code{dims} and \code{crs}.}
+\code{dims} and \code{crs}. Not needed when only vectors of values are
+added.}
 
-\item{rename}{\link[=character]{character(.)}\cr optional names under which the
-layers should be stored in \code{obj}, in the order they are given in
-\code{...}. Needed when a name is already taken.}
+\item{rename}{\code{\link[=character]{character(.)}}\cr optional names under which the
+layers of \code{from} should be stored in \code{obj}, in the order they
+are given in \code{...}. Needed when a name is already taken.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to pull values from.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to pull values from.
 Defaults to the first layer.}
 }
 \value{
@@ -39,7 +42,7 @@ Defaults to the first layer.}
 
 \code{msk_remove}: A mosaik without the named layers.
 
-\code{msk_add}: A mosaik with the layers of \code{from} added.
+\code{msk_add}: A mosaik with the layers added.
 
 \code{msk_pull}: A numeric/integer vector of cell values.
 }
@@ -47,31 +50,30 @@ Defaults to the first layer.}
 These utility functions are meant to immitate the tidy dplyr logic on the
 tables of a mosaik. \code{msk_select} keeps only the specified layers,
 \code{msk_remove} drops them, \code{msk_add} brings layers in from a second
-mosaik on the same grid. \code{msk_pull} extracts cell values from a layer as
-a vector (like \code{dplyr::pull}). To select cells rather than layers, see
-\code{\link{mdf_filter}}.
+mosaik on the same grid, or from vectors of cell values. \code{msk_pull}
+extracts cell values from a layer as a vector (like \code{dplyr::pull}).
 }
 \details{
 \code{msk_add} is the inverse of \code{msk_select} and the way to
 combine two mosaiks: operators such as \code{\link{mdf_blend}} work within
 a single object, so a layer computed elsewhere is brought in first and
 combined afterwards. The grid is checked here, which is why no operator
-needs to check it again. Any \code{@categories} entry belonging to an added
-layer travels with it; \code{@patches} and \code{@global} do not, since
-they describe the landscape a measurement ran on rather than a single
-layer.
+needs to check it again. Whatever was measured on an added layer (its
+class, patch and landscape-level results) travels with it. Its patches
+stay measurable only if the layer holding their numbers (see
+\code{\link{mdf_componentise}}) is added as well.
 }
 \examples{
 # keep one layer, dropping everything else
 msk_select(landscape, cover)
 
 # layer names may also be given as strings
-msk_select(landscape, "cover", "intensity")
+msk_select(landscape, "cover", "canopy")
 # drop a layer, keeping the rest
-msk_remove(landscape, intensity)
+msk_remove(landscape, canopy)
 
 # removing every layer is refused
-try(msk_remove(landscape, cover, intensity))
+try(msk_remove(landscape, cover, canopy))
 # a second mosaik on the same grid as 'landscape'
 other <- mosaik(extent = c(0, 60, 0, 56), res = 1,
                 vals = list(elevation = runif(60 * 56, 0, 800)))
@@ -84,9 +86,13 @@ msk_names(combined)
 twin <- msk_select(landscape, cover)
 try(msk_add(landscape, twin, cover))
 msk_names(msk_add(landscape, twin, cover, rename = "cover2"))
+
+# a vector of cell values becomes a layer of its own
+seed <- as.numeric(seq_len(msk_ncells(landscape)) == 100)
+msk_names(msk_add(landscape, seed = seed))
 # cell values as a plain vector, ready for base R
-head(msk_pull(landscape, "intensity"))
-mean(msk_pull(landscape, "intensity"))
+head(msk_pull(landscape, "canopy"))
+mean(msk_pull(landscape, "canopy"))
 
 # without a layer name the first layer is pulled
 head(msk_pull(landscape))

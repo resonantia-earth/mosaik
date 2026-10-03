@@ -1,0 +1,52 @@
+---
+title: "Habitat within reach"
+summary: "The share of forest within a given distance of every place on the map."
+question: amount
+about: forest
+scale: cell
+declares: ["the distance of reach (cells)"]
+uses: [class, neighbourhood]
+result:
+  - {object: within, layer: share, text: "{v} % of the land within three cells is forest", percent: true}
+---
+
+A total area says how much forest there is, but not where it can be reached.
+For an animal that moves a few hundred metres, or for people who walk to a
+wood, what counts is the forest within reach of each place. The share of
+forest within a disc around every cell gives it. The radius of the disc is the
+reach, here three cells:
+
+```{r}
+library(mosaik)
+reach <- 3
+disc <- msk_struct("disc", width = 2 * reach + 1, height = 2 * reach + 1)
+within <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_morph(struct = disc, blend = "product", merge = "mean",
+            layer = "forest", add = "share")
+```
+
+```{r, fig.alt = "The forest, and the share of forest within three cells of each cell"}
+msk_vis(within, .layer("forest"), .layer("share"))
+```
+
+**Check.** Deep inside the large patches, every cell within reach is forest,
+so the share there should be 1. Far out in the open land, more than three
+cells from the nearest forest, it should be 0:
+
+```{r}
+check <- within |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_distance(source = "foreground", layer = "forest", add = "away")
+share <- msk_pull(check, "share")
+c(deep = range(share[msk_pull(check, "depth") > reach + 1]),
+  far = range(share[msk_pull(check, "away") > reach + 1]))
+```
+
+```{r, include = FALSE}
+stopifnot(all(share[msk_pull(check, "depth") > reach + 1] == 1),
+          all(share[msk_pull(check, "away") > reach + 1] == 0))
+```
+
+Between the two, the share falls off smoothly across the edge, and a hedgerow
+lifts it in the open land around it.

@@ -4,24 +4,24 @@
 \alias{msr_number}
 \title{Number of objects}
 \usage{
-msr_number(obj, scale = "class", layer = NULL)
+msr_number(obj = NULL, scale = "class", layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to measure.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{scale}{\link[=character]{character(1)}\cr the level to report at;
-\code{"class"} (number of distinct classes, attached to
-\code{@global}) or \code{"patch"} (number of patches per class,
-attached to \code{@categories}).}
+\item{scale}{\code{\link[=character]{character(1)}}\cr the level to report at;
+\code{"class"} (number of distinct classes, a landscape-level value) or
+\code{"patch"} (number of patches per class, a class-level value; the
+patches must have been numbered with \code{\link{mdf_componentise}}).}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with results attached to
-\code{@global} (for \code{scale = "class"}: the count of distinct
-classes) or \code{@categories} (for \code{scale = "patch"}: patch
-count per class).
+The input mosaik with a \code{number} value added to the results of
+\code{layer}: at landscape level for \code{scale = "class"} (see
+\code{\link{msk_global}}), at class level for \code{scale = "patch"} (see
+\code{\link{msk_categories}}).
 }
 \description{
 Count the number of objects at the given scale in a mosaik and attach the
@@ -30,18 +30,20 @@ result to the attribute table.
 \examples{
 # count distinct classes (landscape-level)
 m <- msr_number(landscape, scale = "class")
-m@global$number
+msk_global(m)$number
 
-# count patches per class (class-level)
-m <- msr_number(landscape, scale = "patch")
-m@categories$cover$number
+# count patches per class (class-level), of the patches numbered first
+p <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
+                      add = "patch")
+m <- msr_number(p, scale = "patch")
+msk_categories(m)$number
 
 # derive: patch density (patches per unit area)
-m <- msr_number(landscape, scale = "patch")
+m <- msr_number(p, scale = "patch")
 m <- msr_area(m, scale = "landscape")
 m <- msr(m, equation = "number.class / area.landscape",
          label = "patch_density")
-m@categories$cover$patch_density
+msk_categories(m)$patch_density
 }
 \seealso{
 Other measure: 

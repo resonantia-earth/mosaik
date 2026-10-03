@@ -14,21 +14,21 @@ mdf_match(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{struct}{\link[=struct]{struct(1)}\cr the pattern to match; see
+\item{struct}{\code{\link[=struct]{struct(1)}}\cr the pattern to match; see
 \code{\link{msk_struct}} for details.}
 
-\item{rotate}{\link[=logical]{logical(1)}\cr whether the kernel should be rotated
+\item{rotate}{\code{\link[=logical]{logical(1)}}\cr whether the kernel should be rotated
 for all possible rotations or used as is.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr the value any non-matching cell
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr the value any non-matching cell
 should have.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -39,15 +39,33 @@ Transform a mosaik by setting all cells that do not match a structuring
 element to \code{background}. Also known as the 'hit-or-miss'-transform.
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-s <- msk_struct("cross", width = 3)
-mdf_match(forest, struct = s)
-mdf_match(forest, struct = s, rotate = FALSE)
+# a forest cell with no forest around it, and the end of a forest line one
+# cell wide: the line leaves the end downwards, the cells marked NA may be
+# anything
+isolated <- msk_struct(custom = matrix(c(0, 0, 0,
+                                         0, 1, 0,
+                                         0, 0, 0), nrow = 3, byrow = TRUE))
+end <- msk_struct(custom = matrix(c( 0, 0,  0,
+                                     0, 1,  0,
+                                    NA, 1, NA), nrow = 3, byrow = TRUE))
+
+# isolated cells, line ends in all four directions, and only those whose line
+# leaves downwards; drawn over the forest
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_match(struct = isolated, layer = "forest", add = "isolated") |>
+  mdf_match(struct = end, layer = "forest", add = "ends") |>
+  mdf_match(struct = end, rotate = FALSE, layer = "forest", add = "ends_down")
+over <- function(layer) {
+  list(.layer("forest", panel = layer, colours = c("grey92", "grey70"),
+              legend = FALSE),
+       .layer(layer, panel = layer, colours = c("black", "black"),
+              legend = FALSE))
+}
+do.call(msk_vis, c(list(m), over("isolated"), over("ends"), over("ends_down")))
 }
 \seealso{
 Other operators to select a subset of cells: 
-\code{\link{mdf_mask}()},
-\code{\link{mdf_range}()},
-\code{\link{mdf_zonify}()}
+\code{\link{mdf_range}()}
 }
 \concept{operators to select a subset of cells}

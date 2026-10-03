@@ -9,38 +9,45 @@ mdf_morph(
   struct = NULL,
   blend = NULL,
   merge = NULL,
-  rotate = TRUE,
-  strict = TRUE,
+  rotate = FALSE,
+  strict = FALSE,
   background = NA,
   layer = NULL,
   add = NULL
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{struct}{\link[=struct]{struct(1)}\cr the structuring element; see
+\item{struct}{\code{\link[=struct]{struct(1)}}\cr the structuring element; see
 \code{\link{msk_struct}} for details.}
 
-\item{blend}{\link[=character]{character(1)}\cr \code{identity}, \code{equal},
+\item{blend}{\code{\link[=character]{character(1)}}\cr \code{identity}, \code{equal},
 \code{lower}, \code{greater}, \code{plus}, \code{minus}, \code{product};
 see Details.}
 
-\item{merge}{\link[=character]{character(1)}\cr \code{min}, \code{max}, \code{all},
-\code{any}, \code{sum}, \code{mean}, \code{median}, \code{sd}, \code{cv},
-\code{one}, \code{zero}, \code{na}; see Details.}
+\item{merge}{\code{\link[=character]{character(1)}}\cr \code{min}, \code{max}, \code{all},
+\code{any}, \code{!all}, \code{!any}, \code{sum}, \code{mean},
+\code{median}, \code{sd}, \code{cv}, \code{sumNa}; see Details.}
 
-\item{rotate}{\link[=logical]{logical(1)}\cr whether the kernel should be rotated.}
+\item{rotate}{\code{\link[=logical]{logical(1)}}\cr whether to try all four quarter turns
+of the kernel and stop at the first whose result is 1. This is meant for
+matching a pattern in any orientation (see \code{\link{mdf_match}}), and
+needs a square kernel. Default \code{FALSE}.}
 
-\item{strict}{\link[=logical]{logical(1)}\cr whether ...}
+\item{strict}{\code{\link[=logical]{logical(1)}}\cr how cells at the edge of the grid are
+treated, where the kernel reaches beyond it. \code{FALSE} (default): the
+kernel is clipped to the grid, so the operation covers every cell.
+\code{TRUE}: only cells whose kernel fits entirely inside the grid are
+computed; the others get \code{background}.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr the value any cell with value
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr the value any cell with value
 NA should have.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \description{
@@ -49,7 +56,11 @@ Morphologically modify a mosaik
 \details{
 The \code{morphCpp} function (internal) iteratively goes through
 each pixel and compares a structuring element with the mosaik at that
-location. The result depends on \code{blend} and \code{merge}:
+location. The structuring element is a small grid of values centred on the
+cell: \code{NA} cells are outside the neighbourhood. A \code{0} means
+"this neighbour must be 0" for \code{blend = "equal"} (matching a
+pattern) and is outside the neighbourhood for every other blend, so a
+disc acts as a disc. The result depends on \code{blend} and \code{merge}:
 \itemize{
 \item First, values covered by the structuring element are blended
 pairwise with the element (\code{blend}).
@@ -64,18 +75,20 @@ cv, sumNa.
 \examples{
 s <- msk_struct("disc", width = 3)
 
-# smoothing: weighted mean of neighbourhood
-mdf_morph(landscape, struct = s, blend = "product", merge = "mean",
-          layer = "intensity")
+# smoothing (the mean of the neighbourhood) and the local maximum
+m <- landscape |>
+  mdf_morph(struct = s, blend = "product", merge = "mean",
+            layer = "canopy", add = "mean") |>
+  mdf_morph(struct = s, blend = "identity", merge = "max",
+            layer = "canopy", add = "max")
+msk_vis(m, .layer("canopy"), .layer("mean"), .layer("max"))
 
-# edge detection on binary layer
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_morph(forest, struct = s, blend = "equal", merge = "all",
-          strict = TRUE, background = 0)
-
-# local maximum
-mdf_morph(landscape, struct = s, blend = "identity", merge = "max",
-          layer = "intensity")
+# the interior of a binary layer: cells whose whole neighbourhood is 1
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_morph(struct = s, blend = "equal", merge = "all", layer = "forest",
+            add = "interior")
+msk_vis(m, .layer("forest"), .layer("interior"))
 }
 \references{
 Credit for the original idea and C++ code is due to Jon Clayden

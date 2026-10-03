@@ -12,36 +12,77 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6,
                       fig.height = 5)
 ```
 
-mosaik is a small set of operations on one kind of object: `syn_*` synthesises
-fields, `mdf_*` modifies layers, `msr_*` measures them, and `msr()` combines
-measurements into metrics. This vignette walks through them on the example data
-that ships with the package.
+mosaik follows the Unix principle for spatial analysis: each operator does one
+thing, all of them take and return a mosaik, and an analysis is a combination
+of them rather than a function of its own. New questions need new
+combinations, not new code, and every combination can be checked part by part
+and rerun from its record.
+
+The operators draw fields (`drw_*`), modify layers (`mdf_*`, `mdf()`) and
+measure them (`msr_*`, `msr()`). This vignette takes each step in turn, on a
+drawn field and on the example data that ships with the package.
 
 ```{r}
 library(mosaik)
 ```
 
+## Drawing a field
+
+A mosaik starts as an empty grid. A `drw_*` function fills it with a field of
+known structure: noise, a gradient, a regular pattern, clusters or a
+tessellation. Here a random cluster field with four classes:
+
+```{r, fig.alt = "A random cluster field with four classes"}
+g <- mosaik(extent = c(0, 60, 0, 60), res = 1) |>
+  drw_cluster(type = "randomCluster", p = 0.6, n = 4, seed = 1)
+msk_vis(g)
+```
+
+Because the structure of such a field is known, it is a test case: a metric
+can be checked on it before it is trusted on a real map.
+
 ## The example data
 
 `landscape` is a small example: a 60 by 56 grid with two layers, a land-cover
-map (`cover`) and a continuous `intensity` field.
+map (`cover`) and the height of the vegetation on each cell (`canopy`, in metres).
 
 ```{r}
 landscape
 ```
 
-```{r, fig.alt = "The cover layer of the example data, nine land-cover classes"}
+```{r, fig.alt = "The cover layer of the example data, ten land-cover classes"}
 msk_vis(landscape, .layer("cover"))
 ```
 
 The cell values of `cover` are the class identifiers themselves: 1, 11, 21 and
-so on. There is no lookup from a number to a class; the number is the class.
+so on. There is no lookup from a number to a class; the number is the class,
+and its label (47 is forest) is kept alongside, in the categories of the layer.
+
+## Modifying layers
+
+The `mdf_*` functions are generic operations such as binarise, dilate, erode,
+mask and rescale. Each reads one layer and writes its result as a new layer
+(`add`) next to it. Binarising the cover map at the forest class (47) gives a
+layer that is 1 where there is forest and 0 elsewhere; eroding that by one cell
+gives the forest core, the forest that is not edge.
+
+```{r, fig.alt = "Forest and its core after eroding by one cell", fig.height = 3}
+f <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_erode(layer = "forest", add = "core")
+msk_vis(f, .layer("forest"), .layer("core"))
+```
+
+The operations do not know what a layer represents. Erosion gives the core
+because it was applied to forest, not because it knows about forests. A
+sequence of such steps can also be written down once, without data, and
+replayed on any map with `mdf()`; `vignette("techniques")` shows how.
 
 ## Measuring the primitives
 
 A `msr_*` function measures one primitive and writes the result into the
-object at the level it describes. Here the area of every class, and of the
-whole grid:
+object at the level it describes. Here the area and perimeter of every class
+of the cover map, and the area of the whole grid:
 
 ```{r}
 m <- landscape |>
@@ -50,23 +91,40 @@ m <- landscape |>
   msr_perimeter(scale = "class", layer = "cover")
 ```
 
-Class-level results are in the categories of the layer, landscape-level results
-in the global slot:
+Every result is stored with the layer it was measured on. `msk_categories()`
+returns the class-level results of a layer, `msk_global()` its landscape-level
+results:
 
 ```{r}
-msk_categories(m)$cover
-msk_global(m)
+msk_categories(m, layer = "cover")
+msk_global(m, layer = "cover")
 ```
 
-The primitives are area, number, perimeter, adjacency, dissimilarity and cost,
-each measured at patch, class or landscape level.
+The same functions measure single patches, once the patches are numbered.
+Which cells form a patch depends on whether cells that touch only at a corner
+count as connected, so that is a step of its own: `mdf_componentise()`, with
+four or eight neighbours. It keeps the patches in the object, so every
+patch-level measurement refers to the same patches. On the forest layer, the
+patches are those of the forest (1); the non-forest land (0) forms none:
+
+```{r}
+f <- f |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  msr_area(scale = "patch", layer = "forest") |>
+  msr_perimeter(scale = "patch", layer = "forest")
+
+p <- msk_patches(f, layer = "forest")
+data.frame(patch = p$patch, area = p$area, perimeter = p$perimeter)
+```
+
+The primitives are area, number, perimeter, adjacency, dissimilarity and cost.
 
 ## Composing a metric
 
-`msr()` computes a metric from an equation over primitives that have already
-been measured. A primitive is named as `metric.scale`, so `area.class` is the
-area of each class and `area.landscape` the area of the whole grid. The
-share of the grid each class covers, and its edge density:
+`msr()` computes a metric from an equation over values already in the object.
+A value is named as `metric.scale`, so `area.class` is the area of each class
+and `area.landscape` the area of the whole grid. The share of the grid each
+class covers, and its edge density:
 
 ```{r}
 m <- m |>
@@ -75,66 +133,44 @@ m <- m |>
   msr(equation = "perimeter.class / area.landscape", label = "edge_density",
       layer = "cover")
 
-msk_categories(m)$cover
+data.frame(msk_categories(m, layer = "cover")[c("val", "pland", "edge_density")])
 ```
 
 The result is stored where its length says it belongs: one value per class goes
-to the class level, a single value to the landscape level. Shannon diversity
-reduces over the classes, so it lands in the global slot:
+to the class level, a single value to the landscape level.
+
+Shannon diversity sums over the classes, so it lands at the landscape level:
 
 ```{r}
 m <- msr(m, layer = "cover", label = "shannon",
          equation = "-sum(area.class / area.landscape *
                           log(area.class / area.landscape))")
-msk_global(m)$shannon
+msk_global(m, layer = "cover")$shannon
 ```
 
-No function was written for any of these metrics. That is the point of the
-package: a metric that no catalogue ships is one more equation.
+A metric computed this way can itself be used in the next equation;
+`vignette("techniques")` shows how.
 
-## Patches
-
-Patch-level primitives work the same way. Here the forest class (47) is turned
-into a layer of its own, and every forest patch is measured:
+Patch-level primitives compose the same way. The shape index of every forest
+patch:
 
 ```{r}
-f <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
-  msr_area(scale = "patch", layer = "forest") |>
-  msr_perimeter(scale = "patch", layer = "forest") |>
-  msr(equation = "perimeter.patch / sqrt(area.patch)", label = "shape_index",
-      layer = "forest")
+f <- msr(f, equation = "perimeter.patch / sqrt(area.patch)",
+         label = "shape_index", layer = "forest")
 ```
 
-The patches are found once and kept in the object, so every patch-level
-measurement refers to the same patches. After binarising, the non-forest
-background is class 0, so the forest patches are the rows of class 1:
-
-```{r}
-p <- msk_patches(f)
-patches <- data.frame(p[-3])
-patches[patches$class == 1, ]
-```
-
-## Modifying layers
-
-The `mdf_*` functions are generic operations such as binarise, dilate, erode,
-mask and rescale. They do not know what a layer represents: eroding the forest
-by one cell gives its core, the forest that is not edge, because erosion was
-applied to forest, not because the operation knows about forests.
-
-```{r, fig.alt = "Forest and its core after eroding by one cell"}
-f <- mdf_erode(f, layer = "forest", add = "core")
-msk_vis(f, .layer("forest"), .layer("core"))
-```
+No function was written for any of these metrics. A metric that no catalogue
+ships is one more equation.
 
 ## Every step is recorded
 
 Each operation appends an entry to the object's provenance: what was done, with
-which arguments, when, and by which version of mosaik.
+which arguments, when, and by which version of mosaik. Printing the object
+lists the steps at the end, each with the layer it read, the layer it wrote,
+and the arguments that differ from the defaults:
 
 ```{r}
-unlist(lapply(msk_provenance(f), names))
+f
 ```
 
 This record travels with the object, so a number read off it can be traced
@@ -149,12 +185,3 @@ works unchanged.
 ```{r, eval = FALSE}
 lc <- mosaik(rast = terra::rast("land_cover.tif"))
 ```
-
-## Where next
-
-- `vignette("measurement")`: why landscape condition has to be measured at the
-  landscape level, and how mosaik approaches reference states and disclosure.
-- `vignette("recipes")`: pipelines defined once, without data, and replayed on
-  many rasters.
-- `vignette("mspa")`: Morphological Spatial Pattern Analysis built from the
-  primitives, matching the published classification cell for cell.

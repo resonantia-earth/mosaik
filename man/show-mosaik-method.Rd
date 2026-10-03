@@ -7,7 +7,7 @@
 \S4method{show}{mosaik}(object)
 }
 \arguments{
-\item{object}{\link{mosaik}\cr object to \code{show}.}
+\item{object}{\code{\link{mosaik}}\cr object to \code{show}.}
 }
 \description{
 Print mosaik in the console

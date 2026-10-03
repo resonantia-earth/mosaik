@@ -4,26 +4,28 @@
 #' member of that family measured in metres; any other cost is expressed by
 #' handing in a surface of per-cell traversal costs.
 #'
-#' @param obj [mosaik]\cr the mosaik to measure.
-#' @param scale [character(1)][character]\cr \code{"patch"} (default) for
+#' @param obj [`mosaik`]\cr the mosaik to measure.
+#' @param scale [`character(1)`][character]\cr \code{"patch"} (default) for
 #'   pairwise costs between patches, or \code{"cell"} for a per-cell cost
 #'   surface stored as a layer.
-#' @param cost [character(1)][character]\cr the name of a layer holding
+#' @param cost [`character(1)`][character]\cr the name of a layer holding
 #'   per-cell traversal costs. If \code{NULL} (default), cost is geometric
 #'   distance in metres.
-#' @param routing [character(1)][character]\cr how the path between two patches
+#' @param routing [`character(1)`][character]\cr how the path between two patches
 #'   is chosen: \code{"straight"} follows the direct line, \code{"cheapest"}
 #'   (default) searches for the path of least accumulated cost. Only used at
 #'   \code{scale = "patch"}.
-#' @param accumulate [character(1)][character]\cr how the cell values along the
+#' @param accumulate [`character(1)`][character]\cr how the cell values along the
 #'   path are combined into one number: \code{"sum"} (default), \code{"max"},
 #'   \code{"min"}, \code{"product"} or \code{"mean"}. Only used at
 #'   \code{scale = "patch"}.
-#' @param layer [character(1)][character]\cr the layer holding the patches to
-#'   measure between. Defaults to the first layer.
+#' @param layer [`character(1)`][character]\cr the layer whose patches are
+#'   measured between; they must have been numbered with
+#'   \code{\link{mdf_componentise}} first. Defaults to the first layer.
 #' @return The input mosaik with cost information added. At
-#'   \code{scale = "patch"} a named list of matrices, one per class, is written
-#'   to \code{@patches}; at \code{scale = "cell"} an internal layer is added.
+#'   \code{scale = "patch"} a named list of matrices, one per class, is added
+#'   to the patch results of \code{layer} (see \code{\link{msk_patches}}); at
+#'   \code{scale = "cell"} an internal layer is added.
 #'   Both are named after what the surface measures rather than after this
 #'   function: \code{distance} when \code{cost} is \code{NULL}, otherwise the
 #'   name of the \code{cost} layer. So a friction surface yields
@@ -46,8 +48,10 @@
 #'   combining it with \code{accumulate = "max"} reports the worst cell on the
 #'   cheapest path — not the path whose worst cell is lowest.
 #'
-#'   At \code{scale = "cell"} the surface is written under a reserved name
-#'   prefixed with an underscore, which is how \code{\link{msr}()} finds it. The
+#'   At \code{scale = "cell"} the surface is written under a reserved name,
+#'   \code{"_<metric>_<layer>"}, which is how \code{\link{msr}()} finds it:
+#'   \code{distance.cell_forest} reads the distance surface measured on the
+#'   layer \code{forest}. The
 #'   two scales aggregate different things, both to one value per patch:
 #'   \code{max(distance.patch)} is the cost to the most distant other patch,
 #'   whereas \code{max(distance.cell)} is the most expensive cell within a
@@ -56,42 +60,41 @@
 #'   \code{scale = "cell"} expects \code{layer} to be \strong{binary}: the
 #'   surface measures the cost of reaching each cell from the background, so it
 #'   needs a foreground to measure into. Isolate the class of interest with
-#'   \code{\link{mdf_binarise}()} first. Reducing that surface per patch with
-#'   \code{\link{msr}()} then needs a layer of patch IDs to group by — see the
-#'   examples — because \code{msr()} groups cell values by the values of the
-#'   layer it is given, and a binary layer has only two of those.
+#'   \code{\link{mdf_binarise}()} first. \code{\link{msr}()} reduces that
+#'   surface per patch of \code{layer}, once they are numbered with
+#'   \code{\link{mdf_componentise}()}.
 #' @examples
-#' # pairwise distance between patches, in metres
-#' m <- msr_cost(landscape)
-#' m@patches$distance[["47"]]
+#' # the forest patches, numbered first
+#' f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+#' f <- mdf_componentise(f, connectivity = 8L, layer = "forest", add = "patch")
+#'
+#' # pairwise distance between the forest patches, in metres
+#' m <- msr_cost(f, layer = "forest")
+#' msk_patches(m, layer = "forest")$distance[["1"]]
 #'
 #' # cost over a friction surface built from the classes
-#' m <- mdf_replace(landscape, old = c(21, 24, 47), new = c(5, 2, 1),
-#'                  add = "friction")
-#' m <- msr_cost(m, cost = "friction", layer = "cover")
+#' m <- mdf_replace(f, old = c(21, 24, 47), new = c(5, 2, 1),
+#'                  layer = "cover", add = "friction")
+#' m <- msr_cost(m, cost = "friction", layer = "forest")
 #'
 #' # the worst barrier on the cheapest path, rather than the total
-#' m <- msr_cost(m, cost = "friction", accumulate = "max", layer = "cover")
+#' m <- msr_cost(m, cost = "friction", accumulate = "max", layer = "forest")
 #'
-#' # a per-cell surface, reduced per patch by msr(). The surface measures how
-#' # deep into a patch each cell lies, so it needs one class on its own: a
-#' # binary layer to measure into, and its patch IDs to group the result by.
-#' f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
-#' f <- mdf_componentise(f, layer = "forest", add = "patches")
+#' # a per-cell surface, reduced per patch by msr(): the deepest cell of each
+#' # patch, its distance to the nearest edge
 #' f <- msr_cost(f, scale = "cell", layer = "forest")
-#'
-#' # the deepest cell of each patch — its distance to the nearest edge
-#' f <- msr(f, equation = "max(distance.cell)", label = "core",
-#'          layer = "patches")
-#' f@patches$core
+#' f <- msr(f, equation = "max(distance.cell_forest)", label = "depth",
+#'          layer = "forest")
+#' msk_patches(f, layer = "forest")$depth
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
 
-msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
+msr_cost <- function(obj = NULL, scale = "patch", cost = NULL, routing = "cheapest",
                      accumulate = "sum", layer = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -118,9 +121,12 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
   # --- scale = "cell": register the surface for msr() ----
   if(scale == "cell"){
 
+    # named after the metric and the layer it was measured on, so surfaces of
+    # different layers do not overwrite each other
+    surface_name <- paste0("_", metric, "_", layer)
     if(is.null(cost)){
       obj <- mdf_distance(obj, source = "background", layer = layer,
-                          add = paste0("_", metric))
+                          add = surface_name)
     } else {
       surface <- msk_pull(obj, cost)
       src <- which(!is.na(vals) & vals != 0)
@@ -128,31 +134,27 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
                             ncol = dims[1], diagonal = TRUE)
       out <- cd$dist
       out[is.infinite(out)] <- NA_real_
-      obj@layers[[paste0("_", metric)]] <- out
+      obj@layers[[surface_name]] <- out
     }
 
-    prov <- msk_prov("msr_cost", list(scale = scale, cost = cost,
-                                        layer = layer))
-    obj@provenance <- c(obj@provenance, list(prov))
+    obj <- .update_mosaik(obj, step = step)
     return(obj)
   }
 
   # --- scale = "patch": pairwise cost between patches ----
   surface <- if(is.null(cost)) NULL else msk_pull(obj, cost)
-  uVals <- sort(unique(vals[!is.na(vals)]))
 
-  # one global componentisation, so patch IDs are unique across all classes and
-  # index the same node set as msr_adjacency(scale = "patch")
-  cc <- componentsCpp(vals = vals, nrow = dims[2], ncol = dims[1])
+  # the patches numbered by mdf_componentise, one matrix per class
+  pt <- .patches_of(obj, layer)
+  cc <- pt$ids
+  uVals <- sort(unique(pt$class))
 
   cost_matrices <- list()
 
   for(i in seq_along(uVals)){
 
-    # this class's patches, keeping their global IDs
-    class_cc <- cc
-    class_cc[vals != uVals[i]] <- NA
-    patch_ids <- sort(unique(class_cc[!is.na(class_cc)]))
+    # this class's patches, in the order of the patch record
+    patch_ids <- pt$patch[pt$class == uVals[i]]
     n_patches <- length(patch_ids)
 
     # the diagonal stays Inf: a patch has no cost to itself, and this keeps
@@ -166,7 +168,7 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
       next
     }
 
-    patch_cells <- lapply(patch_ids, function(pid) which(cc == pid))
+    patch_cells <- lapply(patch_ids, function(pid) which(!is.na(cc) & cc == pid))
 
     # diagonal stays Inf (no cost to self); unreachable pairs become NA
     mat <- matrix(Inf, nrow = n_patches, ncol = n_patches)
@@ -212,12 +214,9 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
     cost_matrices[[as.character(uVals[i])]] <- mat
   }
 
-  obj@patches[[metric]] <- cost_matrices
+  obj@patches[[layer]][[metric]] <- cost_matrices
 
-  prov <- msk_prov("msr_cost", list(scale = scale, cost = cost,
-                                      routing = routing,
-                                      accumulate = accumulate, layer = layer))
-  obj@provenance <- c(obj@provenance, list(prov))
+  obj <- .update_mosaik(obj, step = step)
 
   return(obj)
 }
@@ -228,10 +227,10 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
 #' cells it crosses. \code{"sum"} is read off the accumulated surface directly,
 #' since that is what Dijkstra already computed.
 #'
-#' @param cd [list][list]\cr the return value of \code{costDistanceCpp}.
-#' @param targetCells [integer(.)][integer]\cr cell indices of the target patch.
-#' @param cellCost [numeric(.)][numeric]\cr the per-cell cost surface.
-#' @param accumulate [character(1)][character]\cr the reduction to apply.
+#' @param cd [`list`][list]\cr the return value of \code{costDistanceCpp}.
+#' @param targetCells [`integer(.)`][integer]\cr cell indices of the target patch.
+#' @param cellCost [`numeric(.)`][numeric]\cr the per-cell cost surface.
+#' @param accumulate [`character(1)`][character]\cr the reduction to apply.
 #' @return A single numeric value, \code{NA} when the target is unreachable.
 #' @keywords internal
 
@@ -262,11 +261,11 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
 #' Walks the straight line between the closest pair of cells of two patches and
 #' reduces the cells it crosses, whether or not a cheaper detour exists.
 #'
-#' @param fromCells [integer(.)][integer]\cr cell indices of the source patch.
-#' @param toCells [integer(.)][integer]\cr cell indices of the target patch.
-#' @param cellCost [numeric(.)][numeric]\cr the per-cell cost surface.
-#' @param accumulate [character(1)][character]\cr the reduction to apply.
-#' @param dims [integer(2)][integer]\cr grid dimensions, columns then rows.
+#' @param fromCells [`integer(.)`][integer]\cr cell indices of the source patch.
+#' @param toCells [`integer(.)`][integer]\cr cell indices of the target patch.
+#' @param cellCost [`numeric(.)`][numeric]\cr the per-cell cost surface.
+#' @param accumulate [`character(1)`][character]\cr the reduction to apply.
+#' @param dims [`integer(2)`][integer]\cr grid dimensions, columns then rows.
 #' @return A single numeric value, \code{NA} when the line crosses an
 #'   impassable cell.
 #' @keywords internal
@@ -300,8 +299,8 @@ msr_cost <- function(obj, scale = "patch", cost = NULL, routing = "cheapest",
 
 #' Reduce the cell values of a path to a single number
 #'
-#' @param vals [numeric(.)][numeric]\cr the cell values along the path.
-#' @param accumulate [character(1)][character]\cr the reduction to apply.
+#' @param vals [`numeric(.)`][numeric]\cr the cell values along the path.
+#' @param accumulate [`character(1)`][character]\cr the reduction to apply.
 #' @return A single numeric value, \code{NA} when nothing remains to reduce.
 #' @keywords internal
 

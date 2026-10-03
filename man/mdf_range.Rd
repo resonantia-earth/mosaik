@@ -14,21 +14,21 @@ mdf_range(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{lower}{\link[=numeric]{numeric(1)}\cr minimum value above which values
+\item{lower}{\code{\link[=numeric]{numeric(1)}}\cr minimum value above which values
 will be selected.}
 
-\item{upper}{\link[=numeric]{numeric(1)}\cr maximum value below which values
+\item{upper}{\code{\link[=numeric]{numeric(1)}}\cr maximum value below which values
 will be selected.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr the value any cell outside the
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr the value any cell outside the
 range should have.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -40,14 +40,16 @@ Transform a mosaik by setting all cells outside a lower and upper threshold
 to \code{background}.
 }
 \examples{
-mdf_range(landscape, lower = 30, layer = "intensity")
-mdf_range(landscape, upper = 70, layer = "intensity")
-mdf_range(landscape, lower = 30, upper = 70, layer = "intensity")
+# the canopy height from 5 m, up to 20 m, and between the two
+m <- landscape |>
+  mdf_range(lower = 5, layer = "canopy", add = "from_5") |>
+  mdf_range(upper = 20, layer = "canopy", add = "to_20") |>
+  mdf_range(lower = 5, upper = 20, layer = "canopy", add = "5_to_20")
+msk_vis(m, .layer("canopy"), .layer("from_5"), .layer("to_20"),
+        .layer("5_to_20"))
 }
 \seealso{
 Other operators to select a subset of cells: 
-\code{\link{mdf_mask}()},
-\code{\link{mdf_match}()},
-\code{\link{mdf_zonify}()}
+\code{\link{mdf_match}()}
 }
 \concept{operators to select a subset of cells}

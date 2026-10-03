@@ -7,29 +7,35 @@
 mdf_centroid(obj = NULL, background = NA, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik (with patches) to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik (with patches) to modify.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr the value any cell with value
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr the value any cell with value
 NA should have.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
-A mosaik of the same dimension as \code{obj}, in which the centroid
-of each foreground patch has the value of the patch number and all other
-cells have the value \code{background}.
+A mosaik in which the centroid cell of each patch carries the patch
+number.
 }
 \description{
 The centroid is the average location of all cells of a foreground patch.
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 41, layer = "cover")
-forest <- mdf_componentise(forest)
-mdf_centroid(forest)
+# the forest patches and the centroid of each
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(layer = "forest", add = "patch") |>
+  mdf_centroid(layer = "patch", add = "centroid")
+msk_vis(m, .layer("patch"),
+        .layer("forest", panel = "centroids", colours = c("grey92", "grey70"),
+               legend = FALSE),
+        .layer("centroid", panel = "centroids", colours = c("black", "black"),
+               legend = FALSE))
 }
 \seealso{
 Other operators to determine objects: 

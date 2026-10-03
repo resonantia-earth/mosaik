@@ -3,18 +3,26 @@
 #' Assign every cell to the nearest patch centroid, creating a Voronoi-like
 #' partitioning of the grid. The input must contain distinct patches (run
 #' \code{\link{mdf_componentise}} first if needed).
-#' @param obj [mosaik]\cr the mosaik to tessellate. Non-NA foreground cells
+#' @param obj [`mosaik`]\cr the mosaik to tessellate. Non-NA foreground cells
 #'   are treated as patches.
-#' @param layer [character(1)][character]\cr the layer to use. Defaults to the
+#' @param layer [`character(1)`][character]\cr the layer to use. Defaults to the
 #'   first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimensions where every cell carries the ID of
 #'   the nearest patch centroid.
 #' @examples
-#' forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-#' patches <- mdf_componentise(forest)
-#' mdf_tesselate(patches)
+#' # every cell assigned to the forest patch whose centroid is nearest; drawn in
+#' # shuffled colours, since neighbouring numbers would otherwise get similar ones
+#' m <- landscape |>
+#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_componentise(layer = "forest", add = "patch") |>
+#'   mdf_tesselate(layer = "patch", add = "regions")
+#' set.seed(1)
+#' colours <- sample(hcl.colors(max(msk_pull(m, "regions"), na.rm = TRUE),
+#'                              "Dark 3"))
+#' msk_vis(m, .layer("patch", colours = colours, legend = FALSE),
+#'         .layer("regions", colours = colours, legend = FALSE))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertCharacter
 #' @export
@@ -23,7 +31,8 @@ mdf_tesselate <- function(obj = NULL,
                           layer = NULL,
                           add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -66,8 +75,5 @@ mdf_tesselate <- function(obj = NULL,
                        seed_val = seed_val)
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_tesselate", list(n_patches = length(uvals),
-                                            layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

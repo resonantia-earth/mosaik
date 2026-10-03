@@ -13,19 +13,19 @@ mdf_pad(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{width}{\link[=integer]{integerish(1)}\cr number of cells to add (positive)
+\item{width}{\code{\link[=integer]{integerish(1)}}\cr number of cells to add (positive)
 or remove (negative) on each side specified by \code{sides}.}
 
-\item{sides}{\link{character}\cr which sides to pad. Any combination
+\item{sides}{\code{\link{character}}\cr which sides to pad. Any combination
 of \code{"left"}, \code{"right"}, \code{"top"}, \code{"bottom"}. Defaults
 to all four.}
 
-\item{value}{\link[=numeric]{numeric(1)}\cr fill value for added cells. Defaults
+\item{value}{\code{\link[=numeric]{numeric(1)}}\cr fill value for added cells. Defaults
 to \code{NA}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to modify. If
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to modify. If
 \code{NULL} (default), all layers are padded.}
 }
 \value{
@@ -36,9 +36,17 @@ Expand or shrink the grid by adding or removing rows and columns at the
 edges. Added cells are filled with \code{value}.
 }
 \examples{
-mdf_pad(landscape, width = 5)
-mdf_pad(landscape, width = 5, sides = c("left", "right"), value = 0)
-mdf_pad(landscape, width = -3)
+# five rows and columns of NA around the map
+m <- mdf_pad(landscape, width = 5)
+msk_vis(m, .layer("cover"))
+
+# five columns of 0 on the left and right only
+m <- mdf_pad(landscape, width = 5, sides = c("left", "right"), value = 0)
+msk_vis(m, .layer("cover"))
+
+# a negative width removes three rows and columns from each side
+m <- mdf_pad(landscape, width = -3)
+msk_vis(m, .layer("cover"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -54,8 +62,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

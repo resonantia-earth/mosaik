@@ -5,7 +5,7 @@
 \title{Measure the cost between patches}
 \usage{
 msr_cost(
-  obj,
+  obj = NULL,
   scale = "patch",
   cost = NULL,
   routing = "cheapest",
@@ -14,33 +14,35 @@ msr_cost(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to measure.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{scale}{\link[=character]{character(1)}\cr \code{"patch"} (default) for
+\item{scale}{\code{\link[=character]{character(1)}}\cr \code{"patch"} (default) for
 pairwise costs between patches, or \code{"cell"} for a per-cell cost
 surface stored as a layer.}
 
-\item{cost}{\link[=character]{character(1)}\cr the name of a layer holding
+\item{cost}{\code{\link[=character]{character(1)}}\cr the name of a layer holding
 per-cell traversal costs. If \code{NULL} (default), cost is geometric
 distance in metres.}
 
-\item{routing}{\link[=character]{character(1)}\cr how the path between two patches
+\item{routing}{\code{\link[=character]{character(1)}}\cr how the path between two patches
 is chosen: \code{"straight"} follows the direct line, \code{"cheapest"}
 (default) searches for the path of least accumulated cost. Only used at
 \code{scale = "patch"}.}
 
-\item{accumulate}{\link[=character]{character(1)}\cr how the cell values along the
+\item{accumulate}{\code{\link[=character]{character(1)}}\cr how the cell values along the
 path are combined into one number: \code{"sum"} (default), \code{"max"},
 \code{"min"}, \code{"product"} or \code{"mean"}. Only used at
 \code{scale = "patch"}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer holding the patches to
-measure between. Defaults to the first layer.}
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose patches are
+measured between; they must have been numbered with
+\code{\link{mdf_componentise}} first. Defaults to the first layer.}
 }
 \value{
 The input mosaik with cost information added. At
-\code{scale = "patch"} a named list of matrices, one per class, is written
-to \code{@patches}; at \code{scale = "cell"} an internal layer is added.
+\code{scale = "patch"} a named list of matrices, one per class, is added
+to the patch results of \code{layer} (see \code{\link{msk_patches}}); at
+\code{scale = "cell"} an internal layer is added.
 Both are named after what the surface measures rather than after this
 function: \code{distance} when \code{cost} is \code{NULL}, otherwise the
 name of the \code{cost} layer. So a friction surface yields
@@ -70,8 +72,10 @@ Note that \code{routing} and \code{accumulate} are independent.
 combining it with \code{accumulate = "max"} reports the worst cell on the
 cheapest path — not the path whose worst cell is lowest.
 
-At \code{scale = "cell"} the surface is written under a reserved name
-prefixed with an underscore, which is how \code{\link{msr}()} finds it. The
+At \code{scale = "cell"} the surface is written under a reserved name,
+\code{"_<metric>_<layer>"}, which is how \code{\link{msr}()} finds it:
+\code{distance.cell_forest} reads the distance surface measured on the
+layer \code{forest}. The
 two scales aggregate different things, both to one value per patch:
 \code{max(distance.patch)} is the cost to the most distant other patch,
 whereas \code{max(distance.cell)} is the most expensive cell within a
@@ -80,35 +84,33 @@ patch.
 \code{scale = "cell"} expects \code{layer} to be \strong{binary}: the
 surface measures the cost of reaching each cell from the background, so it
 needs a foreground to measure into. Isolate the class of interest with
-\code{\link{mdf_binarise}()} first. Reducing that surface per patch with
-\code{\link{msr}()} then needs a layer of patch IDs to group by — see the
-examples — because \code{msr()} groups cell values by the values of the
-layer it is given, and a binary layer has only two of those.
+\code{\link{mdf_binarise}()} first. \code{\link{msr}()} reduces that
+surface per patch of \code{layer}, once they are numbered with
+\code{\link{mdf_componentise}()}.
 }
 \examples{
-# pairwise distance between patches, in metres
-m <- msr_cost(landscape)
-m@patches$distance[["47"]]
+# the forest patches, numbered first
+f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+f <- mdf_componentise(f, connectivity = 8L, layer = "forest", add = "patch")
+
+# pairwise distance between the forest patches, in metres
+m <- msr_cost(f, layer = "forest")
+msk_patches(m, layer = "forest")$distance[["1"]]
 
 # cost over a friction surface built from the classes
-m <- mdf_replace(landscape, old = c(21, 24, 47), new = c(5, 2, 1),
-                 add = "friction")
-m <- msr_cost(m, cost = "friction", layer = "cover")
+m <- mdf_replace(f, old = c(21, 24, 47), new = c(5, 2, 1),
+                 layer = "cover", add = "friction")
+m <- msr_cost(m, cost = "friction", layer = "forest")
 
 # the worst barrier on the cheapest path, rather than the total
-m <- msr_cost(m, cost = "friction", accumulate = "max", layer = "cover")
+m <- msr_cost(m, cost = "friction", accumulate = "max", layer = "forest")
 
-# a per-cell surface, reduced per patch by msr(). The surface measures how
-# deep into a patch each cell lies, so it needs one class on its own: a
-# binary layer to measure into, and its patch IDs to group the result by.
-f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
-f <- mdf_componentise(f, layer = "forest", add = "patches")
+# a per-cell surface, reduced per patch by msr(): the deepest cell of each
+# patch, its distance to the nearest edge
 f <- msr_cost(f, scale = "cell", layer = "forest")
-
-# the deepest cell of each patch — its distance to the nearest edge
-f <- msr(f, equation = "max(distance.cell)", label = "core",
-         layer = "patches")
-f@patches$core
+f <- msr(f, equation = "max(distance.cell_forest)", label = "depth",
+         layer = "forest")
+msk_patches(f, layer = "forest")$depth
 }
 \seealso{
 Other measure: 

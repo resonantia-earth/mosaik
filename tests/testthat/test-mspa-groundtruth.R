@@ -24,7 +24,7 @@ test_that("core is the distance transform thresholded at size * sqrt(2)", {
   # the reference uses a strict threshold on the euclidean distance transform,
   # with edu fixed at sqrt(2); this reproduces every core cell exactly
   m <- mdf_distance(mspa, source = "background", layer = "pattern", add = "edt")
-  m <- mdf_filter(m, edt > 1 * sqrt(2), value = TRUE, background = 0,
+  m <- mdf_filter(m, edt > 1 * sqrt(2),
                   add = "core")
 
   expect_equal(msk_pull(m, "core"),
@@ -33,13 +33,14 @@ test_that("core is the distance transform thresholded at size * sqrt(2)", {
 
 test_that("islets are the foreground components holding no core", {
   m <- mdf_distance(mspa, source = "background", layer = "pattern", add = "edt")
-  m <- mdf_filter(m, edt > 1 * sqrt(2), value = TRUE, background = 0,
+  m <- mdf_filter(m, edt > 1 * sqrt(2),
                   add = "core")
   m <- mdf_componentise(m, connectivity = 8L, layer = "pattern", add = "cc")
-  m <- mdf_mask(m, by = "pattern", background = 0, layer = "cc")
-  m <- mdf_zonal(m, by = "cc", fun = "any", layer = "core",
+  m <- mdf_filter(m, pattern != 0, value = TRUE, layer = "cc") |>
+      mdf_replace(old = NA, new = 0, layer = "cc")
+  m <- mdf_summarise(m, by = "cc", fun = "any", layer = "core",
                  background = 0, add = "hasCore")
-  m <- mdf_filter(m, pattern == 1 & hasCore == 0, value = TRUE, background = 0,
+  m <- mdf_filter(m, pattern == 1 & hasCore == 0,
                   add = "islet")
 
   expect_equal(msk_pull(m, "islet"),
@@ -54,21 +55,21 @@ test_that("bridges are connectors of at least two cells touching two cores", {
   m <- mspa
   m@layers$published <- C          # inject the fixture for this test only
   m <- mdf_distance(m, source = "background", layer = "pattern", add = "edt")
-  m <- mdf_filter(m, edt > 1 * sqrt(2), value = TRUE, background = 0,
+  m <- mdf_filter(m, edt > 1 * sqrt(2),
                   add = "core")
-  m <- mdf_filter(m, published == 2 | published == 5, value = TRUE,
-                  background = 0, add = "conn")
+  m <- mdf_filter(m, published == 2 | published == 5, add = "conn")
   m <- mdf_componentise(m, connectivity = 8L, layer = "conn", add = "strand")
-  m <- mdf_mask(m, by = "conn", background = 0, layer = "strand")
+  m <- mdf_filter(m, conn != 0, value = TRUE, layer = "strand") |>
+      mdf_replace(old = NA, new = 0, layer = "strand")
   m <- mdf_componentise(m, connectivity = 8L, layer = "core", add = "coreID")
-  m <- mdf_mask(m, by = "core", background = 0, layer = "coreID")
-  m <- mdf_zonal(m, by = "strand", fun = "n_distinct", neighbours = TRUE,
+  m <- mdf_filter(m, core != 0, value = TRUE, layer = "coreID") |>
+      mdf_replace(old = NA, new = 0, layer = "coreID")
+  m <- mdf_summarise(m, by = "strand", fun = "n_distinct", neighbours = TRUE,
                  connectivity = 8L, layer = "coreID", background = 0,
                  add = "nCores")
-  m <- mdf_zonal(m, by = "strand", fun = "n", layer = "strand",
+  m <- mdf_summarise(m, by = "strand", fun = "n", layer = "strand",
                  background = 0, add = "strandSize")
-  m <- mdf_filter(m, conn == 1 & nCores >= 2 & strandSize >= 2,
-                  value = TRUE, background = 0, add = "bridge")
+  m <- mdf_filter(m, conn == 1 & nCores >= 2 & strandSize >= 2, add = "bridge")
 
   expect_equal(msk_pull(m, "bridge"), as.numeric(C == 5))
 })

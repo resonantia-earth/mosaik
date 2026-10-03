@@ -15,23 +15,23 @@ msk_vis(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the object to plot.}
+\item{obj}{\code{\link{mosaik}}\cr the object to plot.}
 
 \item{...}{\code{mskLayer}\cr layer specifications built with
 \code{\link{.layer}}, one per layer to draw. With none given, every layer
 of \code{obj} is drawn in a panel of its own.}
 
-\item{title}{\link[=character]{character(1)}\cr heading for the figure as a whole,
+\item{title}{\code{\link[=character]{character(1)}}\cr heading for the figure as a whole,
 drawn above the panels. \code{NULL} (default) draws none and gives the
 panels the full page. Panel headings come from \code{\link{.layer}}'s
 \code{panel} argument instead.}
 
-\item{shared_scale}{\link[=logical]{logical(1)}\cr give every panel showing the
+\item{shared_scale}{\code{\link[=logical]{logical(1)}}\cr give every panel showing the
 same layer one common colour scale, spanning that layer's range across all
 panels (\code{TRUE}). Layers with an explicit \code{limits} keep it.
 Default \code{FALSE}.}
 
-\item{window}{\link[=numeric]{numeric(4)}\cr extent as \code{c(xmin, xmax, ymin,
+\item{window}{\code{\link[=numeric]{numeric(4)}}\cr extent as \code{c(xmin, xmax, ymin,
   ymax)} to which the plot is limited. If \code{NULL}, the object's extent is
 used.}
 
@@ -39,7 +39,7 @@ used.}
 \code{\link{.theme}}, e.g. \code{.theme(legend.plot = FALSE,
   panel.title.fontsize = 14)}. Anything left out keeps its default.}
 
-\item{trace}{\link[=logical]{logical(1)}\cr Print the provenance information of the
+\item{trace}{\code{\link[=logical]{logical(1)}}\cr Print the provenance information of the
 mosaik object (\code{TRUE}), or simply plot (\code{FALSE}, default).}
 }
 \value{
@@ -74,7 +74,7 @@ figure as a whole.
 Only NA cells let the layer beneath show through, so a layer with a value
 everywhere hides whatever it is drawn on. An overlay is therefore a layer
 that is mostly NA -- rivers on a bare grid, or a subset masked out of a full
-layer with \code{\link{mdf_mask}}. Set \code{legend = FALSE} on a layer that
+layer with \code{\link{mdf_filter}}. Set \code{legend = FALSE} on a layer that
 flags cells rather than carrying a scale of its own.
 
 \strong{Comparing panels.} By default each panel scales its colours to its
@@ -97,14 +97,14 @@ msk_vis(landscape)
 msk_vis(landscape, .layer("cover", colours = "viridis"))
 
 # two layers on a common scale, so the panels can be compared
-msk_vis(landscape, .layer("cover"), .layer("intensity"),
+msk_vis(landscape, .layer("cover"), .layer("canopy"),
         shared_scale = TRUE)
 
 # two layers in one panel: an overlay only shows through where the upper
 # layer is NA, so it is built by masking down to the cells of interest --
-# here the least intensively used ones, flagged over the cover map
-m <- mdf_binarise(landscape, match = 0, layer = "intensity", add = "flat")
-m <- mdf_mask(m, by = "flat", layer = "flat")
+# here the cells without vegetation, flagged over the cover map
+m <- mdf_binarise(landscape, match = 0, layer = "canopy", add = "flat")
+m <- mdf_filter(m, flat == 1, value = TRUE, layer = "flat")
 msk_vis(m,
         .layer("cover",  panel = "landscape", colours = "Terrain 2"),
         .layer("flat", panel = "landscape", colours = "red",
@@ -112,8 +112,8 @@ msk_vis(m,
 
 # a heading over the whole figure, panels headed individually beneath it
 msk_vis(landscape, .layer("cover", panel = "what grows"),
-        .layer("intensity", panel = "how hard it is worked"),
-        title = "land use")
+        .layer("canopy", panel = "how tall it grows"),
+        title = "land cover and vegetation")
 
 # drop the chrome
 msk_vis(landscape, theme = .theme(panel.title.plot = FALSE,

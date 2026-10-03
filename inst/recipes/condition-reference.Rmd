@@ -1,0 +1,65 @@
+---
+title: "Condition against a declared reference"
+summary: "How far each forest patch is from a reference state, between a reference level and a collapse level."
+question: state
+about: forest
+scale: patch
+declares: ["the indicator", "the reference level", "the collapse level"]
+uses: [canopy, declared, patches]
+result:
+  - {object: condition, layer: condition, text: "its patch scores {v} between collapse (0) and reference (1)", digits: 2}
+---
+
+A condition indicator says how far an ecosystem is from a reference state. A
+common way to make indicators comparable is to rescale each one between a
+reference level, which scores 1, and a lower level, which scores 0. Both
+levels are declarations, and the recipe makes them two numbers in the code.
+
+Here the indicator is the mean canopy height of each forest patch, a measure
+of its structure. The reference is the height of an old forest, 25 m, and the
+lower level a forest without canopy, 0 m:
+
+```{r}
+library(mosaik)
+reference <- 25
+collapse <- 0
+
+condition <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_summarise(by = "patch", fun = "mean", layer = "canopy",
+                add = "height") |>
+  mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size") |>
+  mdf_offset(fun = "-", value = collapse, layer = "height",
+             add = "condition") |>
+  mdf_offset(fun = "/", value = reference - collapse, layer = "condition")
+```
+
+The two `mdf_offset()` steps compute
+`(height - collapse) / (reference - collapse)`, which is 1 at the reference
+and 0 at the collapse level.
+
+```{r, fig.alt = "The mean canopy height of each forest patch, and its condition"}
+msk_vis(condition, .layer("height"), .layer("condition"))
+```
+
+**Check.** The canopy is lowest at the edge, and a small patch is mostly edge.
+Small patches should therefore score lower than large ones, and no patch
+should reach 1, since even the largest has an edge:
+
+```{r, fig.alt = "The condition of each forest patch against its size", fig.width = 4, fig.height = 3}
+patch <- msk_pull(condition, "patch")
+size <- tapply(msk_pull(condition, "size"), patch, unique)
+score <- tapply(msk_pull(condition, "condition"), patch, unique)
+plot(size, score, log = "x", xlab = "patch size (cells)", ylab = "condition")
+```
+
+```{r, include = FALSE}
+stopifnot(cor(log(size), score) > 0.5, max(score) < 1)
+```
+
+Size is not all of it: patch 5, in the south-west, is as large as patch 4 but
+scores lower, because its stand is younger. A different declaration gives
+different numbers. Taking the tallest stand of the region as the reference
+would change every score, so a condition figure is only comparable with
+others made against the same levels.

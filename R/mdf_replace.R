@@ -1,18 +1,21 @@
 #' Replace values in a mosaik
 #'
 #' Replace a set of values with new values.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param old [numeric(.)][numeric]\cr values to be substituted.
-#' @param new [numeric(.)][numeric]\cr values to substitute with.
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param old [`numeric(.)`][numeric]\cr values to be substituted.
+#' @param new [`numeric(.)`][numeric]\cr values to substitute with.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimensions as \code{obj}.
 #' @examples
-#' mdf_replace(landscape, old = 47, new = 99, layer = "cover")
-#' mdf_replace(landscape, old = c(21, 24), new = c(100, 200),
-#'             layer = "cover")
+#' # class 47 renumbered to 99, and classes 21 and 24 to 100 and 200
+#' m <- landscape |>
+#'   mdf_replace(old = 47, new = 99, layer = "cover", add = "one") |>
+#'   mdf_replace(old = c(21, 24), new = c(100, 200), layer = "cover",
+#'               add = "two")
+#' msk_vis(m, .layer("cover"), .layer("one"), .layer("two"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertNumeric assertCharacter
 #' @export
@@ -23,7 +26,8 @@ mdf_replace <- function(obj = NULL,
                         layer = NULL,
                         add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -51,14 +55,13 @@ mdf_replace <- function(obj = NULL,
     temp <- vals
     temp[is.na(temp)] <- new
   } else {
+    # all values are replaced at once, so a new value that equals a later old
+    # value is not replaced a second time
     temp <- vals
-    for(i in seq_along(old)){
-      temp[temp == old[i]] <- newValues[i]
-    }
+    hit <- match(vals, old)
+    temp[!is.na(hit)] <- newValues[hit[!is.na(hit)]]
   }
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_replace", list(old = old, new = new, layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

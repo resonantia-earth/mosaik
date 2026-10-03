@@ -1,0 +1,47 @@
+---
+title: "Holes in patches"
+summary: "The land a patch encloses, numbered and labelled with the patch around it."
+question: arrangement
+about: forest
+scale: patch
+declares: []
+uses: [patches, holes]
+result:
+  - {object: holes, layer: neighbour, text: "on land enclosed by patch {v}"}
+---
+
+Holes are the land that a patch encloses: glades, windthrows, clearings, the space inside
+a loop. Filling the patches and subtracting the original leaves the holes;
+each hole is then numbered, and labelled with the patch around it.
+
+The forest patches are numbered first. The three large ones get the numbers
+3 (north-east), 4 (north-west) and 5 (south-west):
+
+```{r}
+library(mosaik)
+patches <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch")
+```
+
+```{r}
+holes <- patches |>
+  mdf_fill(layer = "forest", add = "filled") |>
+  mdf_blend(layers = c("filled", "forest"), fun = "-", add = "hole") |>
+  mdf_componentise(layer = "hole", add = "hole_id") |>
+  mdf_summarise(by = "hole_id", fun = "unique", neighbours = TRUE,
+                layer = "patch", add = "neighbour")
+```
+
+**Check.** The map has three holes in two patches: an old windthrow in patch
+4, and in patch 3 a square glade and the land inside its loop.
+
+```{r, fig.alt = "The numbered holes, and the number of the patch around each"}
+msk_vis(holes, .layer("hole_id"), .layer("neighbour"))
+```
+
+```{r, include = FALSE}
+ids <- msk_pull(holes, "hole_id")
+around <- tapply(msk_pull(holes, "neighbour"), ids, unique)
+stopifnot(length(around) == 3, sort(around) == c(3, 3, 4))
+```

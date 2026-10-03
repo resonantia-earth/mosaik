@@ -1,18 +1,23 @@
 #' Blend layers of a mosaik
 #'
 #' Combine two or more layers of a mosaik into one, cell by cell.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param layers [character(.)][character]\cr the layers to blend, at least two.
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param layers [`character(.)`][character]\cr the layers to blend, at least two.
 #'   Defaults to all layers of \code{obj}, in the order they are stored.
-#' @param fun [character(1) or function(1)][character]\cr how values are
-#'   combined. For character, one of the arithmetic operators
-#'   (\code{"+", "-", "*", "/", "\%\%", "\%/\%", "^", "**"}), applied
-#'   successively from left to right. For function, a function taking a numeric
-#'   vector of one value per layer and returning a scalar (evaluated per cell
-#'   via \code{reduceCpp}).
-#' @param weights [numeric(.)][numeric]\cr optional weights, one per layer, by
+#' @param fun [`character(1)`][character] or [`function`][function]\cr how the
+#'   values of a cell are combined. Either an arithmetic operator written as
+#'   text (\code{"+"}, \code{"-"}, \code{"*"}, \code{"/"}, \code{"\%\%"},
+#'   \code{"\%/\%"}, \code{"^"}), applied from the first layer to the last; one
+#'   of the summaries shared with \code{\link{mdf_summarise}}: \code{"max"},
+#'   \code{"min"}, \code{"sum"}, \code{"mean"}, \code{"median"}, \code{"any"}
+#'   (any non-zero value present), \code{"all"}, \code{"n"} (number of layers),
+#'   \code{"n_distinct"} (number of distinct non-zero values) or
+#'   \code{"unique"} (the one non-zero value present, \code{NA} if there are
+#'   several); or a function that takes the values of one cell, one per layer,
+#'   and returns a single value.
+#' @param weights [`numeric(.)`][numeric]\cr optional weights, one per layer, by
 #'   which values are multiplied before \code{fun} is applied.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   the first blended layer; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimensions as \code{obj}, carrying the blended
 #'   layer.
@@ -26,24 +31,31 @@
 #'     mdf_blend(layers = c("cover", "suitability"), fun = "*")
 #'   }
 #'
-#'   Character \code{fun} is the fast path and covers most cases. A function is
-#'   for reductions no operator expresses, such as \code{max} or \code{var}
-#'   across layers.
+#'   An operator works on whole layers at once and is fast. A summary or a
+#'   function is evaluated once per cell, so it is slower.
 #' @examples
-#' # blend two named layers
-#' mdf_blend(landscape, layers = c("cover", "intensity"), fun = "*")
+#' # the distance to the forest, to the river, and to whichever is nearer
+#' m <- landscape |>
+#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_binarise(match = 1, layer = "cover", add = "river") |>
+#'   mdf_distance(layer = "forest", add = "to_forest") |>
+#'   mdf_distance(layer = "river", add = "to_river") |>
+#'   mdf_blend(layers = c("to_forest", "to_river"), fun = "min",
+#'             add = "to_either")
+#' msk_vis(m, .layer("to_forest"), .layer("to_river"), .layer("to_either"))
 #'
-#' # blend every layer, weighted, into a new layer
-#' mdf_blend(landscape, fun = "+", weights = c(0.3, 0.7), add = "score")
+#' # the forest as 1, the river as 2, both counted: a weighted sum of 0/1 layers
+#' m <- mdf_blend(m, layers = c("forest", "river"), fun = "+",
+#'                weights = c(1, 2), add = "forest_river")
+#' msk_vis(m, .layer("forest"), .layer("river"), .layer("forest_river"))
 #'
-#' # a reduction that no arithmetic operator expresses
-#' mdf_blend(landscape, fun = max)
-#'
-#' # a layer held in another mosaik is brought in first, then blended
-#' other <- mosaik(extent = c(0, 60, 0, 56), res = 1,
-#'                 vals = list(elevation = runif(60 * 56, 0, 800)))
-#' msk_add(landscape, other, elevation) |>
-#'   mdf_blend(layers = c("intensity", "elevation"), fun = "+", add = "sum")
+#' # a layer held in another mosaik is brought in first: here the canopy height
+#' # is damped by a gradient that falls from west to east
+#' other <- mosaik(extent = c(0, 60, 0, 56), res = 1) |>
+#'   drw_gradient(type = "planar", invert = TRUE, name = "damping")
+#' m <- msk_add(landscape, other, damping) |>
+#'   mdf_blend(layers = c("canopy", "damping"), fun = "*", add = "damped")
+#' msk_vis(m, .layer("canopy"), .layer("damping"), .layer("damped"))
 #' @family operators to modify the overall object
 #' @importFrom checkmate assertClass assertCharacter assertNumeric
 #' @export
@@ -54,7 +66,8 @@ mdf_blend <- function(obj = NULL,
                       weights = NULL,
                       add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -84,23 +97,17 @@ mdf_blend <- function(obj = NULL,
   }
 
   # body ----
-  if(is.character(fun)){
+  operators <- c("+", "-", "*", "/", "%%", "%/%", "^")
+  if(is.character(fun) && length(fun) == 1 && fun %in% operators){
     temp <- allVals[[1]]
     for(i in 2:length(allVals)){
       temp <- do.call(what = fun, args = list(temp, allVals[[i]]))
     }
-  } else if(is.function(fun)){
-    temp <- as.numeric(reduceCpp(lVals = allVals, f = fun))
   } else {
-    stop("'fun' must be a character (arithmetic operator) or a function.",
-         call. = FALSE)
+    f <- .summary_fun(fun, "mdf_blend")
+    temp <- as.numeric(reduceCpp(lVals = allVals, f = f))
   }
 
   # build output ----
-  out_layer <- .resolve_add(obj, layers[1], add)
-  prov <- msk_prov("mdf_blend",
-                     list(fun = if(is.character(fun)) fun else "custom",
-                          inputs = paste(layers, collapse = ", "),
-                          layer = out_layer))
-  msk_set(obj, out_layer, temp, prov, keep = FALSE)
+  .update_mosaik(obj, values = temp, keep = FALSE, step = step)
 }

@@ -8,65 +8,29 @@
 #' @return a 1x1 mosaik with no layers.
 #' @noRd
 .recipe_shell <- function() {
-  new_mosaik(extent = c(0, 1, 0, 1), dims = c(1L, 1L))
+  methods::new("mosaik", extent = c(0, 1, 0, 1), dims = c(1L, 1L),
+               crs = NA_character_)
 }
 
 #' Test whether an object is a recipe shell
 #'
-#' TRUE if \code{obj} is a recipe shell (no layers), i.e. a call made to record
-#' rather than execute.
+#' A recipe shell is a mosaik without layers: a call on it, or on \code{NULL},
+#' records the step instead of running it.
 #' @param obj a mosaik, or NULL.
 #' @return logical(1).
 #' @noRd
-.is_recipe <- function(obj) {
-  is.null(obj) || (methods::is(obj, "mosaik") && length(obj@layers) == 0)
+.is_recipe_shell <- function(x) {
+  methods::is(x, "mosaik") && length(x@layers) == 0
 }
 
-#' Record one step of a recipe
-#'
-#' Append the captured call (function name plus the arguments other than
-#' \code{obj}) to the shell's provenance and return the shell. The call is
-#' captured by the calling \code{mdf_*} via \code{match.call()}.
-#' @param obj a recipe shell, or NULL (a fresh shell is created).
-#' @param cl the captured call (from \code{match.call()}).
-#' @return the recipe shell with one step appended to \code{@provenance}.
-#' @details Arguments are evaluated as they are recorded, so that a step stores
-#'   the object a call produced (\code{struct = msk_struct(...)}) rather than
-#'   the call itself, and replaying with \code{do.call} needs no environment.
-#'   Predicate arguments are the exception: they name layers of the mosaik the
-#'   recipe will later be applied to, so they cannot be evaluated now and are
-#'   stored unevaluated. \code{.quoted_args} lists them per function.
-#' @noRd
-
-# arguments that must NOT be evaluated when a step is recorded, because they
-# are expressions over the layers of the future target mosaik
-.quoted_args <- list(mdf_filter = "expr",
-                     mdf_loop   = "until")
-
-.record_step <- function(obj, cl) {
-  if (is.null(obj)) obj <- .recipe_shell()
-  fn <- as.character(cl[[1]])
-  args <- as.list(cl)[-1]
-  args[["obj"]] <- NULL
-  keep <- .quoted_args[[fn]]
-  nms <- names(args)
-  if (is.null(nms)) nms <- rep("", length(args))
-  for (i in seq_along(args)) {
-    if (nms[i] %in% keep) next
-    a <- args[[i]]
-    if (is.name(a) || is.call(a)) args[[i]] <- eval(a, parent.frame(2))
-  }
-  obj@provenance <- c(obj@provenance, msk_prov(fn, args, step = TRUE))
-  obj
-}
+.is_recipe <- function(obj) is.null(obj) || .is_recipe_shell(obj)
 
 #' Resolve a layer-name argument to a values vector
 #'
 #' A second layer is always referred to **by name**, never by passing another
 #' mosaik: a layer from elsewhere is brought in with \code{msk_add()} first, so
 #' the grid-conformity check lives in one place and recipe steps can name the
-#' layer they depend on. Used by \code{mdf_mask} / \code{mdf_zonal} /
-#' \code{mdf_layerise}.
+#' layer they depend on. Used by \code{mdf_summarise}.
 #' @param obj the mosaik holding the layer.
 #' @param x a character layer name in \code{obj}.
 #' @param arg the argument name, for the error message.
@@ -81,6 +45,39 @@
     stop("layer '", x, "' not found in 'obj'.", call. = FALSE)
   }
   msk_pull(obj, x)
+}
+
+#' Resolve a summary shorthand to a function
+#'
+#' The one vocabulary of summaries shared by \code{mdf_summarise} (over the
+#' cells of a zone) and \code{mdf_blend} (over the layers of a cell).
+#' @param fun a shorthand or a function.
+#' @param caller the calling function, for the error message.
+#' @return a function taking a numeric vector and returning one value.
+#' @noRd
+.summary_fun <- function(fun, caller) {
+  if (is.function(fun)) return(fun)
+  if (!is.character(fun) || length(fun) != 1) {
+    stop("'fun' must be a shorthand or a function; see ?", caller, ".",
+         call. = FALSE)
+  }
+  switch(fun,
+         # the extreme of no values is unknown, not -Inf or Inf
+         "max"        = function(x) if (all(is.na(x))) NA_real_ else max(x, na.rm = TRUE),
+         "min"        = function(x) if (all(is.na(x))) NA_real_ else min(x, na.rm = TRUE),
+         "sum"        = function(x) sum(x, na.rm = TRUE),
+         "mean"       = function(x) mean(x, na.rm = TRUE),
+         "median"     = function(x) stats::median(x, na.rm = TRUE),
+         "any"        = function(x) as.numeric(any(x != 0, na.rm = TRUE)),
+         "all"        = function(x) as.numeric(all(x != 0, na.rm = TRUE)),
+         "n"          = function(x) length(x),
+         "n_distinct" = function(x) length(unique(x[!is.na(x) & x != 0])),
+         "unique"     = function(x) {
+           u <- unique(x[!is.na(x) & x != 0])
+           if (length(u) == 1) u else NA_real_
+         },
+         stop("unknown 'fun' shorthand '", fun, "'; see ?", caller, ".",
+              call. = FALSE))
 }
 
 #' Trace a path from target to source using predecessor map
@@ -124,83 +121,61 @@
   rev(path)  # return source-to-target order
 }
 
-# --- Patch decomposition cache --------------------------------------------
+# --- Patches ---------------------------------------------------------------
 
-#' Ensure a global patch-ID layer exists
+#' The patches of a layer, as numbered by mdf_componentise
 #'
-#' Checks whether an internal layer \code{"_patches"} already exists (and was
-#' computed from the same cover \code{layer}). If not, loops over unique class
-#' values, binarises and calls \code{componentsCpp} for each class, and assigns
-#' globally unique patch IDs: class 1's patches get IDs 1..n1, class 2's
-#' patches get (n1+1)..(n1+n2), etc. The result is stored as a single integer
-#' layer \code{"_patches"}.
-#'
-#' Combined with the original cover layer (which gives each cell's class), any
-#' downstream function can reconstruct per-class patch membership trivially.
-#'
-#' Also populates \code{@patches$class} and \code{@patches$patch} (the flat
-#' roster) as a side-effect.
+#' Patches are never found by a measure: \code{\link{mdf_componentise}} numbers
+#' them, with a connectivity the user states, and records under
+#' \code{@patches[[layer]]} the layer holding the numbers (\code{ids}), the
+#' connectivity, and the class and number of each patch. The patch-level
+#' measures read that record here, and stop with a pointer to
+#' \code{mdf_componentise} if there is none.
 #'
 #' @param obj a mosaik
-#' @param layer character(1) the cover layer to decompose
-#' @return the mosaik, potentially with \code{"_patches"} added
+#' @param layer character(1) the layer whose patches are measured
+#' @return list: \code{ids} (patch number per cell), \code{class} and
+#'   \code{patch} (one entry per patch, in record order), \code{connectivity}.
 #' @noRd
 
-.ensure_patch_layer <- function(obj, layer) {
+.patches_of <- function(obj, layer) {
 
-  # check cache: reuse if present and from the same layer
-  if ("_patches" %in% names(obj@layers) &&
-      identical(obj@patches$._patch_layer, layer)) {
-    return(obj)
+  rec <- obj@patches[[layer]]
+  if (is.null(rec$ids)) {
+    stop(sprintf(paste0(
+      "Layer '%s' has no patches. Number them first with ",
+      "mdf_componentise(layer = \"%s\", ...), which sets how cells connect ",
+      "into patches."), layer, layer), call. = FALSE)
   }
-
-  vals <- msk_pull(obj, layer)
-  dims <- obj@dims
-  uVals <- sort(unique(vals[!is.na(vals)]))
-
-  patch_layer <- rep(NA_integer_, length(vals))
-  offset <- 0L
-  all_classes <- NULL
-  all_patches <- NULL
-
-  for (i in seq_along(uVals)) {
-    temp_vals <- vals
-    temp_vals[temp_vals != uVals[i]] <- NA
-    temp_cc <- componentsCpp(vals = temp_vals, nrow = dims[2], ncol = dims[1])
-
-    local_ids <- sort(unique(temp_cc[!is.na(temp_cc)]))
-    n_local <- length(local_ids)
-
-    # write globally offset IDs into the patch layer
-    cells <- which(!is.na(temp_cc))
-    patch_layer[cells] <- temp_cc[cells] + offset
-
-    all_classes <- c(all_classes, rep(uVals[i], n_local))
-    all_patches <- c(all_patches, local_ids + offset)
-
-    offset <- offset + n_local
+  if (!rec$ids %in% names(obj@layers)) {
+    stop(sprintf(paste0(
+      "The patches of layer '%s' were numbered in layer '%s', which is no ",
+      "longer in 'obj'. Number them again with mdf_componentise()."),
+      layer, rec$ids), call. = FALSE)
   }
+  list(ids = msk_pull(obj, rec$ids), class = rec$class, patch = rec$patch,
+       connectivity = rec$connectivity)
+}
 
-  # store the layer
-  new_layers <- obj@layers
-  new_layers[["_patches"]] <- patch_layer
-  obj <- new_mosaik(
-    extent     = obj@extent,
-    dims       = obj@dims,
-    layers     = new_layers,
-    categories = obj@categories,
-    patches    = obj@patches,
-    global     = obj@global,
-    crs        = obj@crs,
-    provenance = obj@provenance
-  )
 
-  # store the flat roster and cache key
-  obj@patches$class <- all_classes
-  obj@patches$patch <- all_patches
-  obj@patches$._patch_layer <- layer
+#' Unlink patch records from layers that are no longer present
+#'
+#' After layers are selected or removed, a patch record whose number layer
+#' went with them keeps its measured values but loses the link, so a further
+#' patch-level measure asks for \code{mdf_componentise} again.
+#'
+#' @param patches the \code{@patches} slot, already subset to the kept layers.
+#' @param layers the names of the layers that remain.
+#' @return the patches slot.
+#' @noRd
 
-  obj
+.unlink_patches <- function(patches, layers) {
+  for (nm in names(patches)) {
+    if (!is.null(patches[[nm]]$ids) && !patches[[nm]]$ids %in% layers) {
+      patches[[nm]]$ids <- NULL
+    }
+  }
+  patches
 }
 
 
@@ -214,12 +189,4 @@
 #' @param add NULL (overwrite) or character(1) (new layer name)
 #' @return character(1) layer name
 #' @noRd
-
-.resolve_add <- function(obj, layer, add) {
-  if (is.null(add)) {
-    if (is.null(layer) || length(layer) == 0 || is.na(layer)) return("values")
-    return(layer)
-  }
-  add
-}
 

@@ -1,0 +1,67 @@
+---
+title: "Core lost against area lost"
+summary: "How much undisturbed forest interior was lost since an earlier date, compared with the forest cleared."
+question: change
+about: forest
+scale: landscape
+declares: ["the forest at the earlier date", "the edge width (cells)"]
+uses: [earlier, core]
+result:
+  - {object: change, layer: core_lost, text: "forest core lost since the earlier date, though the forest itself may still stand here"}
+---
+
+Clearing forest removes the cleared cells, but it also turns forest next to
+them into edge. What a clearing costs the forest interior is therefore more
+than its own area. The recipe compares the forest of an earlier date with the
+forest of today, twice: as area, and as core more than two cells from any
+edge.
+
+`landscape` holds only today's map, so the forest of the earlier date is
+declared, as in the recipe on conversion: patch 4 was whole, the fallow and
+shrub inside its closed outline and the road through it were forest. This is
+an assumption about the past, not an observation.
+
+```{r}
+library(mosaik)
+square <- msk_struct("square", width = 3)
+seven <- msk_struct("square", width = 7)
+change <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest_now") |>
+  mdf_componentise(connectivity = 8L, layer = "forest_now", add = "patch") |>
+  mdf_filter(patch == 4, add = "four") |>
+  mdf_dilate(struct = seven, layer = "four", add = "whole") |>
+  mdf_erode(struct = seven, layer = "whole") |>
+  mdf_dilate(struct = square, layer = "forest_now", add = "closed") |>
+  mdf_erode(struct = square, layer = "closed") |>
+  mdf_filter(forest_now == 1 | (whole == 1 & cover == 27) |
+               (cover == 35 & closed == 1), add = "forest_then") |>
+  mdf_distance(source = "background", layer = "forest_then", add = "depth_then") |>
+  mdf_binarise(thresh = 2, layer = "depth_then", add = "core_then") |>
+  mdf_distance(source = "background", layer = "forest_now", add = "depth_now") |>
+  mdf_binarise(thresh = 2, layer = "depth_now", add = "core_now") |>
+  mdf_filter(forest_then == 1 & forest_now == 0, add = "area_lost") |>
+  mdf_filter(core_then == 1 & core_now == 0, add = "core_lost")
+```
+
+```{r, fig.alt = "The forest cleared since the earlier date, and the forest core lost"}
+msk_vis(change, .layer("area_lost"), .layer("core_lost"))
+```
+
+**Check.** The road is one or two cells wide, and where it crosses the
+forest, the forest on both sides of it stops being core. The fresh clear-cuts
+do the same along their outline. The core lost should therefore be larger
+than the area cleared:
+
+```{r}
+lost <- c(area = sum(msk_pull(change, "area_lost")),
+          core = sum(msk_pull(change, "core_lost")))
+lost
+round(lost[["core"]] / lost[["area"]], 1)
+```
+
+```{r, include = FALSE}
+stopifnot(lost[["core"]] > lost[["area"]])
+```
+
+A report of the area cleared would state the smaller of the two numbers. Most
+of the core lost lies on forest that is still standing.

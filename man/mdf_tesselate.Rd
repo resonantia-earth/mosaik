@@ -7,13 +7,13 @@
 mdf_tesselate(obj = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to tessellate. Non-NA foreground cells
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to tessellate. Non-NA foreground cells
 are treated as patches.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to use. Defaults to the
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use. Defaults to the
 first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -26,9 +26,17 @@ partitioning of the grid. The input must contain distinct patches (run
 \code{\link{mdf_componentise}} first if needed).
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-patches <- mdf_componentise(forest)
-mdf_tesselate(patches)
+# every cell assigned to the forest patch whose centroid is nearest; drawn in
+# shuffled colours, since neighbouring numbers would otherwise get similar ones
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(layer = "forest", add = "patch") |>
+  mdf_tesselate(layer = "patch", add = "regions")
+set.seed(1)
+colours <- sample(hcl.colors(max(msk_pull(m, "regions"), na.rm = TRUE),
+                             "Dark 3"))
+msk_vis(m, .layer("patch", colours = colours, legend = FALSE),
+        .layer("regions", colours = colours, legend = FALSE))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -45,7 +53,7 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_summarise}()},
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

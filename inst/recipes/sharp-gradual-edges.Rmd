@@ -1,0 +1,55 @@
+---
+title: "Sharp and gradual edges"
+summary: "Forest edges with a mantle of lower trees told apart from those where tall trees stand right at the edge."
+question: state
+about: forest
+scale: cell
+declares: ["the drop in height that makes an edge gradual (m)"]
+uses: [canopy, ecotone, distance]
+result:
+  - {object: sharpness, layer: sharp, text: "on a sharp forest edge"}
+  - {object: sharpness, layer: gradual, text: "on a gradual forest edge"}
+---
+
+An old forest edge has grown a mantle: shrubs and lower trees, so the canopy
+rises gradually into the forest. A fresh edge, such as a clear-cut or a road
+recently built through the forest, is sharp: the trees that stood inside the
+forest stand at the edge at their full height. The canopy height of the
+outermost forest cells, compared with that of the interior, tells the two
+apart. An edge cell counts as gradual when its canopy lies 6 m or more below
+the median of the interior.
+
+```{r}
+library(mosaik)
+edge <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_filter(depth >= 1 & depth < 1.5, add = "rim")
+level <- median(msk_pull(edge, "canopy")[msk_pull(edge, "depth") > 3])
+sharpness <- edge |>
+  mdf_filter(rim == 1 & canopy > level - 6, add = "sharp") |>
+  mdf_filter(rim == 1 & canopy <= level - 6, add = "gradual")
+```
+
+```{r, fig.width = 9, fig.alt = "Canopy height, and the forest edge cells where the edge is sharp and where it is gradual"}
+msk_vis(sharpness, .layer("canopy"), .layer("sharp"), .layer("gradual"))
+```
+
+**Check.** The sharp edges are those along the road and the fresh clear-cuts.
+Most sharp edge cells therefore lie next to the road or to fallow and shrub,
+while few of the gradual ones do:
+
+```{r}
+fresh <- landscape |>
+  mdf_binarise(match = c(35, 27), layer = "cover", add = "fresh") |>
+  mdf_dilate(struct = msk_struct("square", width = 3, height = 3),
+             layer = "fresh")
+near <- msk_pull(fresh, "fresh") == 1
+sharp <- msk_pull(sharpness, "sharp") == 1
+gradual <- msk_pull(sharpness, "gradual") == 1
+c(sharp = mean(near[sharp]), gradual = mean(near[gradual]))
+```
+
+```{r, include = FALSE}
+stopifnot(mean(near[sharp]) > 0.6, mean(near[gradual]) < 0.25)
+```

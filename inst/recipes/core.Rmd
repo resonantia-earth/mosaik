@@ -1,0 +1,65 @@
+---
+title: "Core"
+summary: "The part of each patch far enough from its edge not to be affected by what lies outside."
+question: arrangement
+about: forest
+scale: patch
+declares: ["the edge width (cells)"]
+uses: [distance, core]
+result:
+  - {object: core, layer: core, text: "in the core of its patch"}
+  - {object: core, layer: depth, text: "{v} cells in from the forest edge", digits: 1, omit: 0}
+---
+
+The core of a patch is the part far enough from its edge not to be affected
+by what lies outside. The distance of every forest cell to the nearest
+non-forest cell, cut at a threshold, gives it. The threshold is the edge
+width, here two cells:
+
+```{r}
+library(mosaik)
+core <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_binarise(thresh = 2, layer = "depth", add = "core")
+```
+
+The distance is 1 in the outermost row of forest cells and grows towards the
+inside of each patch; cells more than two cells from the edge are core:
+
+```{r, fig.width = 9, fig.alt = "The forest, the distance of each forest cell to the edge, and the core"}
+msk_vis(core, .layer("forest"),
+        .layer("depth", bins = 11,
+               colours = c("#f7fcf0", colorRampPalette(c("#78c679", "#004529"))(10))),
+        .layer("core"))
+```
+
+**Check.** Hedgerows, islets and the thin strips are at most a few cells wide,
+so none of the patches smaller than 12 cells should have any core. That needs
+two numbers per patch, which `mdf_summarise()` gives: with `fun = "sum"` over
+the core layer, the number of core cells in each patch, and with `fun = "n"`,
+the number of cells of each patch, its size.
+
+```{r}
+s <- core |>
+  mdf_summarise(by = "patch", fun = "sum", layer = "core", add = "core_cells") |>
+  mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")
+```
+
+```{r, fig.alt = "The number of core cells in each patch, and the size of each patch"}
+msk_vis(s, .layer("core_cells"), .layer("size"))
+```
+
+The small patches are dark on both maps: few cells, and no core. Summed over
+all patches smaller than 12 cells, the number of core cells is 0:
+
+```{r}
+small_core <- sum(msk_pull(s, "core_cells")[msk_pull(s, "size") < 12],
+                  na.rm = TRUE)
+small_core
+```
+
+```{r, include = FALSE}
+stopifnot(small_core == 0)
+```

@@ -2,18 +2,22 @@
 #'
 #' Increase or decrease the size of a mosaik using nearest-neighbour
 #' interpolation.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param factor [numeric(1)][numeric]\cr an integer larger than 1 for
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param factor [`numeric(1)`][numeric]\cr an integer larger than 1 for
 #'   up-scaling and a fraction for down-scaling (see Details).
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
 #' @return A mosaik with rescaled dimensions.
 #' @details \code{factor} multiplies the number of cells in x and y. If
 #'   \code{factor > 1}, the object is up-scaled; if \code{factor < 1}, it is
 #'   down-scaled. Allowed values are integers or inverse integers (1/n).
 #' @examples
-#' mdf_resize(landscape, factor = 2)
-#' mdf_resize(landscape, factor = 1/4)
+#' # twice and a quarter the number of cells along each side
+#' m <- mdf_resize(landscape, factor = 2)
+#' msk_vis(m, .layer("cover"))
+#'
+#' m <- mdf_resize(landscape, factor = 1/4)
+#' msk_vis(m, .layer("cover"))
 #' @family operators to modify the overall object
 #' @importFrom checkmate assertClass assertNumeric assertCharacter
 #' @export
@@ -22,7 +26,8 @@ mdf_resize <- function(obj = NULL,
                        factor = NULL,
                        layer = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -49,15 +54,11 @@ mdf_resize <- function(obj = NULL,
   outDims <- as.integer(round(dims * factor, 0))
 
   # build output ----
-  prov <- msk_prov("mdf_resize", list(factor = factor, layer = layer))
-  new_mosaik(
-    extent     = obj@extent,
-    dims       = outDims,
-    layers     = stats::setNames(list(as.numeric(result$vals)), layer),
-    categories = list(),
-    patches    = list(),
-    global     = list(),
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 dims = outDims,
+                 layers = stats::setNames(list(as.numeric(result$vals)), layer),
+                 categories = list(),
+                 patches = list(),
+                 global = list(),
+                 step = step)
 }

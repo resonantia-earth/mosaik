@@ -2,18 +2,18 @@
 #'
 #' The morphological skeleton preserves the extent and connectivity (topology)
 #' of the patch.
-#' @param obj [mosaik]\cr a binarised mosaik to modify.
-#' @param background [integerish(1)][integer]\cr the value any cell with value
+#' @param obj [`mosaik`]\cr a binarised mosaik to modify.
+#' @param background [`integerish(1)`][integer]\cr the value any cell with value
 #'   NA should have.
-#' @param anchor [character(1)][character]\cr the name of a layer whose non-zero
+#' @param anchor [`character(1)`][character]\cr the name of a layer whose non-zero
 #'   cells anchor the skeleton: they are never removed during thinning, so the
 #'   skeleton stays connected to them and its free ends rest on them. If
 #'   \code{NULL} (default) the ordinary unanchored skeleton is computed.
-#' @param method [character(1)][character]\cr the thinning algorithm,
+#' @param method [`character(1)`][character]\cr the thinning algorithm,
 #'   \code{"zhangSuen"} (default) or \code{"homotopic"}.
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimensions as \code{obj}, in which foreground
 #'   patches have been transformed into their morphological skeletons.
@@ -24,9 +24,12 @@
 #'   that order, and is what MSPA builds on (see
 #'   \code{vignette("mspa", package = "mosaik")}).
 #' @examples
-#' forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-#' mdf_skeletonise(forest)
-#' mdf_skeletonise(forest, method = "homotopic")
+#' # the skeleton of the forest, by thinning and by homotopic thinning
+#' m <- landscape |>
+#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_skeletonise(layer = "forest", add = "zhangSuen") |>
+#'   mdf_skeletonise(method = "homotopic", layer = "forest", add = "homotopic")
+#' msk_vis(m, .layer("forest"), .layer("zhangSuen"), .layer("homotopic"))
 #' @family operators to determine objects
 #' @references Ranwez, V. & Soille, P. (2002). Order independent homotopic
 #'   thinning for binary and grey tone anchored skeletons. \emph{Pattern
@@ -42,7 +45,8 @@ mdf_skeletonise <- function(obj = NULL,
                             layer = NULL,
                             add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -68,7 +72,5 @@ mdf_skeletonise <- function(obj = NULL,
   temp[temp == 0] <- background
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_skeletonise", list(background = background, layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

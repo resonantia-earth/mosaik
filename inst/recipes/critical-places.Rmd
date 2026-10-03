@@ -1,0 +1,77 @@
+---
+title: "Critical places"
+summary: "The narrow parts of the forest where a small clearing would split a patch in two."
+question: arrangement
+about: forest
+scale: cell
+declares: ["how narrow a part must be to count (cells)"]
+uses: [patches, corridors]
+result:
+  - {object: critical, layer: cut_off, text: "a clearing here would cut off {v} cells of wide forest from the rest of its patch"}
+---
+
+A patch of forest holds together through its narrowest parts. A small
+clearing there splits it into pieces that are each smaller and more isolated,
+while the same clearing in a wide part only makes a hole. The recipe finds the
+narrow parts that hold wide parts of the forest together.
+
+Opening the forest, shrinking it and growing it again by one cell, removes
+every part narrower than three cells and leaves the wide parts as they were.
+The narrow parts are what opening removes:
+
+```{r}
+library(mosaik)
+square <- msk_struct("square", width = 3)
+critical <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_erode(struct = square, layer = "forest", add = "wide") |>
+  mdf_dilate(struct = square, layer = "wide") |>
+  mdf_filter(forest == 1 & wide == 0, add = "narrow")
+```
+
+Each wide part is numbered and measured, and each narrow part asks two things
+of the wide parts next to it: how many different ones it touches, and how big
+the smallest of them is. A narrow part touching two or more wide parts holds
+them together, so a clearing in it would cut off at least the smallest:
+
+```{r}
+critical <- critical |>
+  mdf_componentise(connectivity = 8L, layer = "wide", add = "wide_id") |>
+  mdf_summarise(by = "wide_id", fun = "n", layer = "wide_id",
+                add = "wide_size") |>
+  mdf_componentise(connectivity = 8L, layer = "narrow", add = "narrow_id") |>
+  mdf_summarise(by = "narrow_id", fun = "n_distinct", neighbours = TRUE,
+                layer = "wide_id", add = "touches") |>
+  mdf_summarise(by = "narrow_id", fun = "min", neighbours = TRUE,
+                layer = "wide_size", add = "smallest") |>
+  mdf_filter(touches >= 2, value = TRUE, layer = "smallest", add = "cut_off")
+```
+
+```{r, fig.alt = "The wide and the narrow parts of the forest, and how much wide forest a clearing in each critical narrow part would cut off"}
+msk_vis(critical, .layer("wide"), .layer("narrow"), .layer("cut_off"))
+```
+
+**Check.** The corridor that joins the northern lobe of patch 5 to its round
+core in the south is two cells wide, so it should be narrow, touch two wide
+parts and be critical. A clearing in it would cut off the smaller of the two,
+some tens of cells. The interior of the large patches is wide, so no critical
+place should lie deeper than a few cells inside the forest:
+
+```{r}
+cut_off <- msk_pull(critical, "cut_off")
+depth <- critical |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  msk_pull("depth")
+# the cell in the corridor of patch 5: column 16, row 24 from the bottom
+corridor <- (msk_dims(critical)[2] - 24) * msk_dims(critical)[1] + 16
+c(critical_cells = sum(!is.na(cut_off)),
+  in_the_corridor = cut_off[corridor],
+  deeper_than_three = sum(!is.na(cut_off[depth > 3])))
+```
+
+```{r, include = FALSE}
+stopifnot(cut_off[corridor] > 20, sum(!is.na(cut_off[depth > 3])) == 0)
+```
+
+The critical places are few, and each of them is where a new path, a ditch or
+a building plot would do most harm.

@@ -28,14 +28,23 @@ msk_provenance(x)
 
 msk_names(x)
 
-msk_categories(x)
+msk_categories(x, layer = NULL)
 
-msk_patches(x)
+msk_patches(x, layer = NULL)
 
-msk_global(x)
+msk_global(x, layer = NULL)
 }
 \arguments{
 \item{x}{a \code{\link{mosaik}} object.}
+
+\item{layer}{\code{\link[=character]{character(1)}}\cr for \code{msk_categories},
+\code{msk_patches} and \code{msk_global}: the layer whose results to
+return. Defaults to the first layer.}
+}
+\value{
+For \code{msk_categories}, \code{msk_patches} and
+\code{msk_global}: the class, patch or landscape-level results of
+\code{layer}, as a list, or \code{NULL} if none have been measured.
 }
 \description{
 Simple functions to access properties of a \code{\link{mosaik}} object.
@@ -49,4 +58,7 @@ msk_res(msk)
 msk_ncells(msk)
 msk_crs(msk)
 msk_names(msk)
+
+msk <- msr_area(msk, scale = "class", layer = "cover")
+msk_categories(msk, layer = "cover")
 }

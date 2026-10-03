@@ -7,15 +7,15 @@
 mdf_dilate(obj = NULL, struct = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{struct}{\link[=struct]{struct(1)}\cr the structuring element; see
+\item{struct}{\code{\link[=struct]{struct(1)}}\cr the structuring element; see
 \code{\link{msk_struct}} for details.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -27,9 +27,13 @@ The morphological operation 'dilate' increases the value of cells that match
 a structuring element.
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_dilate(forest)
-mdf_dilate(forest, struct = msk_struct("square", width = 5))
+# the forest grown by one cell, and by two cells with a 5 x 5 square
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_dilate(layer = "forest", add = "dilated") |>
+  mdf_dilate(struct = msk_struct("square", width = 5), layer = "forest",
+             add = "dilated_5")
+msk_vis(m, .layer("forest"), .layer("dilated"), .layer("dilated_5"))
 }
 \seealso{
 Other operators to morphologically modify a raster: 

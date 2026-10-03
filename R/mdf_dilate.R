@@ -2,19 +2,23 @@
 #'
 #' The morphological operation 'dilate' increases the value of cells that match
 #' a structuring element.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param struct [struct(1)][struct]\cr the structuring element; see
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param struct [`struct(1)`][struct]\cr the structuring element; see
 #'   \code{\link{msk_struct}} for details.
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimension as \code{obj}, where a dilation has
 #'   been performed.
 #' @examples
-#' forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-#' mdf_dilate(forest)
-#' mdf_dilate(forest, struct = msk_struct("square", width = 5))
+#' # the forest grown by one cell, and by two cells with a 5 x 5 square
+#' m <- landscape |>
+#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_dilate(layer = "forest", add = "dilated") |>
+#'   mdf_dilate(struct = msk_struct("square", width = 5), layer = "forest",
+#'              add = "dilated_5")
+#' msk_vis(m, .layer("forest"), .layer("dilated"), .layer("dilated_5"))
 #' @family operators to morphologically modify a raster
 #' @importFrom checkmate assertClass assertCharacter
 #' @export
@@ -24,7 +28,8 @@ mdf_dilate <- function(obj = NULL,
                        layer = NULL,
                        add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -62,7 +67,5 @@ mdf_dilate <- function(obj = NULL,
                    strictKernel = FALSE)
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_dilate", list(struct = struct@pattern, layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

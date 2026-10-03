@@ -8,10 +8,10 @@
 #'
 #' The cells of a structuring element can have four values: NA (indifferent), 0,
 #' 1, and any value > 1.
-#' @slot pattern [matrix(.)][matrix]\cr the pattern matrix.
-#' @slot rotate [logical(1)][logical]\cr whether the pattern shall be applied
+#' @slot pattern [`matrix(.)`][matrix]\cr the pattern matrix.
+#' @slot rotate [`logical(1)`][logical]\cr whether the pattern shall be applied
 #'   in all rotations.
-#' @slot background [numeric(1)][numeric]\cr the value of background cells.
+#' @slot background [`numeric(1)`][numeric]\cr the value of background cells.
 
 struct <- setClass(Class = "struct",
                    slots = c(pattern = "matrix",
@@ -22,7 +22,7 @@ struct <- setClass(Class = "struct",
 
 #' Print the structuring element
 #'
-#' @param object [struct][struct]\cr the structuring element to print.
+#' @param object [`struct`][struct]\cr the structuring element to print.
 #' @importFrom crayon yellow
 
 setMethod(f = "show",
@@ -49,16 +49,16 @@ setMethod(f = "show",
 
 #' Make a structuring element
 #'
-#' @param type [character(1)][character]\cr the shape, one of 'disc', 'box'
+#' @param type [`character(1)`][character]\cr the shape, one of 'disc', 'box'
 #'   ('rectangle' and 'square' are accepted as synonyms), 'diamond' or 'cross'.
 #'   Ignored when \code{custom} is given.
-#' @param width [integerish(1)][integer]\cr width in number of cells, must be
+#' @param width [`integerish(1)`][integer]\cr width in number of cells, must be
 #'   odd so that there is a focal cell.
-#' @param height [integerish(1)][integer]\cr height in number of cells, must be
+#' @param height [`integerish(1)`][integer]\cr height in number of cells, must be
 #'   odd so that there is a focal cell.
-#' @param rotate [logical(1)][logical]\cr whether to apply all rotations.
-#' @param background [integerish(1)][integer]\cr background cell value.
-#' @param custom [matrix(.)][matrix]\cr a custom pattern matrix.
+#' @param rotate [`logical(1)`][logical]\cr whether to apply all rotations.
+#' @param background [`integerish(1)`][integer]\cr background cell value.
+#' @param custom [`matrix(.)`][matrix]\cr a custom pattern matrix.
 #' @details The generated shapes are built around the focal cell in the middle
 #'   and follow the definition used by \code{mmand::shapeKernel()}. 'disc',
 #'   'box' and 'diamond' are the balls of the euclidean, maximum and manhattan

@@ -4,25 +4,27 @@
 \alias{msr_area}
 \title{Area of objects}
 \usage{
-msr_area(obj, scale = "patch", unit = "cells", layer = NULL)
+msr_area(obj = NULL, scale = "patch", unit = "cells", layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to measure.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{scale}{\link[=character]{character(1)}\cr scale at which to calculate;
+\item{scale}{\code{\link[=character]{character(1)}}\cr scale at which to calculate;
 \code{"patch"}, \code{"class"} or \code{"landscape"}.}
 
-\item{unit}{\link[=character]{character(1)}\cr \code{"cells"} (default, number of
+\item{unit}{\code{\link[=character]{character(1)}}\cr \code{"cells"} (default, number of
 cells) or \code{"map"} (in map units).}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with an \code{area} column added to
-\code{@patches} (for \code{scale = "patch"}),
-\code{@categories} (for \code{scale = "class"}), or
-\code{@global} (for \code{scale = "landscape"}).
+The input mosaik with an \code{area} value added to the results of
+\code{layer}: its patches (for \code{scale = "patch"}, which must have
+been numbered with \code{\link{mdf_componentise}} first, see
+\code{\link{msk_patches}}), its classes (\code{scale = "class"}, see
+\code{\link{msk_categories}}) or the layer as a whole
+(\code{scale = "landscape"}, see \code{\link{msk_global}}).
 }
 \description{
 Calculate the area of objects in a mosaik and attach the result to the
@@ -31,30 +33,32 @@ attribute table.
 \examples{
 # landscape-level: total area
 m <- msr_area(landscape, scale = "landscape")
-m@global$area
+msk_global(m)$area
 
 # class-level: area per class
 m <- msr_area(landscape, scale = "class")
-m@categories$cover$area
+msk_categories(m)$area
 
-# patch-level: area per patch
-m <- msr_area(landscape, scale = "patch")
-m@patches$area
-m@patches$class   # which class each patch belongs to
-m@patches$patch    # patch ID within each class
+# patch-level: area per patch, of the patches numbered first
+m <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
+                      add = "patch")
+m <- msr_area(m, scale = "patch")
+msk_patches(m)$area
+msk_patches(m)$class   # which class each patch belongs to
+msk_patches(m)$patch   # the patch number, as in the layer 'patch'
 
 # derive: proportion of landscape per class (PLAND)
-m <- msr_area(landscape, scale = "class")
+m <- msr_area(m, scale = "class")
 m <- msr_area(m, scale = "landscape")
 m <- msr(m, equation = "area.class / area.landscape * 100",
          label = "pland")
-m@categories$cover$pland
+msk_categories(m)$pland
 
 # derive: mean patch size per class
 m <- msr_number(m, scale = "patch")
 m <- msr(m, equation = "area.class / number.class",
          label = "mean_patch_size")
-m@categories$cover$mean_patch_size
+msk_categories(m)$mean_patch_size
 }
 \seealso{
 Other measure: 

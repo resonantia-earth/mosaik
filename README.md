@@ -3,19 +3,19 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-**mosaik** is categorical raster algebra for landscape analysis: a small set
-of general operations that synthesise fields, modify layers and measure them,
-and that combine into anything from a single index to a complete
-classification algorithm.
+**mosaik** draws, modifies and measures landscape patterns. It follows the
+Unix principle for spatial analysis: each operator does one thing, all of them
+take and return a mosaik, and an analysis is a combination of them rather than
+a function of its own. New questions need new combinations, not new code, and
+every combination can be checked part by part and rerun from its record.
 
 ## Why a new raster class
 
 Landscape tools usually come as fixed lists: a catalogue of metrics, a
 programme for one pattern analysis, a generator for one kind of neutral
-landscape. Whatever is not on the list needs a new tool. mosaik offers the
-parts those tools are made of instead, so a new metric, a new morphological
-analysis or a new synthetic test field is a combination of existing operations, not a
-new function.
+landscape. Whatever is not on the list needs a new tool. With mosaik, a new
+metric, a new way of finding spatial objects or a new test pattern is a
+combination of existing operators.
 
 Combining operations only works if they share what they know. An equation over
 the perimeter and the area of a patch needs both to refer to the same patch. A
@@ -36,8 +36,8 @@ writes one.
 
 | Prefix | Purpose | Examples |
 |---|---|---|
-| `syn_*` | synthesise an abstract field to analyse | `syn_noise()`, `syn_texture()`, `syn_gradient()` |
-| `mdf_*` | modify layers with generic operators | `mdf_binarise()`, `mdf_dilate()`, `mdf_mask()` |
+| `drw_*` | draw an abstract field to analyse | `drw_noise()`, `drw_texture()`, `drw_gradient()` |
+| `mdf_*` | modify layers with generic operators | `mdf_binarise()`, `mdf_dilate()`, `mdf_filter()` |
 | `mdf()` | replay a recorded sequence of `mdf_*` steps on new data | `mdf(obj, recipe)` |
 | `msr_*` | measure a primitive | `msr_area()`, `msr_perimeter()`, `msr_adjacency()` |
 | `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.class / area.class", "edge_density")` |
@@ -45,9 +45,12 @@ writes one.
 
 The primitives are area, number, perimeter, adjacency, dissimilarity and cost
 (distance is the cost measured in metres), each at patch, class or landscape
-level. Results are written into the object at the level they describe:
-patch-level in `@patches`, class-level in `@categories`, landscape-level in
-`@global`.
+level. Patches are numbered once, by `mdf_componentise()` with a stated
+connectivity, and every patch-level measure uses those patches. Results are
+written into the object with the layer they were measured
+on, at the level they describe, and read back with `msk_patches()`,
+`msk_categories()` and `msk_global()`. An equation can combine the results of
+several layers: `area.class_core / area.class_forest`.
 
 ## Installation
 
@@ -71,17 +74,15 @@ m <- landscape |>
   msr(equation = "perimeter.class / area.landscape", label = "edge_density",
       layer = "cover")
 
-msk_categories(m)$cover
+msk_categories(m, layer = "cover")
 ```
 
 ## Learn more
 
 - `vignette("mosaik")`: getting started, a tour of the verbs on the bundled
   `landscape` data.
-- `vignette("measurement")`: why landscape condition has to be measured at the
-  landscape level, and how mosaik approaches reference states and disclosure.
-- `vignette("recipes")`: building pipelines that are defined once and replayed
-  on many rasters.
+- `vignette("techniques")`: how the operations combine: recipes, named layers,
+  metrics built on metrics, reducing, neighbourhoods, loops and provenance.
 - `vignette("mspa")`: Morphological Spatial Pattern Analysis rebuilt from the
   primitives, matching the published classification cell for cell.
 

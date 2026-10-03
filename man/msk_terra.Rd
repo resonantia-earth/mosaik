@@ -7,7 +7,7 @@
 msk_terra(obj)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to convert.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to convert.}
 }
 \value{
 A \code{SpatRaster} with one layer per mosaik layer.

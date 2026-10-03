@@ -1,0 +1,48 @@
+---
+title: "Ecotones"
+summary: "The zone of transition between the forest and the land next to it."
+question: arrangement
+about: forest
+scale: cell
+declares: []
+uses: [class, ecotone]
+result:
+  - {object: boundary, layer: boundary, text: "in the ecotone between forest and the land next to it"}
+---
+
+An ecotone is a zone of transition between adjacent ecological systems
+(Holland 1988). On a map of cells, it reaches to both sides of the line where
+two kinds of land meet. Growing the forest by one cell and subtracting the
+forest shrunk by one cell leaves such a zone, two cells wide: its outer row
+lies on the neighbouring land, its inner row in the forest. A wider ecotone is
+a larger structuring element.
+
+```{r}
+library(mosaik)
+boundary <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_dilate(layer = "forest", add = "grown") |>
+  mdf_erode(layer = "forest", add = "shrunk") |>
+  mdf_blend(layers = c("grown", "shrunk"), fun = "-", add = "boundary")
+```
+
+```{r, fig.alt = "The forest and the band along its boundary"}
+msk_vis(boundary, .layer("forest"), .layer("boundary"))
+```
+
+**Check.** The inner row of the ecotone is exactly the forest that shrinking
+removes:
+
+```{r}
+inner <- msk_pull(boundary, "boundary") == 1 & msk_pull(boundary, "forest") == 1
+removed <- msk_pull(boundary, "forest") == 1 & msk_pull(boundary, "shrunk") == 0
+identical(inner, removed)
+```
+
+```{r, include = FALSE}
+stopifnot(identical(inner, removed))
+```
+
+**Reference.** Holland MM (1988) SCOPE/MAB technical consultations on
+landscape boundaries: report of a SCOPE/MAB workshop on ecotones. Biology
+International, Special Issue 17: 47-106.

@@ -9,43 +9,44 @@
 #' drawn over terrain: give the terrain and the variable the same \code{panel},
 #' and each keeps its own colour scale and its own legend.
 #'
-#' @param layer [character(1)][character]\cr name of the layer to draw.
-#' @param panel [character(1)][character]\cr which panel this layer belongs to.
+#' @param layer [`character(1)`][character]\cr name of the layer to draw.
+#' @param panel [`character(1)`][character]\cr which panel this layer belongs to.
 #'   Layers sharing a value are drawn into the same panel, and the value is that
 #'   panel's title. \code{NULL} (default) gives the layer a panel of its own,
 #'   titled after the layer.
-#' @param colours [character][character]\cr the layer's colour scale: ramp stops
+#' @param colours [`character`][character]\cr the layer's colour scale: ramp stops
 #'   (\code{c("black", "white")}), a palette name
 #'   (\code{"viridis"}; see \code{grDevices::hcl.pals}), or a \strong{named}
 #'   vector mapping category labels to colours
 #'   (\code{c(forest = "darkgreen", crop = "khaki")}). \code{NULL} takes the
-#'   theme's \code{colours}.
-#' @param limits [numeric(2)][numeric]\cr \code{c(min, max)} forcing this
+#'   colours of the layer's categories where they carry a \code{colour} field,
+#'   else the theme's \code{colours}.
+#' @param limits [`numeric(2)`][numeric]\cr \code{c(min, max)} forcing this
 #'   layer's colour scale, instead of taking the range from its own values.
 #'   Cells outside are clamped to the end colours rather than dropped.
-#' @param bins [numeric(1)][numeric]\cr number of colour steps for a continuous
+#' @param bins [`numeric(1)`][numeric]\cr number of colour steps for a continuous
 #'   layer. \code{NULL} takes the theme's \code{scale.bins}.
-#' @param hillshade [named list][list]\cr shade this layer by terrain relief.
+#' @param hillshade [`named list`][list]\cr shade this layer by terrain relief.
 #'   The shading multiplies the layer's own colours, so any layer can be draped
 #'   over the relief. \code{NULL} (default) disables it. Elements:
 #'   \itemize{
-#'     \item \code{layer} [character(1)][character] name of the elevation layer
+#'     \item \code{layer} [`character(1)`][character] name of the elevation layer
 #'       to shade by (required).
-#'     \item \code{azimuth} [numeric][numeric] light direction in degrees
+#'     \item \code{azimuth} [`numeric`][numeric] light direction in degrees
 #'       clockwise from north, default 315. Give several to average them into a
 #'       multi-directional hillshade, e.g. \code{c(225, 270, 315, 360)}, which
 #'       keeps slopes facing away from a single light from going flat.
-#'     \item \code{altitude} [numeric(1)][numeric] light height in degrees above
+#'     \item \code{altitude} [`numeric(1)`][numeric] light height in degrees above
 #'       the horizon, default 45.
-#'     \item \code{exaggeration} [numeric(1)][numeric] vertical exaggeration of
+#'     \item \code{exaggeration} [`numeric(1)`][numeric] vertical exaggeration of
 #'       the elevation before the gradient is taken, default 1.
-#'     \item \code{intensity} [numeric(1)][numeric] strength of the effect in
+#'     \item \code{intensity} [`numeric(1)`][numeric] strength of the effect in
 #'       \code{[0, 1]}, default 1.
 #'   }
-#' @param legend [logical(1)][logical]\cr give this layer its own legend
+#' @param legend [`logical(1)`][logical]\cr give this layer its own legend
 #'   (\code{TRUE}, default). Set \code{FALSE} for a layer that needs no scale of
 #'   its own, such as a hillshade base.
-#' @param title [character(1)][character]\cr heading for this layer's legend.
+#' @param title [`character(1)`][character]\cr heading for this layer's legend.
 #'   \code{NULL} uses the layer name.
 #' @return a list of class \code{mskLayer}.
 #' @seealso \code{\link{msk_vis}}, which draws these; \code{\link{.theme}} for
@@ -60,19 +61,16 @@
 #' # an explicit colour per category, which fixes the meaning of each colour
 #' # across every figure in a series
 #' m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
-#' m <- msk_set(m, layer = "forest", values = msk_pull(m, "forest"),
-#'              gid = c(0L, 1L), val = c("open", "forest"))
-#' msk_vis(m, .layer("forest", colours = c(open = "khaki",
-#'                                         forest = "darkgreen")))
+#' msk_vis(m, .layer("forest", colours = c("0" = "khaki", "1" = "darkgreen")))
 #'
 #' # a variable drawn over shaded terrain: same panel, one legend each, and
 #' # the flagged cells stay saturated because only the terrain carries the
 #' # shading
 #' t <- mosaik(extent = c(0, 10000, 0, 10000), res = 100) |>
-#'   syn_texture(name = "dem", hurst = 0.9, seed = 1) |>
+#'   drw_texture(name = "dem", hurst = 0.9, seed = 1) |>
 #'   mdf_scale(layer = "dem", range = c(0, 200))
 #' t <- mdf_binarise(t, thresh = 160, layer = "dem", add = "high")
-#' t <- mdf_mask(t, by = "high", layer = "high")
+#' t <- mdf_filter(t, high == 1, value = TRUE, layer = "high")
 #' msk_vis(t,
 #'         .layer("dem", panel = "relief", colours = "terrain",
 #'                hillshade = list(layer = "dem", exaggeration = 5)),
@@ -145,7 +143,7 @@
 #' Only NA cells let the layer beneath show through, so a layer with a value
 #' everywhere hides whatever it is drawn on. An overlay is therefore a layer
 #' that is mostly NA -- rivers on a bare grid, or a subset masked out of a full
-#' layer with \code{\link{mdf_mask}}. Set \code{legend = FALSE} on a layer that
+#' layer with \code{\link{mdf_filter}}. Set \code{legend = FALSE} on a layer that
 #' flags cells rather than carrying a scale of its own.
 #'
 #' \strong{Comparing panels.} By default each panel scales its colours to its
@@ -160,25 +158,25 @@
 #' so any variable can be draped over the relief, and a layer composited on top
 #' of a shaded one is not darkened by it.
 #'
-#' @param obj [mosaik][mosaik]\cr the object to plot.
+#' @param obj [`mosaik`][mosaik]\cr the object to plot.
 #' @param ... \code{mskLayer}\cr layer specifications built with
 #'   \code{\link{.layer}}, one per layer to draw. With none given, every layer
 #'   of \code{obj} is drawn in a panel of its own.
-#' @param title [character(1)][character]\cr heading for the figure as a whole,
+#' @param title [`character(1)`][character]\cr heading for the figure as a whole,
 #'   drawn above the panels. \code{NULL} (default) draws none and gives the
 #'   panels the full page. Panel headings come from \code{\link{.layer}}'s
 #'   \code{panel} argument instead.
-#' @param shared_scale [logical(1)][logical]\cr give every panel showing the
+#' @param shared_scale [`logical(1)`][logical]\cr give every panel showing the
 #'   same layer one common colour scale, spanning that layer's range across all
 #'   panels (\code{TRUE}). Layers with an explicit \code{limits} keep it.
 #'   Default \code{FALSE}.
-#' @param window [numeric(4)][numeric]\cr extent as \code{c(xmin, xmax, ymin,
+#' @param window [`numeric(4)`][numeric]\cr extent as \code{c(xmin, xmax, ymin,
 #'   ymax)} to which the plot is limited. If \code{NULL}, the object's extent is
 #'   used.
 #' @param theme \code{mskTheme}\cr graphical settings built with
 #'   \code{\link{.theme}}, e.g. \code{.theme(legend.plot = FALSE,
 #'   panel.title.fontsize = 14)}. Anything left out keeps its default.
-#' @param trace [logical(1)][logical]\cr Print the provenance information of the
+#' @param trace [`logical(1)`][logical]\cr Print the provenance information of the
 #'   mosaik object (\code{TRUE}), or simply plot (\code{FALSE}, default).
 #' @return Returns invisibly an object of class \code{recordedplot}.
 #' @seealso \code{\link{.layer}} for what to draw, \code{\link{.theme}} for how
@@ -191,14 +189,14 @@
 #' msk_vis(landscape, .layer("cover", colours = "viridis"))
 #'
 #' # two layers on a common scale, so the panels can be compared
-#' msk_vis(landscape, .layer("cover"), .layer("intensity"),
+#' msk_vis(landscape, .layer("cover"), .layer("canopy"),
 #'         shared_scale = TRUE)
 #'
 #' # two layers in one panel: an overlay only shows through where the upper
 #' # layer is NA, so it is built by masking down to the cells of interest --
-#' # here the least intensively used ones, flagged over the cover map
-#' m <- mdf_binarise(landscape, match = 0, layer = "intensity", add = "flat")
-#' m <- mdf_mask(m, by = "flat", layer = "flat")
+#' # here the cells without vegetation, flagged over the cover map
+#' m <- mdf_binarise(landscape, match = 0, layer = "canopy", add = "flat")
+#' m <- mdf_filter(m, flat == 1, value = TRUE, layer = "flat")
 #' msk_vis(m,
 #'         .layer("cover",  panel = "landscape", colours = "Terrain 2"),
 #'         .layer("flat", panel = "landscape", colours = "red",
@@ -206,8 +204,8 @@
 #'
 #' # a heading over the whole figure, panels headed individually beneath it
 #' msk_vis(landscape, .layer("cover", panel = "what grows"),
-#'         .layer("intensity", panel = "how hard it is worked"),
-#'         title = "land use")
+#'         .layer("canopy", panel = "how tall it grows"),
+#'         title = "land cover and vegetation")
 #'
 #' # drop the chrome
 #' msk_vis(landscape, theme = .theme(panel.title.plot = FALSE,
@@ -281,10 +279,11 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 
   # panel grid
 
-  if(panels > 1){
-    ncol <- ceiling(sqrt(panels))
+  # up to three panels side by side, more in a square grid
+  if(panels <= 3){
+    ncol <- panels
   } else {
-    ncol <- 1
+    ncol <- ceiling(sqrt(panels))
   }
   nrow <- ceiling(panels / ncol)
   panelPosY <- rep(rev(seq(from = 1, to = nrow)), each = ncol)
@@ -325,15 +324,15 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
   }
 
   # determine window once: all panels come from one mosaik, so they share it
+  # the cells are drawn over the whole window, so a window smaller than the
+  # map needs the map cropped to it first, snapped outward to whole cells
   if(!is.null(window)){
     assertNumeric(x = window, len = 4)
-    theWindow <- list(xmin = window[1], xmax = window[2],
-                      ymin = window[3], ymax = window[4])
-  } else {
-    ext <- obj@extent
-    theWindow <- list(xmin = ext[1], xmax = ext[2],
-                      ymin = ext[3], ymax = ext[4])
+    obj <- mdf_crop(obj, extent = window)
   }
+  ext <- obj@extent
+  theWindow <- list(xmin = ext[1], xmax = ext[2],
+                    ymin = ext[3], ymax = ext[4])
 
   for(i in seq_along(panelOrder)){
 
@@ -355,7 +354,7 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
                           height = 1 / nrow,
                           name = theName))
     grid.rect(width = convertX(unit(1, "npc"), "native"),
-              gp = gpar(col = "#D3D3D3FF", fill = NA), name = "panelGrob")
+              gp = gpar(col = NA, fill = NA), name = "panelGrob")
 
     grid.rect(x = unit(theLayout$window$xmin, "points"),
               y = unit(theLayout$window$ymin, "points"),
@@ -500,21 +499,10 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 
   # provenance trace: one mosaik, so this is printed once, not once per panel
   if(trace){
-    theHist <- obj@provenance
-    if(length(theHist) > 0){
-      steps <- vapply(theHist, function(step){
-        if(is.character(step)){
-          step
-        } else {
-          fn <- names(step)[1]
-          info <- step[[fn]]
-          args <- .prov_args(info)
-          args_str <- paste0(names(args), "=", args, collapse = ", ")
-          paste0(fn, "(", args_str, ") [", info$atTime, "]")
-        }
-      }, character(1))
-      histMsg <- paste0("this object has the following history:\n -> ", paste0(steps, collapse = "\n -> "))
-      message(histMsg)
+    steps <- .format_history(obj@provenance)
+    if(length(steps) > 0){
+      message("this object has the following history:\n  ",
+              paste0(steps, collapse = "\n  "))
     }
   }
 
@@ -525,7 +513,7 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 
 #' Get the number of decimal places
 #'
-#' @param x [numeric(1)][numeric]\cr the number for which to derive decimal
+#' @param x [`numeric(1)`][numeric]\cr the number for which to derive decimal
 #'   places.
 #' @noRd
 
@@ -647,8 +635,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #'
 #' @param scaleValues the scale values.
 #' @param colours the resolved colour vector for this layer.
-#' @param title [character(1)][character]\cr heading above the strip, or NULL.
-#' @param prevX [unit][unit]\cr horizontal offset, so successive legends in one
+#' @param title [`character(1)`][character]\cr heading above the strip, or NULL.
+#' @param prevX [`unit`][unit]\cr horizontal offset, so successive legends in one
 #'   panel sit side by side rather than on top of each other.
 #' @param theme the completed theme list.
 #' @importFrom grid textGrob rasterGrob rectGrob gpar gTree gList unit convertX
@@ -729,7 +717,10 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
     thePositions <- (tickPositions - 1) / max(tickPositions) + thePositions[1] / 2
 
     if(is.numeric(legendLabels)){
-      legendLabels <- format(legendLabels, digits = theme$legend.digits + 1)
+      # rounded first, so a value next to 0 reads 0.00 rather than 2.6e-06
+      legendLabels <- format(round(legendLabels, theme$legend.digits + 1),
+                             digits = theme$legend.digits + 1,
+                             scientific = FALSE)
     }
 
     legend_labels <- textGrob(label = legendLabels,
@@ -892,9 +883,9 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #' hole.
 #'
 #' @param values numeric (or other) vector of cell values, NAs already removed.
-#' @param bins [numeric(1)][numeric]\cr maximum number of colour steps before
+#' @param bins [`numeric(1)`][numeric]\cr maximum number of colour steps before
 #'   the scale switches from categorical to binned-continuous.
-#' @param limits [numeric(2)][numeric]\cr \code{c(min, max)} to force, or
+#' @param limits [`numeric(2)`][numeric]\cr \code{c(min, max)} to force, or
 #'   \code{NULL} to take the range from \code{values}.
 #' @return numeric vector of scale values (ascending), or the sorted unique
 #'   values when the layer is categorical.
@@ -948,16 +939,16 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #' without altering the data.
 #'
 #' @param obj a mosaik object.
-#' @param layer [character(1)][character]\cr name of the elevation layer.
-#' @param azimuth [numeric][numeric]\cr direction of the light source in degrees
+#' @param layer [`character(1)`][character]\cr name of the elevation layer.
+#' @param azimuth [`numeric`][numeric]\cr direction of the light source in degrees
 #'   clockwise from north. Default 315 (north-west), the cartographic convention
 #'   -- light from the upper left avoids the relief-inversion illusion that
 #'   lighting from below triggers in most viewers. Several azimuths average into
 #'   a multi-directional hillshade, which keeps slopes facing away from a single
 #'   light from going flat and featureless.
-#' @param altitude [numeric(1)][numeric]\cr height of the light source in
+#' @param altitude [`numeric(1)`][numeric]\cr height of the light source in
 #'   degrees above the horizon. Default 45.
-#' @param exaggeration [numeric(1)][numeric]\cr vertical exaggeration applied to
+#' @param exaggeration [`numeric(1)`][numeric]\cr vertical exaggeration applied to
 #'   the elevation before the gradient. Default 1 (no exaggeration).
 #' @return numeric vector of illumination factors in \[0, 1\], row-major, one per
 #'   cell; NA where the elevation is NA.
@@ -973,8 +964,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
   assertNumber(x = exaggeration, lower = 0, finite = TRUE)
 
   elev <- as.numeric(msk_pull(obj, layer))
-  # slope/aspect/TWI rules assume elevation in metres; a raw syn_texture /
-  # syn_noise layer lies in [0,1] and yields degenerate slope with no error.
+  # slope/aspect/TWI rules assume elevation in metres; a raw drw_texture /
+  # drw_noise layer lies in [0,1] and yields degenerate slope with no error.
   # A genuinely flat sub-metre DEM also lies in [0,1] and cannot be told
   # apart by range alone, hence the escape hatch in the message.
   .rng <- range(elev, na.rm = TRUE)
@@ -1034,7 +1025,7 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #'
 #' @param colours character vector of hex colours (may contain NA).
 #' @param shade numeric vector of illumination factors in \[0, 1\].
-#' @param intensity [numeric(1)][numeric]\cr strength of the effect in \[0, 1\].
+#' @param intensity [`numeric(1)`][numeric]\cr strength of the effect in \[0, 1\].
 #' @return character vector of hex colours, NA preserved.
 #' @importFrom grDevices col2rgb rgb
 #' @noRd
@@ -1107,6 +1098,13 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
                               limits = theLimits)
 
     theColours <- s$colours
+    # a category table may carry a colour per class (as landscape's land cover
+    # does); it is used unless the call gives colours
+    cats <- obj@categories[[s$layer]]
+    if(is.null(theColours) && !is.null(cats$colour)){
+      theColours <- stats::setNames(cats$colour,
+                                    if(is.null(cats$val)) cats$gid else cats$val)
+    }
     if(is.null(theColours)) theColours <- theme$colours
 
     # layout needs the legends to size the plotting area, but the legend needs
@@ -1116,8 +1114,18 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
       # only title the strips when several share the panel: a lone legend needs
       # no heading, the panel title already says what is drawn
       if(is.null(theTitle) && length(specs) > 1) theTitle <- s$layer
+      # a named colour vector may hold classes the map does not show; the
+      # legend lists the values shown, so it takes their colours by name
+      legendColours <- theColours
+      if(!is.null(names(theColours))){
+        key <- as.character(scaleValues)
+        if(!is.null(cats$gid) && !is.null(cats$val)){
+          key <- cats$val[match(scaleValues, cats$gid)]
+        }
+        if(!anyNA(theColours[key])) legendColours <- unname(theColours[key])
+      }
       thisLegend <- .makeLegend(scaleValues = scaleValues,
-                                colours = theColours,
+                                colours = legendColours,
                                 title = theTitle,
                                 prevX = prevX,
                                 theme = theme)

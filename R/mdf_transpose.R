@@ -2,12 +2,14 @@
 #'
 #' Mirror the grid along its main diagonal, swapping rows and columns. Cell
 #' \code{(r, c)} becomes \code{(c, r)}.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param layer [character(1)][character]\cr the layer to transpose. If
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param layer [`character(1)`][character]\cr the layer to transpose. If
 #'   \code{NULL} (default), all layers are transposed.
 #' @return A mosaik with swapped dimensions and transposed cell values.
 #' @examples
-#' mdf_transpose(landscape)
+#' # the map mirrored along its diagonal
+#' msk_vis(landscape, .layer("cover"))
+#' msk_vis(mdf_transpose(landscape), .layer("cover"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertCharacter
 #' @export
@@ -15,7 +17,8 @@
 mdf_transpose <- function(obj = NULL,
                           layer = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -51,16 +54,12 @@ mdf_transpose <- function(obj = NULL,
   new_ext <- c(cx - half_h, cx + half_h, cy - half_w, cy + half_w)
 
   # build output ----
-  prov <- msk_prov("mdf_transpose", list(layer = layer))
 
-  new_mosaik(
-    extent     = new_ext,
-    dims       = new_dims,
-    layers     = new_layers,
-    categories = obj@categories,
-    patches    = list(),
-    global     = list(),
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 extent = new_ext,
+                 dims = new_dims,
+                 layers = new_layers,
+                 patches = list(),
+                 global = list(),
+                 step = step)
 }

@@ -134,7 +134,7 @@ matrix cell. Core is what survives the threshold.
 
 ```{r core}
 m <- mdf_distance(m, source = "background", layer = "pattern", add = "edt")
-m <- mdf_filter(m, edt > size * edu, value = TRUE, background = 0, add = "core")
+m <- mdf_filter(m, edt > size * edu, add = "core")
 ```
 
 The green is core. Everything still grey is within `size` of the matrix, or
@@ -150,18 +150,18 @@ show_state(m, "core")
 An islet is a patch holding no core. Label the patches with
 `mdf_componentise()`, then ask of each whether any of its cells is core.
 
-`mdf_zonal()` does the second part. It groups cells by a label layer and writes
+`mdf_summarise()` does the second part. It groups cells by a label layer and writes
 one summary value back onto every cell of the group, which is the raster
 equivalent of a group-by. Here the summary is whether the patch contains a core
 cell, and the patches answering no are the islets.
 
 ```{r islet}
 m <- mdf_componentise(m, connectivity = conn, layer = "pattern", add = "cc")
-m <- mdf_mask(m, by = "pattern", background = 0, layer = "cc")
-m <- mdf_zonal(m, by = "cc", fun = "any", layer = "core",
+m <- mdf_filter(m, pattern != 0, value = TRUE, layer = "cc") |>
+    mdf_replace(old = NA, new = 0, layer = "cc")
+m <- mdf_summarise(m, by = "cc", fun = "any", layer = "core",
                background = 0, add = "hasCore")
-m <- mdf_filter(m, pattern == 1 & hasCore == 0,
-                value = TRUE, background = 0, add = "patch")
+m <- mdf_filter(m, pattern == 1 & hasCore == 0, add = "patch")
 ```
 
 The brown patches are gone from further consideration: having no core, they can
@@ -187,17 +187,15 @@ filling added is `holes`, the holes themselves.
 
 ```{r edges-init}
 m <- mdf_distance(m, source = "foreground", layer = "core", add = "dcore")
-m <- mdf_filter(m, core == 1 | (dcore > 0 & dcore <= size * edu),
-                value = TRUE, background = 0, add = "opening")
+m <- mdf_filter(m, core == 1 | (dcore > 0 & dcore <= size * edu), add = "opening")
 
 m <- mdf_offset(m, value = 0, layer = "core", add = "work")
-m <- mdf_fill(m, background = 0, value = 1, connectivity = connBg,
+m <- mdf_fill(m, connectivity = connBg,
               layer = "work", add = "corefill")
-m <- mdf_filter(m, corefill == 1 & work == 0,
-                value = TRUE, background = 0, add = "holes")
+m <- mdf_filter(m, corefill == 1 & work == 0, add = "holes")
 
 # an empty accumulator: no cell satisfies pattern < 0, so this is all zeros
-m <- mdf_filter(m, pattern < 0, value = TRUE, background = 0, add = "edges")
+m <- mdf_filter(m, pattern < 0, add = "edges")
 ```
 
 One round of peeling adds the boundary of the current `corefill` to `edges`,
@@ -209,17 +207,16 @@ until a condition is met.
 
 ```{r edges-loop}
 peel <- mdf_distance(source = "foreground", layer = "corefill", add = "dfill") |>
-  mdf_filter(edges == 1 | (corefill == 0 & dfill > 0 & dfill <= size * edu),
-             value = TRUE, background = 0, add = "edges") |>
-  mdf_fill(background = 0, value = 1, connectivity = conn,
+  mdf_filter(edges == 1 | (corefill == 0 & dfill > 0 & dfill <= size * edu), add = "edges") |>
+  mdf_fill(connectivity = conn,
            layer = "holes", add = "i0") |>
-  mdf_filter(corefill == 1 & i0 == 0, value = TRUE, background = 0,
+  mdf_filter(corefill == 1 & i0 == 0,
              add = "corefill") |>
-  mdf_filter(work == 1 & corefill == 0, value = TRUE, background = 0,
+  mdf_filter(work == 1 & corefill == 0,
              add = "work") |>
-  mdf_fill(background = 0, value = 1, connectivity = connBg,
+  mdf_fill(connectivity = connBg,
            layer = "work", add = "corefill") |>
-  mdf_filter(corefill == 1 & work == 0, value = TRUE, background = 0,
+  mdf_filter(corefill == 1 & work == 0,
              add = "holes")
 ```
 
@@ -243,10 +240,8 @@ is edge. Perforation is the remainder of the core's boundary, the part the
 peeling never reached because it faces inward.
 
 ```{r edges-split}
-m <- mdf_filter(m, edges == 1 & core == 0,
-                value = TRUE, background = 0, add = "edges")
-m <- mdf_filter(m, core == 0 & dcore > 0 & dcore <= size * edu & edges == 0,
-                value = TRUE, background = 0, add = "perf")
+m <- mdf_filter(m, edges == 1 & core == 0, add = "edges")
+m <- mdf_filter(m, core == 0 & dcore > 0 & dcore <= size * edu & edges == 0, add = "perf")
 ```
 
 Black is edge, blue perforation. The core areas are now fully bounded, and what
@@ -261,8 +256,7 @@ show_state(m, c("core", "patch", "edges", "perf"))
 What remains unclassified is connective tissue of some kind.
 
 ```{r residues}
-m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0,
-                value = TRUE, background = 0, add = "residues")
+m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0, add = "residues")
 ```
 
 To find which of it genuinely connects, reduce the pattern to its centre lines
@@ -277,27 +271,24 @@ it retracts entirely. The branch/connector distinction falls out of the
 thinning, so no separate test is needed for it.
 
 ```{r skeleton}
-m <- mdf_filter(m, opening == 1 | residues == 1,
-                value = TRUE, background = 0, add = "skin")
+m <- mdf_filter(m, opening == 1 | residues == 1, add = "skin")
 m <- mdf_skeletonise(m, anchor = "core", background = 0, layer = "skin",
                      add = "sk", method = "homotopic")
-m <- mdf_filter(m, sk == 1 & core == 0, value = TRUE, background = 0, add = "sk")
+m <- mdf_filter(m, sk == 1 & core == 0, add = "sk")
 ```
 
 Keep the parts of the skeleton reachable through the unclassified cells. Growing
 a layer until it stops changing, a fixpoint, is `mdf_loop(stable = TRUE)`.
 
 ```{r connector}
-m <- mdf_filter(m, (opening == 1 & core == 0) | residues == 1,
-                value = TRUE, background = 0, add = "i0")
+m <- mdf_filter(m, (opening == 1 & core == 0) | residues == 1, add = "i0")
 
 m <- mdf_offset(m, value = 0, layer = "sk", add = "rec")
 grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "rec") |>
-        mdf_filter(rec == 1 & i0 == 1, value = TRUE, background = 0, add = "rec")
+        mdf_filter(rec == 1 & i0 == 1, add = "rec")
 m <- mdf_loop(m, grow, stable = TRUE, layer = "rec")
 
-m <- mdf_filter(m, sk == 1 & i0 == 1 & rec == 1,
-                value = TRUE, background = 0, add = "connector")
+m <- mdf_filter(m, sk == 1 & i0 == 1 & rec == 1, add = "connector")
 ```
 
 What survived is drawn here over the grey it was cut from. These strands are the
@@ -318,7 +309,7 @@ msk_vis(conState,
 
 Label each connector and each core area, then ask two things of every connector:
 how many distinct core areas it adjoins, and how many cells it spans. Both are
-`mdf_zonal()` summaries, the first taken over the neighbours of each connector
+`mdf_summarise()` summaries, the first taken over the neighbours of each connector
 rather than over its own cells.
 
 A connector adjoining two or more core areas is a **bridge**, provided it is
@@ -328,20 +319,20 @@ between them, and the reference classifies it as a loop.
 
 ```{r bridge-loop}
 m <- mdf_componentise(m, connectivity = conn, layer = "connector", add = "strand")
-m <- mdf_mask(m, by = "connector", background = 0, layer = "strand")
+m <- mdf_filter(m, connector != 0, value = TRUE, layer = "strand") |>
+    mdf_replace(old = NA, new = 0, layer = "strand")
 m <- mdf_componentise(m, connectivity = conn, layer = "core", add = "coreID")
-m <- mdf_mask(m, by = "core", background = 0, layer = "coreID")
+m <- mdf_filter(m, core != 0, value = TRUE, layer = "coreID") |>
+    mdf_replace(old = NA, new = 0, layer = "coreID")
 
-m <- mdf_zonal(m, by = "strand", fun = "n_distinct", neighbours = TRUE,
+m <- mdf_summarise(m, by = "strand", fun = "n_distinct", neighbours = TRUE,
                connectivity = conn, layer = "coreID", background = 0,
                add = "nCores")
-m <- mdf_zonal(m, by = "strand", fun = "n", layer = "strand",
+m <- mdf_summarise(m, by = "strand", fun = "n", layer = "strand",
                background = 0, add = "strandSize")
 
-m <- mdf_filter(m, connector == 1 & nCores >= 2 & strandSize >= 2,
-                value = TRUE, background = 0, add = "bridge")
-m <- mdf_filter(m, connector == 1 & bridge == 0,
-                value = TRUE, background = 0, add = "loop")
+m <- mdf_filter(m, connector == 1 & nCores >= 2 & strandSize >= 2, add = "bridge")
+m <- mdf_filter(m, connector == 1 & bridge == 0, add = "loop")
 ```
 
 Red is bridge, yellow loop. This is the distinction the method exists to draw:
@@ -356,8 +347,7 @@ nowhere.
 
 ```{r branch}
 m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0 &
-                   bridge == 0 & loop == 0,
-                value = TRUE, background = 0, add = "branch")
+                   bridge == 0 & loop == 0, add = "branch")
 ```
 
 No grey is left, so every foreground cell now holds a class and the
@@ -419,8 +409,8 @@ an order at all. The panels above apply that order, so each cell appears once.
 ## What to take from this
 
 No part of this needed a function written for MSPA. The whole classification is
-eight operators (`mdf_distance`, `mdf_filter`, `mdf_componentise`, `mdf_mask`,
-`mdf_zonal`, `mdf_fill`, `mdf_dilate`, `mdf_skeletonise`) plus `mdf_loop()` to
+eight operators (`mdf_distance`, `mdf_filter`, `mdf_componentise`, `mdf_replace`,
+`mdf_summarise`, `mdf_fill`, `mdf_dilate`, `mdf_skeletonise`) plus `mdf_loop()` to
 iterate a recipe to a condition.
 
 This is the design intent of the package. It provides the operators that named

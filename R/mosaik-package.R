@@ -1,12 +1,16 @@
-#' mosaik: Categorical Raster Algebra for Landscape Analysis
+#' mosaik: Draw, Modify and Measure Landscape Patterns
 #'
-#' Landscape tools usually come as fixed lists: a catalogue of metrics, a
-#' programme for one pattern analysis, a generator for one kind of neutral
-#' landscape. mosaik offers the \strong{parts those tools are made of and the
-#' means of combining them} instead: operations that synthesise fields, modify
-#' layers and measure them. A new metric, a new morphological analysis or a new
-#' synthetic test field is then a combination of existing operations, not a new
-#' function.
+#' mosaik follows the Unix principle for spatial analysis: \strong{each
+#' operator does one thing, all of them take and return a mosaik, and an
+#' analysis is a combination of them} rather than a function of its own. New
+#' questions need new combinations, not new code, and every combination can be
+#' checked part by part and rerun from its record.
+#'
+#' The operators draw fields, modify layers and measure them. Landscape tools
+#' usually come as fixed lists instead: a catalogue of metrics, a programme for
+#' one pattern analysis, a generator for one kind of neutral landscape. With
+#' mosaik, a new metric, a new way of finding spatial objects or a new test
+#' pattern is a combination of existing operators.
 #'
 #' Combining operations only works if they share what they know: an equation
 #' over the perimeter and the area of a patch needs both to refer to the same
@@ -17,33 +21,35 @@
 #' operations, and every operation keeps them consistent.
 #'
 #' A mosaik can be a grid of stacked layers, categorical (land cover, soil,
-#' tenure) or continuous (biomass, intensity). Cell values of a categorical
+#' tenure) or continuous (biomass, canopy height). Cell values of a categorical
 #' layer are the class identifiers themselves. Results are written into the
-#' object at the level they describe: patch-level in \code{@patches},
-#' class-level in \code{@categories}, landscape-level in \code{@global}.
+#' object with the layer they were measured on, at the level they describe:
+#' patch-level in \code{@patches}, class-level in \code{@categories},
+#' landscape-level in \code{@global}, each a list with one entry per layer.
+#' Patches are numbered once, by \code{\link{mdf_componentise}} with a stated
+#' connectivity, and every patch-level measure uses those patches.
 #'
-#' The primitives are area, number, perimeter, adjacency, dissimilarity and
-#' cost (distance is the cost measured in metres), each at patch, class or
-#' landscape level. The MSPA vignette shows how far they reach: a published
-#' segmentation algorithm rebuilt from them, matching the original cell for
+#' The MSPA vignette shows how far combining reaches: a published segmentation
+#' algorithm rebuilt from existing operators, matching the original cell for
 #' cell.
 #'
 #' There are four function families:
 #'
 #' \describe{
-#'   \item{\code{syn_*}}{synthesise an abstract field to analyse: noise,
+#'   \item{\code{drw_*}}{draw an abstract field to analyse: noise,
 #'     texture, gradients, patterns, clusters, tessellations
-#'     (\code{\link{syn_noise}}, \code{\link{syn_texture}},
-#'     \code{\link{syn_gradient}}, \code{\link{syn_pattern}},
-#'     \code{\link{syn_cluster}}, \code{\link{syn_tessellation}}).}
-#'   \item{\code{mdf_*}}{modify layers with generic operators that do not know
-#'     what a layer represents (e.g. \code{\link{mdf_morph}},
+#'     (\code{\link{drw_noise}}, \code{\link{drw_texture}},
+#'     \code{\link{drw_gradient}}, \code{\link{drw_pattern}},
+#'     \code{\link{drw_cluster}}, \code{\link{drw_tessellation}}).}
+#'   \item{\code{mdf_*}}{modify layers with generic operators, so one operation
+#'     serves forest, water or roads alike (e.g. \code{\link{mdf_morph}},
 #'     \code{\link{mdf_distance}}, \code{\link{mdf_fill}},
 #'     \code{\link{mdf_scale}}). A recorded sequence of them is a recipe,
 #'     replayable on any raster with \code{\link{mdf}}.}
 #'   \item{\code{msr_*} and \code{\link{msr}}}{measure: \code{msr_*} for the
-#'     primitives, \code{\link{msr}} for a metric derived from an equation over
-#'     them in \code{metric.scale} notation.}
+#'     primitives (area, number, perimeter, adjacency, dissimilarity and cost,
+#'     each at patch, class or landscape level), \code{\link{msr}} for a metric
+#'     derived from an equation over them in \code{metric.scale} notation.}
 #'   \item{\code{msk_*}}{accessors and utilities (\code{\link{msk_vis}},
 #'     \code{\link{msk_categories}}, \code{\link{msk_terra}}, ...).}
 #' }

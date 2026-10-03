@@ -5,20 +5,20 @@
 #' a separate operator rather than an argument of the operators that happen to
 #' need it, so every \code{mdf_*} keeps doing one thing.
 #'
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param recipe [mosaik]\cr a recipe shell holding the steps of one iteration,
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param recipe [`mosaik`]\cr a recipe shell holding the steps of one iteration,
 #'   built by calling \code{mdf_*} with \code{obj = NULL}.
-#' @param times [integerish(1)][integer]\cr the maximum number of iterations.
+#' @param times [`integerish(1)`][integer]\cr the maximum number of iterations.
 #'   \code{Inf} (default) runs until a stopping condition is met, and then one
 #'   of \code{until} or \code{stable} is required.
 #' @param until an expression over the layers, evaluated after each iteration;
 #'   iteration stops once it is \code{TRUE}. It must reduce to a single value,
 #'   e.g. \code{sum(corefill) == 0}.
-#' @param stable [logical(1)][logical]\cr stop once an iteration no longer
+#' @param stable [`logical(1)`][logical]\cr stop once an iteration no longer
 #'   changes the layer named by \code{layer} -- a fixpoint. This is the
 #'   condition that cannot be written as an expression over layers, because it
 #'   compares against the previous state.
-#' @param layer [character(1)][character]\cr the layer watched by
+#' @param layer [`character(1)`][character]\cr the layer watched by
 #'   \code{stable}. Defaults to the first layer.
 #' @return A mosaik of the same dimensions as \code{obj}.
 #' @details
@@ -38,18 +38,18 @@
 #'   the iterations and guards against a loop that never settles.
 #' @examples
 #' # the forest (class 47), and one of its cells as a seed
-#' m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
-#' seed <- as.numeric(seq_len(msk_ncells(m)) ==
-#'                    which(msk_pull(m, "forest") == 1)[1])
-#' m <- msk_set(m, "seed", seed, prov = msk_prov("seed", list()))
+#' m <- landscape |>
+#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   msk_rasterise(geom = data.frame(x = 15, y = 40, id = 1), type = "point",
+#'                 name = "seed") |>
+#'   mdf_replace(old = NA, new = 0, layer = "seed")
 #'
 #' # spread the seed through the forest until it stops growing: what is left is
 #' # the forest patch the seed sits in
 #' grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "seed") |>
-#'   mdf_filter(seed == 1 & forest == 1, value = TRUE, background = 0,
-#'              add = "seed")
+#'   mdf_filter(seed == 1 & forest == 1, add = "seed")
 #' m <- mdf_loop(m, grow, stable = TRUE, layer = "seed")
-#' sum(msk_pull(m, "seed"))
+#' msk_vis(m, .layer("forest"), .layer("seed"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertNumber assertFlag assertCharacter
 #' @export
@@ -61,7 +61,8 @@ mdf_loop <- function(obj = NULL,
                      stable = FALSE,
                      layer = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -110,9 +111,5 @@ mdf_loop <- function(obj = NULL,
   }
 
   # build output ----
-  # .make_prov already returns a named one-element list; wrapping it again
-  # would drop the name
-  prov <- msk_prov("mdf_loop", list(iterations = i, layer = layer))
-  obj@provenance <- c(obj@provenance, prov)
-  obj
+  .update_mosaik(obj, step = step, activity = list(iterations = i))
 }

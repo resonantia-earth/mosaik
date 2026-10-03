@@ -4,20 +4,32 @@
 \alias{mdf_categorise}
 \title{Categorise a mosaik}
 \usage{
-mdf_categorise(obj = NULL, breaks = NULL, n = NULL, layer = NULL, add = NULL)
+mdf_categorise(
+  obj = NULL,
+  breaks = NULL,
+  n = NULL,
+  shares = NULL,
+  layer = NULL,
+  add = NULL
+)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{breaks}{\link[=numeric]{numeric(.)}\cr the break points where categories
+\item{breaks}{\code{\link[=numeric]{numeric(.)}}\cr the break points where categories
 should be delimited.}
 
-\item{n}{\link[=integer]{integerish(1)}\cr number of categories.}
+\item{n}{\code{\link[=integer]{integerish(1)}}\cr number of categories of equal width.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{shares}{\code{\link[=numeric]{numeric(.)}}\cr the share of cells in each category,
+from the lowest values to the highest; must sum to 1. Category 1 takes
+the lowest \code{shares[1]} of the cells, category 2 the next
+\code{shares[2]}, and so on.}
+
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -25,15 +37,39 @@ A mosaik of the same dimension as \code{obj}, in which cells have
 the category value into which their values fall.
 }
 \description{
-Transform the values of a mosaik to a (smaller) set of categories.
+Transform the values of a mosaik to a (smaller) set of categories, by value
+(\code{breaks}, \code{n}) or by the share of cells each category should
+cover (\code{shares}).
 }
 \details{
-Using \code{n} will determine \code{breaks} based on the value
-range of \code{obj} so that values are assigned to n categories.
+Exactly one of \code{breaks}, \code{n} and \code{shares} is given.
+\code{n} divides the value range of \code{layer} into \code{n} categories
+of equal width.
+
+\code{shares} ranks the cells by their value and cuts the ranking at the
+cumulative shares, so the categories cover the given shares of the cells
+(not counting \code{NA}), up to rounding to whole cells. This turns any
+field into a map with known class proportions; to copy the proportions of
+a real map, pass \code{prop.table(table(values))}. Cells of equal value
+cannot be split between categories, so a cut that would fall among them is
+an error. This happens on layers with few distinct values, which are
+better categorised by \code{breaks}.
 }
 \examples{
-mdf_categorise(landscape, n = 3, layer = "intensity")
-mdf_categorise(landscape, breaks = c(25, 50, 75), layer = "intensity")
+# three categories of equal width, and categories at chosen break points
+m <- landscape |>
+  mdf_categorise(n = 3, layer = "canopy", add = "equal_width") |>
+  mdf_categorise(breaks = c(2, 10, 20), layer = "canopy",
+                 add = "breaks")
+msk_vis(m, .layer("canopy"), .layer("equal_width"), .layer("breaks"))
+
+# a texture turned into three classes covering 47, 30 and 23 \% of the map
+f <- mosaik(extent = c(0, 100, 0, 100), res = 1) |>
+  drw_texture(type = "fbm", seed = 1, name = "field") |>
+  mdf_categorise(shares = c(0.47, 0.30, 0.23), layer = "field",
+                 add = "classes")
+prop.table(table(msk_pull(f, "classes")))
+msk_vis(f, .layer("field"), .layer("classes"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -49,8 +85,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

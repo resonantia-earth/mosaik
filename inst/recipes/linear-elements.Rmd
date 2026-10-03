@@ -1,0 +1,54 @@
+---
+title: "Linear elements"
+summary: "Hedgerows and corridors told apart from compact blocks of forest."
+question: arrangement
+about: forest
+scale: patch
+declares: []
+uses: [patches, corridors]
+result:
+  - {object: linear, layer: shape, text: "{label}", labels: {"1": "its patch is a compact block", "2": "its patch is elongated", "3": "its patch is a linear element, such as a hedgerow"}}
+---
+
+Hedgerows and corridors are long and narrow, blocks of forest are compact.
+The share of a patch that lies on its skeleton separates them: in a strip one
+or two cells wide almost every cell is skeleton, in a compact patch few are.
+
+```{r}
+library(mosaik)
+linear <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_skeletonise(layer = "forest", add = "skeleton") |>
+  mdf_summarise(by = "patch", fun = "sum", layer = "skeleton", add = "spine") |>
+  mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size") |>
+  mdf_blend(layers = c("spine", "size"), fun = "/", add = "linearity") |>
+  mdf_categorise(breaks = c(1/3, 0.7), layer = "linearity", add = "shape")
+```
+
+`shape` sorts the patches by their linearity: below a third they are compact
+blocks (1), above 0.7 linear elements such as hedgerows (3), and elongated in
+between (2).
+
+```{r, fig.alt = "Forest patches, coloured by the share of their cells on the skeleton"}
+msk_vis(linear, .layer("linearity"), .layer("shape"))
+```
+
+**Check.** The large patches 3, 4 and 5 are compact, so few of their cells
+lie on the skeleton: they should score below a third. The hedgerows of the
+bocage are a few cells long and one or two wide, so most of their cells do:
+they should score above 0.7. Single cells are trivially all skeleton, so only
+patches of at least four cells are compared:
+
+```{r}
+patch <- msk_pull(linear, "patch")
+size <- tapply(msk_pull(linear, "size"), patch, unique)
+linearity <- tapply(msk_pull(linear, "linearity"), patch, unique)
+round(sort(linearity[size >= 4]), 2)
+```
+
+```{r, include = FALSE}
+stopifnot(all(linearity[c("3", "4", "5")] < 1/3),
+          sum(linearity[size >= 4] > 0.7) >= 4,
+          all(size[size >= 4 & linearity > 0.7] <= 11))
+```

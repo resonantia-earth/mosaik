@@ -145,25 +145,6 @@ diamondSquareCpp <- function(mat, stepSize, roughness, startDev) {
     .Call(`_mosaik_diamondSquareCpp`, mat, stepSize, roughness, startDev)
 }
 
-#' Distance from exact point coordinates to cell centroids (c++)
-#'
-#' For each cell in the grid, compute the minimum Euclidean distance to any of
-#' the supplied source points. Coordinates are in CRS space (not cell indices).
-#' @param xmin [numeric(1)][numeric]\cr left edge of the grid extent.
-#' @param ymax [numeric(1)][numeric]\cr top edge of the grid extent.
-#' @param res_x [numeric(1)][numeric]\cr cell width.
-#' @param res_y [numeric(1)][numeric]\cr cell height.
-#' @param ncol [integer(1)][integer]\cr number of columns.
-#' @param nrow [integer(1)][integer]\cr number of rows.
-#' @param coords [matrix(numeric)][matrix]\cr two-column matrix of source
-#'   point coordinates (x, y).
-#' @return A numeric vector of length \code{ncol * nrow} with Euclidean
-#'   distances in CRS units.
-#' @noRd
-distanceFromPointsCpp <- function(xmin, ymax, res_x, res_y, ncol, nrow, coords) {
-    .Call(`_mosaik_distanceFromPointsCpp`, xmin, ymax, res_x, res_y, ncol, nrow, coords)
-}
-
 #' Get Matrix cell values (c++)
 #'
 #' C++ function that extracts the values of a matrix
@@ -272,7 +253,7 @@ scaleMatrixCpp <- function(mat, range) {
 #'   2=max, 3=all, 4=any, 5=!all, 6=!any, 7=sum, 8=mean, 9=median, 10=sd,
 #'   11=cv, 12=sumNa.
 #' @param rotateKernel [logical(1)][logical]\cr whether to try all 4 rotations
-#'   of the kernel (useful for hit-or-miss transforms).
+#'   of the kernel (useful for hit-or-miss transforms). Needs a square kernel.
 #' @param strictKernel [logical(1)][logical]\cr whether the kernel must fit
 #'   entirely within the grid (TRUE) or is clipped at borders (FALSE).
 #' @return A numeric vector of the same length as \code{vals} with the

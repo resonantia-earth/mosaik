@@ -7,15 +7,15 @@
 mdf_scale(obj = NULL, range = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{range}{\link[=numeric]{numeric(2)}\cr vector of minimum and maximum value
+\item{range}{\code{\link[=numeric]{numeric(2)}}\cr vector of minimum and maximum value
 to which the values shall be scaled.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -26,8 +26,11 @@ have been rescaled.
 Change minimum and maximum value and scale all values to that range.
 }
 \examples{
-mdf_scale(landscape, range = c(0, 1), layer = "intensity")
-mdf_scale(landscape, range = c(-1, 1), layer = "intensity")
+# the canopy height scaled to 0 to 1, and to -1 to 1
+m <- landscape |>
+  mdf_scale(range = c(0, 1), layer = "canopy", add = "zero_one") |>
+  mdf_scale(range = c(-1, 1), layer = "canopy", add = "minus_one_one")
+msk_vis(m, .layer("canopy"), .layer("zero_one"), .layer("minus_one_one"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -43,8 +46,8 @@ Other operators to modify cell values:
 \code{\link{mdf_perturb}()},
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

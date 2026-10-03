@@ -1,0 +1,53 @@
+---
+title: "Parallel structures"
+summary: "Where one linear structure keeps a constant distance to another, like a road beside a river."
+question: arrangement
+about: road
+scale: cell
+declares: ["the distance that counts as beside (cells)"]
+uses: [class, distance]
+result:
+  - {object: parallel, layer: beside, text: "on the road where it runs beside the river"}
+---
+
+Two linear structures run in parallel where one keeps a constant distance to
+the other, like a road beside a river. The distance from the river, read along
+the road, shows where it does.
+
+```{r}
+library(mosaik)
+parallel <- landscape |>
+  mdf_binarise(match = 1, layer = "cover", add = "river") |>
+  mdf_distance(source = "foreground", layer = "river", add = "to_river") |>
+  mdf_binarise(match = 35, layer = "cover", add = "road") |>
+  mdf_filter(road == 1 & to_river <= 3, value = TRUE, add = "beside")
+```
+
+`beside` is the stretch of road within three cells of the river. It is drawn
+over the river, so the two can be compared; cells of the road elsewhere are
+empty (`NA`) and let the river show through:
+
+```{r, fig.alt = "The road, and the river with the part of the road that runs beside it"}
+msk_vis(parallel, .layer("road"),
+        .layer("river", panel = "river and road beside it",
+               colours = c("grey92", "#2b6cb0")),
+        .layer("beside", panel = "river and road beside it",
+               colours = "#e66101", legend = FALSE))
+```
+
+**Check.** The road follows the river from the southern edge, first with one
+cell between them (a distance of 2), then with two (a distance of 3). Where
+the river bends, the road steps sideways, and the cells at each step and next
+to each bend come closer than that (1 to 2.8). The distances along the road
+show all of these:
+
+```{r}
+d <- msk_pull(parallel, "to_river")[msk_pull(parallel, "beside") %in% 1]
+table(distance = round(d, 1))
+```
+
+```{r, include = FALSE}
+tab <- table(round(d, 1))
+stopifnot(all(d >= 1 & d <= 3),
+          all(names(sort(tab, decreasing = TRUE))[1:2] %in% c("2", "3")))
+```

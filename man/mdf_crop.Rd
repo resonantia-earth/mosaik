@@ -7,20 +7,32 @@
 mdf_crop(obj = NULL, extent)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to crop.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to crop.}
 
-\item{extent}{\link[=numeric]{numeric(4)}\cr the target extent as
+\item{extent}{\code{\link[=numeric]{numeric(4)}}\cr the target extent as
 \code{c(xmin, xmax, ymin, ymax)}. Values outside the input extent are
 silently clamped.}
 }
 \value{
-A mosaik with reduced extent and dimensions. Layer values are
-subsetted; categories, patches, and global are preserved (patches/global
-may reference values no longer present).
+A mosaik covering the new extent.
 }
 \description{
 Subset a mosaik to the cells that fall within a new extent. The output grid
-aligns to the input resolution — the requested extent is snapped outward to
+aligns to the input resolution: the requested extent is snapped outward to
 cell boundaries.
+}
+\details{
+Categories, patch records and global measures are kept as they
+were, so they may refer to values no longer present after cropping.
+}
+\examples{
+# the land cover of the whole map and of its lower-left quarter
+msk_vis(landscape, .layer("cover"))
+corner <- mdf_crop(landscape, extent = c(0, 30, 0, 28))
+msk_vis(corner, .layer("cover"))
+}
+\seealso{
+Other utilities: 
+\code{\link{msk_rasterise}()}
 }
 \concept{utilities}

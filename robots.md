@@ -10,7 +10,7 @@ Read "Common mistakes" first.
 ## Common mistakes
 
 1. **There is no `derive()`.** A metric built from primitives is computed with
-   `msr(obj, equation, label, layer)`, where `equation` is a character string in
+   `msr(obj = NULL, equation, label, layer)`, where `equation` is a character string in
    `metric.scale` notation:
    `msr(m, "perimeter.class / area.class", "edge_density", layer = "cover")`.
 2. **Measure the primitives before `msr()`.** The equation reads results that
@@ -28,10 +28,12 @@ Read "Common mistakes" first.
 6. **`msr_*` results are not returned as tables.** Every function returns the
    mosaik with results attached. Read them with `msk_categories()`,
    `msk_patches()` or `msk_global()`.
-7. **Recipes hold `mdf_*` steps only.** Called without an object, an `mdf_*`
-   function records itself into a recipe. `msr_*` functions always run
-   immediately and cannot be recorded. Apply the recipe with `mdf()`, then
-   measure.
+7. **A recipe is built by calling functions without an object.** Called
+   without one, an `mdf_*` or `msr_*` function (and `msr()`) records itself
+   instead of running. Chain such calls, then apply the recipe with `mdf()`.
+   Arguments are stored by value when recorded, except the expressions of
+   `mdf_filter(expr)` and `mdf_loop(until)`, which refer to layers of the map
+   the recipe is later applied to.
 8. **Functions that do not exist:** `derive`, `as_terra`, and anything with the
    prefixes `mk_`, `gnrt_`, `mg_`, `sim_`, `make_`. Terrain, climate, soil,
    vegetation, land-use and simulation functions belong to the separate package
@@ -39,6 +41,12 @@ Read "Common mistakes" first.
    `msr_cost()` without a cost surface.
 9. **C++ functions are internal.** Do not call `morphCpp`, `distanceCpp` and so
    on; use the R functions.
+10. **Number the patches before measuring them.** Every patch-level measure
+    (`msr_area/msr_perimeter/msr_cost/msr_adjacency(scale = "patch")`,
+    `msr_number(scale = "patch")`, and `msr()` with a `.patch` or `.cell`
+    variable) measures the patches `mdf_componentise(layer = ...)` numbered
+    on that layer, and stops if there are none. The measures never find
+    patches themselves, because the connectivity (4 or 8) must be stated.
 
 ## The object
 
@@ -50,7 +58,7 @@ One S4 class, `mosaik`, with these slots:
 | `dims` | `c(ncols, nrows)` |
 | `layers` | named list of flat row-major vectors, compressed with `rle()` when smaller |
 | `categories` | per layer: `gid` (class IDs) and `val` (labels) for a categorical layer, plus class-level results |
-| `patches` | patch-level results: `class`, `patch`, then one column per metric |
+| `patches` | per layer, written by `mdf_componentise`: `ids` (the layer holding the patch numbers), `connectivity`, `class` and `patch` per patch; then one field per patch-level metric |
 | `global` | landscape-level results |
 | `crs` | a CRS string, or `NA` |
 | `provenance` | one entry per operation, in order |
@@ -69,37 +77,39 @@ Every function takes a mosaik and returns a mosaik, so everything chains with
   layers; or from a terra `SpatRaster` via `rast`.
 - `msk_terra(obj)`: to a `SpatRaster`.
 - `msk_pull(obj, layer = NULL)`: a layer's values as a vector.
-- `msk_add(obj, from, ..., rename = NULL)`: copy layers from another mosaik on
-  the same grid (extent, dims and CRS are checked); category tables come along.
+- `msk_spaghettify(x)`: sf or terra vectors as a table of vertices `x, y, id,
+  part`, the input of `msk_rasterise()`.
+- `msk_rasterise(obj, geom, type = "polygon", name = "values")`: write points,
+  lines or polygons, given as a data frame `x, y, id` (and optionally `part`),
+  into a new layer as their `id`; `NA` elsewhere. Rings combine by even-odd, so
+  holes are just further parts. Works on an empty grid.
+- `msk_add(obj, from = NULL, ..., rename = NULL)`: copy layers from another
+  mosaik on the same grid (extent, dims and CRS are checked), or add vectors of
+  cell values as `name = values`; category tables come along.
 - `msk_select(obj, ...)`, `msk_remove(obj, ...)`: keep or drop layers, named
   unquoted.
-- `msk_set(obj, layer, values, prov = NULL, keep = TRUE, gid = NULL, val = NULL)`:
-  write raw values into a layer. Meant for other packages; users combine
-  objects with `msk_add()`. `gid` and `val` make the layer categorical.
-- `msk_prov(fn, args, derivedFrom = NULL, activity = list(), step = FALSE)`:
-  build a provenance entry for `msk_set()`.
 - Accessors: `msk_extent`, `msk_dims`, `msk_res`, `msk_ncells`, `msk_crs`,
   `msk_names`, `msk_categories`, `msk_patches`, `msk_global`, `msk_provenance`.
 
-## syn_*: synthesise a field
+## drw_*: draw a field
 
-All take an existing mosaik (for its grid), add one layer named `name`, and
-accept `seed`.
+All take an existing mosaik (for its grid) and add one layer named `name`;
+the random ones accept `seed`.
 
-- `syn_noise(obj, type = "white", frequency = 4, name = "values", seed = NULL)`:
+- `drw_noise(obj, type = "white", frequency = 4, name = "values", seed = NULL)`:
   `type` is `"white"`, `"perlin"` or `"simplex"`.
-- `syn_texture(obj, type = "diamondSquare", base = "perlin", hurst = 0.7, octaves = 6L, lacunarity = 2, frequency = 4, startDev = 1, name = "values", seed = NULL)`:
+- `drw_texture(obj, type = "diamondSquare", base = "perlin", hurst = 0.7, octaves = 6L, lacunarity = 2, frequency = 4, startDev = 1, name = "values", seed = NULL)`:
   `type` is `"diamondSquare"`, `"fbm"`, `"billow"` or `"ridged"`; `base` is
   `"perlin"` or `"simplex"`.
-- `syn_gradient(obj, origin = NULL, type = "planar", angle = 0, position = c(0.5, 0.5), size = 0.3, invert = FALSE, name = "values", seed = NULL)`:
-  `type` is `"planar"`, `"point"`, `"line"`, `"circle"`, `"rectangle"`,
-  `"square"`, `"polygon"`, `"ellipse"`, `"triangle"` or `"hexagon"`.
-- `syn_pattern(obj, type = "checkerboard", frequency = 10, n = NULL, angle = 0, name = "values", seed = NULL)`:
+- `drw_gradient(obj, type = "planar", angle = 0, position = c(0.5, 0.5), size = 0.3, origin = NULL, invert = FALSE, name = "values")`:
+  `type` is `"planar"`, `"point"`, `"line"`, `"circle"` or `"square"`;
+  `origin` names a binary layer of `obj` to measure the gradient from.
+- `drw_pattern(obj, type = "checkerboard", frequency = 10, n = NULL, angle = 0, name = "values")`:
   `type` is `"checkerboard"`, `"stripes"`, `"rings"`, `"waves"`, `"grid"` or
   `"hexagonal"`.
-- `syn_cluster(obj, type = "percolation", p = 0.5, n = 3L, name = "values", seed = NULL)`:
+- `drw_cluster(obj, type = "percolation", p = 0.5, n = 3L, name = "values", seed = NULL)`:
   `type` is `"percolation"` or `"randomCluster"`.
-- `syn_tessellation(obj, type = "voronoi", n = 20L, interaction = 0.1, name = "values", seed = NULL)`:
+- `drw_tessellation(obj, type = "voronoi", n = 20L, interaction = 0.1, size = c(5L, 20L), name = "values", seed = NULL)`:
   `type` is `"voronoi"`, `"rectangle"` or `"gibbs"`.
 
 ## mdf_*: modify layers
@@ -111,50 +121,56 @@ Values:
 
 - `mdf_binarise(obj, thresh = NULL, match = NULL, layer, add)`: 1 where the value
   is above `thresh` or in `match`, else 0.
-- `mdf_categorise(obj, breaks = NULL, n = NULL, layer, add)`: bin into classes.
+- `mdf_categorise(obj, breaks = NULL, n = NULL, shares = NULL, layer, add)`: bin
+  into classes, by break points, into `n` classes of equal width, or so that
+  the classes cover the given `shares` of the cells (lowest values first;
+  must sum to 1; an error if a cut falls among cells of one value). Exactly
+  one of the three.
 - `mdf_replace(obj, old, new, layer, add)`, `mdf_range(obj, lower, upper, background = NA, layer, add)`,
   `mdf_scale(obj, range, layer, add)`, `mdf_offset(obj, fun = "+", value = 1, layer, add)`,
   `mdf_perturb(obj, sd = 1, layer, add)`.
 - `mdf_permute(obj, type = "invert", by = NULL, layer, add)`: `type` is
   `"invert"`, `"revert"`, `"descending"`, `"ascending"` or `"cycle"`.
-- `mdf_filter(obj, expr, value = FALSE, background = NA, layer, add)`: keep cells
-  where an expression over layer names holds, e.g. `seed == 1 & forest == 1`.
+- `mdf_filter(obj, expr, value = FALSE, layer, add)`: where an expression over
+  layer names holds, e.g. `seed == 1 & forest == 1`: a 1/0 mask, or with
+  `value = TRUE` the values of `layer` there and `NA` elsewhere.
 
 Shape and morphology:
 
-- `mdf_morph(obj, struct, blend, merge, rotate = TRUE, strict = TRUE, background = NA, layer, add)`:
+- `mdf_morph(obj, struct, blend, merge, rotate = FALSE, strict = FALSE, background = NA, layer, add)`:
   the general kernel operation. `blend`: `identity`, `equal`, `lower`,
   `greater`, `plus`, `minus`, `product`. `merge`: `min`, `max`, `all`, `any`,
-  `sum`, `mean`, `median`, `sd`, `cv`, `one`, `zero`, `na`.
+  `!all`, `!any`, `sum`, `mean`, `median`, `sd`, `cv`, `sumNa`. A 0 in the
+  pattern is outside the neighbourhood, except for `blend = "equal"`, where it
+  means "must be 0".
 - `mdf_dilate`, `mdf_erode`, `mdf_interpolate` (smoothing),
   `mdf_match(obj, struct, rotate = TRUE, ...)` (hit-or-miss): convenience forms
   of `mdf_morph`, all `(obj, struct = NULL, layer, add)`.
 - `msk_struct(type = "disc", width = 3, height = 3, rotate = FALSE, background = NA, custom = NULL)`:
   a kernel; `type` is `"disc"`, `"box"`, `"diamond"` or `"cross"`.
-- `mdf_componentise(obj, connectivity = 4L, background = NA, layer, add)`: label
-  connected patches.
-- `mdf_fill(obj, background = 0, value = NULL, connectivity = 4L, layer, add)`:
-  fill holes enclosed by a patch.
+- `mdf_componentise(obj, connectivity = 4L, background = NA, layer, add)`:
+  number the patches, the connected cells of equal value; 0 and `NA` form none.
+  Works on binary and categorical layers, and records the patches with `layer`
+  for the patch-level measures.
+- `mdf_fill(obj, connectivity = 4L, layer, add)`: set the holes of a binary
+  layer to 1.
 - `mdf_skeletonise(obj, background = NA, anchor = NULL, method = "zhangSuen", layer, add)`:
   `method` is `"zhangSuen"` or `"homotopic"`.
 - `mdf_centroid(obj, background = NA, layer, add)`, `mdf_tesselate(obj, layer, add)`.
-- `mdf_distance(obj, source = "foreground", coords = NULL, snap = TRUE, method = "euclidean", layer, add)`:
+- `mdf_distance(obj, source = "foreground", method = "euclidean", layer, add)`:
   distance map; `method` is `"euclidean"`, `"manhattan"` or `"chessboard"`.
+  Distance from points or lines: `msk_rasterise()` them first.
 
 Combining and zones:
 
 - `mdf_blend(obj, layers = NULL, fun = "+", weights = NULL, add)`: combine layers
-  of one object cell by cell. Bring layers in with `msk_add()` first.
-- `mdf_mask(obj, by, background = NA, layer, add)`: keep cells where layer `by`
-  is non-zero.
-- `mdf_zonal(obj, by = NULL, fun = "sum", neighbours = FALSE, connectivity = 8L, background = NA, layer, add)`:
+  of one object cell by cell; `fun` is an arithmetic operator, one of the
+  summaries of `mdf_summarise()`, or a function. Bring layers in with
+  `msk_add()` first.
+- `mdf_summarise(obj, by = NULL, fun = "sum", neighbours = FALSE, connectivity = 8L, background = NA, layer, add)`:
   summarise a layer within (or around) each zone of `by`; `fun` is a function or
   `"max"`, `"min"`, `"sum"`, `"mean"`, `"median"`, `"any"`, `"all"`, `"n"`,
-  `"n_distinct"`.
-- `mdf_zonify(obj, geom, value, background = NA, layer, add)`: burn polygons,
-  given as closed two-column coordinate matrices, into a layer.
-- `mdf_layerise(obj, by = NULL, flatten = FALSE, background = NA, layer)`: one
-  layer per value.
+  `"n_distinct"`, `"unique"` (the one value, `NA` if several).
 
 Grid:
 
@@ -177,53 +193,68 @@ result <- mdf(landscape, core)
 
 ## msr_*: measure the primitives
 
+Every result is stored per layer: `@patches[[layer]]`, `@categories[[layer]]`,
+`@global[[layer]]`. Read them with `msk_patches(m, layer)`,
+`msk_categories(m, layer)`, `msk_global(m, layer)`. Rewriting a layer drops
+its patch and landscape results; rewriting the layer that holds the patch
+numbers drops the patches too. Patch-level calls need
+`mdf_componentise(layer = ...)` first.
+
 | call | stored in | name in an equation |
 |---|---|---|
-| `msr_area(scale = "patch")` | `@patches$area` | `area.patch` |
+| `msr_area(scale = "patch")` | `@patches[[layer]]$area` | `area.patch` |
 | `msr_area(scale = "class")` | `@categories[[layer]]$area` | `area.class` |
-| `msr_area(scale = "landscape")` | `@global$area` | `area.landscape` |
+| `msr_area(scale = "landscape")` | `@global[[layer]]$area` | `area.landscape` |
 | `msr_perimeter(...)` | as `msr_area`, column `perimeter` | `perimeter.patch/.class/.landscape` |
 | `msr_number(scale = "patch")` | `@categories[[layer]]$number` (patches per class) | `number.class` |
-| `msr_number(scale = "class")` | `@global$number` (number of classes) | `number.landscape` |
+| `msr_number(scale = "class")` | `@global[[layer]]$number` (number of classes) | `number.landscape` |
 | `msr_adjacency(type = "like")` | `@categories[[layer]]$likeAdj` | `likeAdj.class` |
 | `msr_adjacency(type = "pairedSum")` | `@categories[[layer]]$pairedSum` | `pairedSum.class` |
-| `msr_adjacency(type = "paired")` | `@global$adjacency` (a matrix) | not usable in equations |
+| `msr_adjacency(type = "paired")` | `@global[[layer]]$adjacency` (a matrix) | not usable in equations |
 | `msr_dissimilarity(contrast, scale = "class")` | `@categories[[layer]]$dissimilarity` | `dissimilarity.class` |
-| `msr_dissimilarity(contrast, scale = "landscape")` | `@global$dissimilarity` | `dissimilarity.landscape` |
-| `msr_cost(scale = "patch")` | `@patches$distance` (per class, patch-to-patch matrix) | `distance.patch` |
-| `msr_cost(scale = "cell")` | internal layer `_distance` | `distance.cell` |
+| `msr_dissimilarity(contrast, scale = "landscape")` | `@global[[layer]]$dissimilarity` | `dissimilarity.landscape` |
+| `msr_cost(scale = "patch")` | `@patches[[layer]]$distance` (per class, patch-to-patch matrix) | `distance.patch` |
+| `msr_cost(scale = "cell")` | internal layer `_distance_<layer>` | `distance.cell` |
 
 Signatures:
 
-- `msr_area(obj, scale = "patch", unit = "cells", layer = NULL)`, `unit` is
+- `msr_area(obj = NULL, scale = "patch", unit = "cells", layer = NULL)`, `unit` is
   `"cells"` or `"map"`; `msr_perimeter` the same.
-- `msr_number(obj, scale = "class", layer = NULL)`, `scale` is `"class"` or
+- `msr_number(obj = NULL, scale = "class", layer = NULL)`, `scale` is `"class"` or
   `"patch"`.
-- `msr_adjacency(obj, scale = "class", type = "like", count = "double", connect = 4, layer = NULL)`.
-- `msr_dissimilarity(obj, contrast, scale = "class", layer = NULL)`, `contrast`
+- `msr_adjacency(obj = NULL, scale = "class", type = "like", count = "double", connect = 4, layer = NULL)`.
+- `msr_dissimilarity(obj = NULL, contrast, scale = "class", layer = NULL)`, `contrast`
   a symmetric matrix with class IDs as row and column names.
-- `msr_cost(obj, scale = "patch", cost = NULL, routing = "cheapest", accumulate = "sum", layer = NULL)`:
+- `msr_cost(obj = NULL, scale = "patch", cost = NULL, routing = "cheapest", accumulate = "sum", layer = NULL)`:
   without `cost`, the cost is distance in metres; with a layer of per-cell
   traversal costs, any other cost. `routing` is `"cheapest"` or `"straight"`;
   `accumulate` is `"sum"`, `"max"`, `"min"`, `"product"` or `"mean"`.
 
 ## msr(): compose a metric
 
-`msr(obj, equation, label, layer = NULL)`. The result goes where its length says:
+`msr(obj = NULL, equation, label, layer = NULL)`. The result goes where its length says:
 one value per class to the categories, one per patch to the patches, a single
-value to the global slot. Scales in names: `class`, `patch`, `landscape`, `cell`.
+value to the global slot, always under `layer`. Scales in names: `class`,
+`patch`, `landscape`, `cell`. A variable may end in `_<layer>` to read another
+layer (`area.class_core / area.class_forest`); without it, it reads `layer`.
+Class values of two layers combine only if both have the same classes, patch
+values only if both have the same patches; otherwise `msr()` stops (relate
+patches of different layers with `mdf_summarise()`).
 With `distance.patch`, the equation is evaluated once per patch on that patch's
 row of the distance matrix (self-distance is `Inf`), so `"min(distance.patch)"`
-is the nearest-neighbour distance. Any `.patch` variable needs the patch table,
-which only `msr_area(scale = "patch")` or `msr_perimeter(scale = "patch")`
-create; `msr_cost()` alone does not:
+is the nearest-neighbour distance. Any `.patch` or `.cell` variable needs the
+patches numbered by `mdf_componentise()` on `layer`:
 
 ```r
 m <- landscape |>
-  msr_area(scale = "patch", layer = "cover") |>
+  mdf_componentise(connectivity = 8L, layer = "cover", add = "patch") |>
   msr_cost(scale = "patch", layer = "cover") |>
   msr("min(distance.patch)", "enn", layer = "cover")
 ```
+
+Costs are named after what they measure, not after the primitive: `distance`
+without a cost surface, otherwise the name of the cost layer
+(`friction.patch`, `friction.cell`).
 
 ```r
 m <- landscape |>
@@ -231,11 +262,11 @@ m <- landscape |>
   msr_area(scale = "landscape", layer = "cover") |>
   msr(equation = "area.class / area.landscape * 100", label = "pland",
       layer = "cover")
-msk_categories(m)$cover$pland
+msk_categories(m, layer = "cover")$pland
 
 m <- msr(m, layer = "cover", label = "shannon",
          equation = "-sum(area.class / area.landscape * log(area.class / area.landscape))")
-msk_global(m)$shannon
+msk_global(m, layer = "cover")$shannon
 ```
 
 ## Plotting
@@ -255,13 +286,18 @@ msk_vis(landscape, .layer("cover", colours = "viridis"))
 
 ## Data
 
-- `landscape`: a 60 by 56 grid with layers `cover` (categorical, classes 1, 11,
-  21, 24, 27, 31, 41, 44, 47) and `intensity` (continuous).
+- `landscape`: a 60 by 56 grid with layers `cover` (categorical, labelled:
+  1 river, 11 arable land, 21 intensive grassland, 24 extensive grassland,
+  27 fallow, shrub and clear-cuts, 31 settlement, 35 road, 41 wetland,
+  44 orchard, 47 forest and hedgerows) and `canopy` (canopy height in
+  metres). Built by `data-raw/landscape.R`; its structures (glades, a
+  clear-cut, corridors, a road beside the river, hedgerows) are placed so the
+  vignettes find something known.
 - `mspa`: the test pattern from the original MSPA paper, used in
   `vignette("mspa")`.
 
 ## Further reading
 
-`vignette("mosaik")` (getting started), `vignette("recipes")` (pipelines),
-`vignette("measurement")` (the argument behind the design), `vignette("mspa")`
-(a published algorithm rebuilt from the primitives).
+`vignette("mosaik")` (getting started), `vignette("techniques")` (how the
+operations combine), `vignette("mspa")` (a published algorithm rebuilt from the
+primitives).

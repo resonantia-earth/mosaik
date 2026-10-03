@@ -4,19 +4,22 @@
 #' replaced by the weighted mean of its neighbourhood defined by \code{struct}.
 #' This is a convenience wrapper around \code{\link{mdf_morph}} with
 #' \code{blend = "product"} and \code{merge = "mean"}.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param struct [struct(1)][struct]\cr the structuring element whose values
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param struct [`struct(1)`][struct]\cr the structuring element whose values
 #'   serve as weights. Defaults to a 3x3 disc (uniform weights). See
 #'   \code{\link{msk_struct}}.
-#' @param layer [character(1)][character]\cr the layer to filter. Defaults to
+#' @param layer [`character(1)`][character]\cr the layer to filter. Defaults to
 #'   the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimensions with smoothed cell values.
 #' @examples
-#' mdf_interpolate(landscape, layer = "intensity")
-#' mdf_interpolate(landscape, struct = msk_struct("square", width = 5),
-#'                 layer = "intensity")
+#' # the canopy height smoothed over the default disc and over a 5 x 5 square
+#' m <- landscape |>
+#'   mdf_interpolate(layer = "canopy", add = "smoothed") |>
+#'   mdf_interpolate(struct = msk_struct("square", width = 5),
+#'                   layer = "canopy", add = "smoothed_5")
+#' msk_vis(m, .layer("canopy"), .layer("smoothed"), .layer("smoothed_5"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertCharacter
 #' @export
@@ -26,7 +29,8 @@ mdf_interpolate <- function(obj = NULL,
                             layer = NULL,
                             add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -46,8 +50,5 @@ mdf_interpolate <- function(obj = NULL,
                    layer = layer,
                    add = add)
 
-  # fix provenance to reflect mdf_interpolate
-  out@provenance[[length(out@provenance)]]$fn <- "mdf_interpolate"
-
-  out
+  .update_mosaik(out, step = step)
 }

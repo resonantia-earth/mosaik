@@ -7,16 +7,16 @@
 mdf_replace(obj = NULL, old = NULL, new = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{old}{\link[=numeric]{numeric(.)}\cr values to be substituted.}
+\item{old}{\code{\link[=numeric]{numeric(.)}}\cr values to be substituted.}
 
-\item{new}{\link[=numeric]{numeric(.)}\cr values to substitute with.}
+\item{new}{\code{\link[=numeric]{numeric(.)}}\cr values to substitute with.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -26,9 +26,12 @@ A mosaik of the same dimensions as \code{obj}.
 Replace a set of values with new values.
 }
 \examples{
-mdf_replace(landscape, old = 47, new = 99, layer = "cover")
-mdf_replace(landscape, old = c(21, 24), new = c(100, 200),
-            layer = "cover")
+# class 47 renumbered to 99, and classes 21 and 24 to 100 and 200
+m <- landscape |>
+  mdf_replace(old = 47, new = 99, layer = "cover", add = "one") |>
+  mdf_replace(old = c(21, 24), new = c(100, 200), layer = "cover",
+              add = "two")
+msk_vis(m, .layer("cover"), .layer("one"), .layer("two"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -44,8 +47,8 @@ Other operators to modify cell values:
 \code{\link{mdf_perturb}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

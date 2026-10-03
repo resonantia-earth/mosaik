@@ -7,18 +7,18 @@
 mdf_binarise(obj = NULL, thresh = NULL, match = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{thresh}{\link[=numeric]{numeric(1)}\cr value above which the cell will be
+\item{thresh}{\code{\link[=numeric]{numeric(1)}}\cr value above which the cell will be
 set to 1, below which it will be set to 0.}
 
-\item{match}{\link[=numeric]{numeric(.)}\cr one or more values which will be set
+\item{match}{\code{\link[=numeric]{numeric(.)}}\cr one or more values which will be set
 to 1, while the remaining values will be set to 0.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -28,8 +28,12 @@ A mosaik of the same dimension as \code{obj}.
 Transform a mosaik so that it has the values 0 and 1.
 }
 \examples{
-mdf_binarise(landscape, thresh = 50, layer = "intensity")
-mdf_binarise(landscape, match = c(31, 41, 44), layer = "cover")
+# canopy above 10 m, and three classes of the land cover
+m <- landscape |>
+  mdf_binarise(thresh = 10, layer = "canopy", add = "above_10") |>
+  mdf_binarise(match = c(31, 41, 44), layer = "cover", add = "classes")
+msk_vis(m, .layer("canopy"), .layer("above_10"))
+msk_vis(m, .layer("cover"), .layer("classes"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -45,8 +49,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

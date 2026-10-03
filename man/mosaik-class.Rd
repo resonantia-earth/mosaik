@@ -12,31 +12,34 @@ stores gridded landscape data as a transparent, inspectable S4 object.
 \section{Slots}{
 
 \describe{
-\item{\code{extent}}{\link[=numeric]{numeric(4)}\cr \code{c(xmin, xmax, ymin, ymax)}.}
+\item{\code{extent}}{\code{\link[=numeric]{numeric(4)}}\cr \code{c(xmin, xmax, ymin, ymax)}.}
 
-\item{\code{dims}}{\link[=integer]{integer(2)}\cr \code{c(ncols, nrows)}.}
+\item{\code{dims}}{\code{\link[=integer]{integer(2)}}\cr \code{c(ncols, nrows)}.}
 
-\item{\code{layers}}{\link{list}\cr named list of cell value vectors. It stores the
+\item{\code{layers}}{\code{\link{list}}\cr named list of cell value vectors. It stores the
 raw cell values. Each layer is a flat vector in row-major order
 (RLE-compressed when beneficial).}
 
-\item{\code{categories}}{\link{list}\cr named list of per-layer category tables. It
+\item{\code{categories}}{\code{\link{list}}\cr named list of per-layer category tables. It
 provides metadata for categorical layers. Each entry is a list keyed by
 layer name, containing at least \code{gid} (the class IDs present in the
 layer). Optional elements include \code{val} (human-readable labels such as
 \code{"forest"} or \code{"water"}) and class-level metrics added by
 functions such as \code{\link{msr_area}(scale = "class")}.}
 
-\item{\code{patches}}{\link{list}\cr patch-level attributes computed by measurement
-functions such as \code{\link{msr_area}(scale = "patch")}.}
+\item{\code{patches}}{\code{\link{list}}\cr named list of per-layer patch tables. An entry
+is created by \code{\link{mdf_componentise}}: the layer holding the patch
+numbers (\code{ids}), the \code{connectivity}, and the \code{class} and
+number (\code{patch}) of each patch. Patch-level measures such as
+\code{\link{msr_area}(scale = "patch")} add their values to it.}
 
-\item{\code{global}}{\link{list}\cr landscape-level attributes from functions such
-as \code{\link{msr_area}(scale = "landscape")}.}
+\item{\code{global}}{\code{\link{list}}\cr named list of per-layer landscape-level values,
+from functions such as \code{\link{msr_area}(scale = "landscape")}.}
 
-\item{\code{crs}}{\link[=character]{character(1)}\cr coordinate reference system string or
+\item{\code{crs}}{\code{\link[=character]{character(1)}}\cr coordinate reference system string or
 \code{NA_character_}.}
 
-\item{\code{provenance}}{\link{list}\cr processing history, i.e. every operation
+\item{\code{provenance}}{\code{\link{list}}\cr processing history, i.e. every operation
 applied to the mosaik, enabling full traceability of the processing chain.}
 }}
 

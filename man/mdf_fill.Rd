@@ -4,67 +4,51 @@
 \alias{mdf_fill}
 \title{Fill enclosed holes in foreground patches}
 \usage{
-mdf_fill(
-  obj = NULL,
-  background = 0,
-  value = NULL,
-  connectivity = 4L,
-  layer = NULL,
-  add = NULL
-)
+mdf_fill(obj = NULL, connectivity = 4L, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{background}{\link[=numeric]{numeric(1)}\cr the value that counts as
-background (holes are made of these). \code{NA} cells are always treated as
-background too. Default \code{0}.}
+\item{connectivity}{\code{\link[=integer]{integerish(1)}}\cr how background cells
+connect when deciding what is enclosed: \code{4} (default, rook) or
+\code{8} (queen). Under \code{4}, a hole that escapes to the edge only
+through a diagonal counts as enclosed and is filled.}
 
-\item{value}{\link[=numeric]{numeric(1)}\cr the value written into filled holes. If
-\code{NULL} (default), the most common foreground value is used, so a
-single-class mask fills with its own class.}
+\item{layer}{\code{\link[=character]{character(1)}}\cr the binary layer in \code{obj}
+to fill. Defaults to the first layer.}
 
-\item{connectivity}{\link[=integer]{integerish(1)}\cr background connectivity for
-deciding what is enclosed: \code{4} (default, rook) or \code{8} (queen). Use
-\code{4} to treat diagonally-pinched holes as enclosed.}
-
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
-Defaults to the first layer.}
-
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
-A mosaik of the same dimensions as \code{obj}.
+A mosaik in which the holes of \code{layer} are 1.
 }
 \description{
 Turn background cells that are wholly surrounded by foreground into
-foreground, closing the interior holes of a patch while leaving its outer
-shape unchanged. A gap counts as a hole only if it is sealed off from the
-edge of the grid; any background that still reaches the edge stays background.
+foreground, closing the holes of a patch while leaving its outer shape
+unchanged. Background that reaches the edge of the grid is not a hole and
+stays background.
 }
 \details{
-The layer is read as binary: cells equal to \code{background} (and any
-\code{NA}) are background, everything else is foreground. The background is
-split into connected components with \code{componentsCpp}; a component is
-\emph{enclosed} exactly when none of its cells lie on the grid's outer edge,
-since a component touching the edge has an open path out of the grid. Every
-enclosed component is rewritten to \code{value}; edge-connected background
-and the outer boundary of each patch are untouched.
+The layer must be binary: 1 is foreground, 0 and \code{NA} are background.
+To fill the holes of one class of a categorical map, binarise it first
+with \code{\link{mdf_binarise}}.
 
-Because the test is connectivity, not a moving window, a hole is filled
-whatever its size. A morphological close (\code{\link{mdf_dilate}} then
-\code{\link{mdf_erode}}) only closes gaps up to the size of its structuring
-element, and \code{\link{mdf_dilate}} alone grows the patch outward as well;
-\code{mdf_fill} does neither. \code{connectivity} decides borderline holes
-that escape only through a diagonal: under rook (4) the diagonal does not
-connect, so the hole is sealed and fills; under queen (8) it leaks to the
-edge and is kept.
+The background is split into connected areas, and an area is a hole when
+none of its cells lie on the edge of the grid. Because the test is
+connectivity and not a moving window, a hole is filled whatever its size.
+A morphological close (\code{\link{mdf_dilate}} then
+\code{\link{mdf_erode}}) only closes gaps up to the size of its
+structuring element, and \code{\link{mdf_dilate}} alone grows the patch
+outward as well.
 }
 \examples{
-# fill the interior gaps of forest patches, leaving patch outlines intact
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_fill(forest)
+# the forest with its holes filled, and the holes alone
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_fill(layer = "forest", add = "filled") |>
+  mdf_filter(filled == 1 & forest == 0, add = "holes")
+msk_vis(m, .layer("forest"), .layer("filled"), .layer("holes"))
 }
 \seealso{
 Other operators to morphologically modify a raster: 

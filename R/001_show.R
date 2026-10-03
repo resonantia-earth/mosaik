@@ -1,6 +1,6 @@
 #' Print mosaik in the console
 #'
-#' @param object [mosaik]\cr object to \code{show}.
+#' @param object [`mosaik`]\cr object to \code{show}.
 #' @importFrom utils head
 #' @importFrom crayon yellow
 
@@ -39,20 +39,23 @@ setMethod(f = "show",
               }
             }
 
-            # show patches if populated
-            if (length(object@patches) > 0) {
-              patchNames <- names(object@patches)
-              prefix <- if (is.null(myAttributes)) " " else "            "
-              myAttributes <- c(myAttributes, paste0(prefix, "(patches) ",
-                                                     paste0(patchNames, collapse = ", "), "\n"))
-            }
-
-            # show global if populated
-            if (length(object@global) > 0) {
-              globalNames <- names(object@global)
-              prefix <- if (is.null(myAttributes)) " " else "            "
-              myAttributes <- c(myAttributes, paste0(prefix, "(global) ",
-                                                     paste0(globalNames, collapse = ", "), "\n"))
+            # show patch and landscape results per layer
+            for (s in c("patches", "global")) {
+              for (nm in names(methods::slot(object, s))) {
+                entry <- methods::slot(object, s)[[nm]]
+                fields <- names(entry)
+                what <- nm
+                if (s == "patches") {
+                  fields <- setdiff(fields, c("class", "patch", "ids", "connectivity"))
+                  # how many patches, and where they are numbered
+                  what <- paste0(nm, ", ", length(entry$patch), " patches",
+                                 if (!is.null(entry$ids)) paste0(" in '", entry$ids, "'"))
+                }
+                prefix <- if (is.null(myAttributes)) " " else "            "
+                myAttributes <- c(myAttributes, paste0(prefix, "(", s, ") ", what,
+                                                       if (length(fields)) paste0(" (", paste0(fields, collapse = ", "), ")"),
+                                                       "\n"))
+              }
             }
 
             if (is.null(myAttributes)) {
@@ -74,21 +77,11 @@ setMethod(f = "show",
             cat(yellow("extent     "), object@extent, "(xmin, xmax, ymin, ymax)", sep = " ")
 
             # show provenance if present
-            theHist <- object@provenance
-            if (length(theHist) > 0) {
+            steps <- .format_history(object@provenance)
+            if (length(steps) > 0) {
               cat("\n")
-              steps <- vapply(theHist, function(step){
-                if (is.character(step)) {
-                  step
-                } else {
-                  fn <- names(step)[1]
-                  info <- step[[fn]]
-                  args <- .prov_args(info)
-                  args_str <- paste0(names(args), "=", args, collapse = ", ")
-                  paste0(fn, "(", args_str, ") [", info$atTime, "]")
-                }
-              }, character(1))
-              cat(yellow("provenance  "), paste0(steps, collapse = " -> "), sep = "")
+              cat(yellow("provenance  "),
+                  paste0(steps, collapse = "\n            "), "\n", sep = "")
             }
           }
 )

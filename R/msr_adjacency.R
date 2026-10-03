@@ -2,55 +2,62 @@
 #'
 #' Calculate the cell-adjacency matrix for a mosaik and attach the result to
 #' the attribute table.
-#' @param obj [mosaik]\cr the mosaik to measure.
-#' @param scale [character(1)][character]\cr \code{"class"} (default) measures
-#'   adjacency between class values; \code{"patch"} labels every patch across
-#'   the whole grid as a distinct node (global componentisation) and measures
-#'   adjacency between patches. \code{type} is ignored at patch scale.
-#' @param type [character(1)][character]\cr (class scale only) which adjacencies
+#' @param obj [`mosaik`]\cr the mosaik to measure.
+#' @param scale [`character(1)`][character]\cr \code{"class"} (default) measures
+#'   adjacency between class values; \code{"patch"} measures adjacency between
+#'   the patches of \code{layer}, which must have been numbered with
+#'   \code{\link{mdf_componentise}} first. \code{type} is ignored at patch
+#'   scale.
+#' @param type [`character(1)`][character]\cr (class scale only) which adjacencies
 #'   to calculate; \code{"like"} (diagonal of adjacency matrix), \code{"paired"}
 #'   (full matrix) or \code{"pairedSum"} (row sums).
-#' @param count [character(1)][character]\cr \code{"single"} counts only right
+#' @param count [`character(1)`][character]\cr \code{"single"} counts only right
 #'   and bottom neighbours; \code{"double"} also counts left and top.
-#' @param connect [integerish(1)][integer]\cr neighbourhood rule: \code{4}
+#' @param connect [`integerish(1)`][integer]\cr neighbourhood rule: \code{4}
 #'   (rook, orthogonal neighbours only) or \code{8} (queen, also diagonal
-#'   neighbours). Defaults to \code{4}. At patch scale this governs both the
-#'   componentisation and what counts as contact between patches.
-#' @param layer [character(1)][character]\cr the layer to use.
+#'   neighbours). Defaults to \code{4}. At patch scale this governs what counts
+#'   as contact between patches; which cells form a patch was set by
+#'   \code{\link{mdf_componentise}}.
+#' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
-#' @return The input mosaik with adjacency values attached. At \code{scale =
-#'   "class"}: \code{@categories} (for \code{type = "like"}/\code{"pairedSum"})
-#'   or \code{@global} (for \code{type = "paired"}, as a matrix). At \code{scale
-#'   = "patch"}: two patch \eqn{\times} patch matrices in \code{@patches} —
+#' @return The input mosaik with adjacency values added to the results of
+#'   \code{layer}. At \code{scale = "class"}: class level (for \code{type =
+#'   "like"}/\code{"pairedSum"}, see \code{\link{msk_categories}}) or landscape
+#'   level (for \code{type = "paired"}, as a matrix, see
+#'   \code{\link{msk_global}}). At \code{scale = "patch"}: two patch
+#'   \eqn{\times} patch matrices at patch level (see \code{\link{msk_patches}}) —
 #'   \code{adjacency} (count of adjacent cell pairs between patches, symmetric)
 #'   and \code{regions} (number of spatially distinct contact places, read
 #'   \code{regions[fragment, core]}; asymmetric). Row/column names are the
-#'   global patch IDs.
+#'   patch numbers.
 #' @examples
 #' # like-adjacency: number of same-class cell pairs per class
 #' m <- msr_adjacency(landscape, type = "like")
-#' m@categories$cover$likeAdj
+#' msk_categories(m)$likeAdj
 #'
 #' # full adjacency matrix (landscape-level)
 #' m <- msr_adjacency(landscape, type = "paired")
-#' m@global$adjacency
+#' msk_global(m)$adjacency
 #'
 #' # row sums of adjacency matrix (per class)
 #' m <- msr_adjacency(landscape, type = "pairedSum")
-#' m@categories$cover$pairedSum
+#' msk_categories(m)$pairedSum
 #'
 #' # derive: percentage of like adjacencies per class
 #' m <- msr_adjacency(landscape, type = "like")
 #' m <- msr_adjacency(m, type = "pairedSum")
 #' m <- msr(m, equation = "likeAdj.class / pairedSum.class * 100",
 #'          label = "pladj")
-#' m@categories$cover$pladj
+#' msk_categories(m)$pladj
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
 
-msr_adjacency <- function(obj, scale = "class", type = "like", count = "double",
+msr_adjacency <- function(obj = NULL, scale = "class", type = "like", count = "double",
                           connect = 4, layer = NULL){
+
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   assertClass(x = obj, classes = "mosaik")
   assertChoice(x = scale, choices = c("class", "patch"))
@@ -67,11 +74,13 @@ msr_adjacency <- function(obj, scale = "class", type = "like", count = "double",
   vals <- msk_pull(obj, layer)
   dims <- obj@dims
 
-  # patch scale: global component labelling, then contact + region matrices ----
+  # patch scale: the patches numbered by mdf_componentise, then contact +
+  # region matrices ----
   if(scale == "patch"){
 
-    labels <- componentsCpp(vals = vals, nrow = dims[2], ncol = dims[1],
-                            connectivity = connect)
+    p <- .patches_of(obj, layer)
+    labels <- p$ids
+    labels[!labels %in% p$patch] <- NA
 
     pa <- patchAdjacencyCpp(labels = as.integer(labels), nrow = dims[2],
                            ncol = dims[1], eightconn = eightConn)
@@ -80,12 +89,10 @@ msr_adjacency <- function(obj, scale = "class", type = "like", count = "double",
     dimnames(pa$adjacency) <- list(as.character(ids), as.character(ids))
     dimnames(pa$regions)   <- list(as.character(ids), as.character(ids))
 
-    obj@patches$adjacency <- pa$adjacency
-    obj@patches$regions   <- pa$regions
+    obj@patches[[layer]]$adjacency <- pa$adjacency
+    obj@patches[[layer]]$regions   <- pa$regions
 
-    prov <- msk_prov("msr_adjacency", list(scale = scale, connect = connect,
-                       layer = layer))
-    obj@provenance <- c(obj@provenance, list(prov))
+    obj <- .update_mosaik(obj, step = step)
     return(obj)
   }
 
@@ -113,7 +120,7 @@ msr_adjacency <- function(obj, scale = "class", type = "like", count = "double",
   } else if(type == "paired"){
 
     # attach full adjacency matrix to global table
-    obj@global$adjacency <- values
+    obj@global[[layer]]$adjacency <- values
 
   } else {
 
@@ -132,9 +139,7 @@ msr_adjacency <- function(obj, scale = "class", type = "like", count = "double",
   }
 
   # provenance
-  prov <- msk_prov("msr_adjacency", list(type = type, count = count,
-                     connect = connect, layer = layer))
-  obj@provenance <- c(obj@provenance, list(prov))
+  obj <- .update_mosaik(obj, step = step)
 
   return(obj)
 }

@@ -7,13 +7,13 @@
 .accumulate_path(cd, targetCells, cellCost, accumulate)
 }
 \arguments{
-\item{cd}{\link{list}\cr the return value of \code{costDistanceCpp}.}
+\item{cd}{\code{\link{list}}\cr the return value of \code{costDistanceCpp}.}
 
-\item{targetCells}{\link[=integer]{integer(.)}\cr cell indices of the target patch.}
+\item{targetCells}{\code{\link[=integer]{integer(.)}}\cr cell indices of the target patch.}
 
-\item{cellCost}{\link[=numeric]{numeric(.)}\cr the per-cell cost surface.}
+\item{cellCost}{\code{\link[=numeric]{numeric(.)}}\cr the per-cell cost surface.}
 
-\item{accumulate}{\link[=character]{character(1)}\cr the reduction to apply.}
+\item{accumulate}{\code{\link[=character]{character(1)}}\cr the reduction to apply.}
 }
 \value{
 A single numeric value, \code{NA} when the target is unreachable.

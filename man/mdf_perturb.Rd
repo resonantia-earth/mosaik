@@ -7,15 +7,15 @@
 mdf_perturb(obj = NULL, sd = 1, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{sd}{\link[=numeric]{numeric(1)}\cr standard deviation of the noise.
+\item{sd}{\code{\link[=numeric]{numeric(1)}}\cr standard deviation of the noise.
 Defaults to 1.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to perturb. Defaults to
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to perturb. Defaults to
 the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -27,7 +27,9 @@ Perturb cell values by adding random noise drawn from a normal distribution
 with mean 0 and standard deviation \code{sd}.
 }
 \examples{
-mdf_perturb(landscape, sd = 10, layer = "intensity")
+# the canopy height with normal noise of standard deviation 2 added
+m <- mdf_perturb(landscape, sd = 2, layer = "canopy", add = "perturbed")
+msk_vis(m, .layer("canopy"), .layer("perturbed"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -43,8 +45,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

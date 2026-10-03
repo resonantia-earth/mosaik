@@ -1,15 +1,20 @@
 #' Crop a mosaik to a smaller extent
 #'
 #' Subset a mosaik to the cells that fall within a new extent. The output grid
-#' aligns to the input resolution — the requested extent is snapped outward to
+#' aligns to the input resolution: the requested extent is snapped outward to
 #' cell boundaries.
-#' @param obj [mosaik]\cr the mosaik to crop.
-#' @param extent [numeric(4)][numeric]\cr the target extent as
+#' @param obj [`mosaik`]\cr the mosaik to crop.
+#' @param extent [`numeric(4)`][numeric]\cr the target extent as
 #'   \code{c(xmin, xmax, ymin, ymax)}. Values outside the input extent are
 #'   silently clamped.
-#' @return A mosaik with reduced extent and dimensions. Layer values are
-#'   subsetted; categories, patches, and global are preserved (patches/global
-#'   may reference values no longer present).
+#' @return A mosaik covering the new extent.
+#' @details Categories, patch records and global measures are kept as they
+#'   were, so they may refer to values no longer present after cropping.
+#' @examples
+#' # the land cover of the whole map and of its lower-left quarter
+#' msk_vis(landscape, .layer("cover"))
+#' corner <- mdf_crop(landscape, extent = c(0, 30, 0, 28))
+#' msk_vis(corner, .layer("cover"))
 #' @family utilities
 #' @importFrom checkmate assertClass assertNumeric
 #' @export
@@ -17,7 +22,8 @@
 mdf_crop <- function(obj = NULL,
                      extent) {
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -74,16 +80,10 @@ mdf_crop <- function(obj = NULL,
   }
 
   # build output ----
-  prov <- msk_prov("mdf_crop", list(extent = extent))
 
-  new_mosaik(
-    extent     = new_ext,
-    dims       = c(new_ncols, new_nrows),
-    layers     = new_layers,
-    categories = obj@categories,
-    patches    = obj@patches,
-    global     = obj@global,
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 extent = new_ext,
+                 dims = c(new_ncols, new_nrows),
+                 layers = new_layers,
+                 step = step)
 }

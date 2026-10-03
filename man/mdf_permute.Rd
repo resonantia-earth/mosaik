@@ -7,19 +7,19 @@
 mdf_permute(obj = NULL, type = "invert", by = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{type}{\link[=character]{character(1)}\cr the permutation type. Either
+\item{type}{\code{\link[=character]{character(1)}}\cr the permutation type. Either
 \code{"invert"}, \code{"revert"}, \code{"descending"}, \code{"ascending"}
 or \code{"cycle"}.}
 
-\item{by}{\link[=integer]{integerish(1)}\cr value by which to apply the
+\item{by}{\code{\link[=integer]{integerish(1)}}\cr value by which to apply the
 permutation; only for \code{type = "cycle"}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -30,11 +30,19 @@ The permutation of a set of cell values leads to a systematic
 (re)arrangement of all the members of the set.
 }
 \examples{
-mdf_permute(landscape, type = "invert", layer = "cover")
-mdf_permute(landscape, type = "revert", layer = "cover")
-mdf_permute(landscape, type = "ascending", layer = "intensity")
-mdf_permute(landscape, type = "descending", layer = "intensity")
-mdf_permute(landscape, type = "cycle", by = 2L, layer = "cover")
+# the land-cover classes in inverted, reverted and cycled order
+m <- landscape |>
+  mdf_permute(type = "invert", layer = "cover", add = "invert") |>
+  mdf_permute(type = "revert", layer = "cover", add = "revert") |>
+  mdf_permute(type = "cycle", by = 2L, layer = "cover", add = "cycle")
+msk_vis(m, .layer("cover"), .layer("invert"), .layer("revert"),
+        .layer("cycle"))
+
+# the canopy heights in ascending and descending order
+m <- landscape |>
+  mdf_permute(type = "ascending", layer = "canopy", add = "ascending") |>
+  mdf_permute(type = "descending", layer = "canopy", add = "descending")
+msk_vis(m, .layer("canopy"), .layer("ascending"), .layer("descending"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -50,8 +58,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

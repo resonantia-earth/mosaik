@@ -2,23 +2,27 @@
 #'
 #' Transform a mosaik by setting all cells outside a lower and upper threshold
 #' to \code{background}.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param lower [numeric(1)][numeric]\cr minimum value above which values
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param lower [`numeric(1)`][numeric]\cr minimum value above which values
 #'   will be selected.
-#' @param upper [numeric(1)][numeric]\cr maximum value below which values
+#' @param upper [`numeric(1)`][numeric]\cr maximum value below which values
 #'   will be selected.
-#' @param background [integerish(1)][integer]\cr the value any cell outside the
+#' @param background [`integerish(1)`][integer]\cr the value any cell outside the
 #'   range should have.
-#' @param layer [character(1)][character]\cr the layer in \code{obj} to use.
+#' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
-#' @param add [character(1)][character]\cr if \code{NULL} (default), overwrite
+#' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik of the same dimension as \code{obj}, where cells within
 #'   the range retain their value and others are set to \code{background}.
 #' @examples
-#' mdf_range(landscape, lower = 30, layer = "intensity")
-#' mdf_range(landscape, upper = 70, layer = "intensity")
-#' mdf_range(landscape, lower = 30, upper = 70, layer = "intensity")
+#' # the canopy height from 5 m, up to 20 m, and between the two
+#' m <- landscape |>
+#'   mdf_range(lower = 5, layer = "canopy", add = "from_5") |>
+#'   mdf_range(upper = 20, layer = "canopy", add = "to_20") |>
+#'   mdf_range(lower = 5, upper = 20, layer = "canopy", add = "5_to_20")
+#' msk_vis(m, .layer("canopy"), .layer("from_5"), .layer("to_20"),
+#'         .layer("5_to_20"))
 #' @family operators to select a subset of cells
 #' @importFrom checkmate assertClass assertNumeric assertIntegerish
 #'   assertCharacter
@@ -31,7 +35,8 @@ mdf_range <- function(obj = NULL,
                       layer = NULL,
                       add = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -84,8 +89,5 @@ mdf_range <- function(obj = NULL,
   temp[is.na(temp)] <- background
 
   # build output ----
-  out_layer <- .resolve_add(obj, layer, add)
-  prov <- msk_prov("mdf_range", list(lower = lower, upper = upper,
-                     background = background, layer = out_layer))
-  msk_set(obj, out_layer, temp, prov)
+  .update_mosaik(obj, values = temp, step = step)
 }

@@ -7,9 +7,9 @@
 mdf_transpose(obj = NULL, layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to transpose. If
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to transpose. If
 \code{NULL} (default), all layers are transposed.}
 }
 \value{
@@ -20,7 +20,9 @@ Mirror the grid along its main diagonal, swapping rows and columns. Cell
 \code{(r, c)} becomes \code{(c, r)}.
 }
 \examples{
-mdf_transpose(landscape)
+# the map mirrored along its diagonal
+msk_vis(landscape, .layer("cover"))
+msk_vis(mdf_transpose(landscape), .layer("cover"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -37,7 +39,7 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
-\code{\link{mdf_tesselate}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_summarise}()},
+\code{\link{mdf_tesselate}()}
 }
 \concept{operators to modify cell values}

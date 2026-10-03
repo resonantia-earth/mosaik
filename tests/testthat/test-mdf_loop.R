@@ -9,7 +9,7 @@ seeded <- function(){
 }
 growRecipe <- function(){
   mdf_dilate(struct = msk_struct("square", width = 3), layer = "seed") |>
-    mdf_filter(seed == 1 & mask == 1, value = TRUE, background = 0,
+    mdf_filter(seed == 1 & mask == 1,
                add = "seed")
 }
 
@@ -57,6 +57,6 @@ test_that("mdf_loop is itself recordable and replays", {
 test_that("the number of iterations is recorded in the provenance", {
   o <- mdf_loop(seeded(), growRecipe(), stable = TRUE, layer = "seed")
   last <- o@provenance[[length(o@provenance)]]
-  expect_equal(names(o@provenance)[length(o@provenance)], "mdf_loop")
-  expect_gt(last$wasGeneratedBy$withArguments$iterations, 1)
+  expect_equal(names(last), "mdf_loop")
+  expect_gt(last[[1]]$wasGeneratedBy$iterations, 1)
 })

@@ -2,21 +2,29 @@
 #'
 #' Expand or shrink the grid by adding or removing rows and columns at the
 #' edges. Added cells are filled with \code{value}.
-#' @param obj [mosaik]\cr the mosaik to modify.
-#' @param width [integerish(1)][integer]\cr number of cells to add (positive)
+#' @param obj [`mosaik`]\cr the mosaik to modify.
+#' @param width [`integerish(1)`][integer]\cr number of cells to add (positive)
 #'   or remove (negative) on each side specified by \code{sides}.
-#' @param sides [character][character]\cr which sides to pad. Any combination
+#' @param sides [`character`][character]\cr which sides to pad. Any combination
 #'   of \code{"left"}, \code{"right"}, \code{"top"}, \code{"bottom"}. Defaults
 #'   to all four.
-#' @param value [numeric(1)][numeric]\cr fill value for added cells. Defaults
+#' @param value [`numeric(1)`][numeric]\cr fill value for added cells. Defaults
 #'   to \code{NA}.
-#' @param layer [character(1)][character]\cr the layer to modify. If
+#' @param layer [`character(1)`][character]\cr the layer to modify. If
 #'   \code{NULL} (default), all layers are padded.
 #' @return A mosaik with modified extent and dimensions.
 #' @examples
-#' mdf_pad(landscape, width = 5)
-#' mdf_pad(landscape, width = 5, sides = c("left", "right"), value = 0)
-#' mdf_pad(landscape, width = -3)
+#' # five rows and columns of NA around the map
+#' m <- mdf_pad(landscape, width = 5)
+#' msk_vis(m, .layer("cover"))
+#'
+#' # five columns of 0 on the left and right only
+#' m <- mdf_pad(landscape, width = 5, sides = c("left", "right"), value = 0)
+#' msk_vis(m, .layer("cover"))
+#'
+#' # a negative width removes three rows and columns from each side
+#' m <- mdf_pad(landscape, width = -3)
+#' msk_vis(m, .layer("cover"))
 #' @family operators to modify cell values
 #' @importFrom checkmate assertClass assertIntegerish assertSubset assertCharacter
 #' @export
@@ -27,7 +35,8 @@ mdf_pad <- function(obj = NULL,
                     value = NA,
                     layer = NULL){
 
-  if (.is_recipe(obj)) return(.record_step(obj, match.call()))
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
@@ -106,17 +115,12 @@ mdf_pad <- function(obj = NULL,
   }
 
   # build output ----
-  prov <- msk_prov("mdf_pad", list(width = width, sides = sides,
-                                      value = value, layer = layer))
 
-  new_mosaik(
-    extent     = new_ext,
-    dims       = c(new_ncols, new_nrows),
-    layers     = new_layers,
-    categories = obj@categories,
-    patches    = list(),
-    global     = list(),
-    crs        = obj@crs,
-    provenance = c(obj@provenance, list(prov))
-  )
+  .update_mosaik(obj,
+                 extent = new_ext,
+                 dims = c(new_ncols, new_nrows),
+                 layers = new_layers,
+                 patches = list(),
+                 global = list(),
+                 step = step)
 }

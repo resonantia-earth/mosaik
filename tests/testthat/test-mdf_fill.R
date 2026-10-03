@@ -43,27 +43,11 @@ test_that("holes of any size fill (not just kernel-sized ones)", {
   expect_true(all(msk_pull(r, "values") == 1))
 })
 
-test_that("value defaults to the modal foreground value", {
-  # ring of 5s (with one 5 replaced by 3) around a hole; modal foreground is 5
-  mat <- matrix(c(5,5,5,5,5,
-                  5,0,0,0,5,
-                  5,0,0,0,3,
-                  5,0,0,0,5,
-                  5,5,5,5,5), nrow = 5, byrow = TRUE)
-  r <- mdf_fill(.fill_mosaik(mat))
-  filled <- matrix(msk_pull(r, "values"), 5, 5, byrow = TRUE)[2:4, 2:4]
-  expect_true(all(filled == 5))
-})
-
-test_that("value can be set explicitly", {
-  mat <- matrix(c(1,1,1,1,1,
-                  1,0,0,0,1,
-                  1,0,0,0,1,
-                  1,0,0,0,1,
-                  1,1,1,1,1), nrow = 5, byrow = TRUE)
-  r <- mdf_fill(.fill_mosaik(mat), value = 9)
-  filled <- matrix(msk_pull(r, "values"), 5, 5, byrow = TRUE)[2:4, 2:4]
-  expect_true(all(filled == 9))
+test_that("a layer that is not binary is refused", {
+  mat <- matrix(c(5,5,5,
+                  5,0,5,
+                  5,5,5), nrow = 3, byrow = TRUE)
+  expect_error(mdf_fill(.fill_mosaik(mat)), "not binary")
 })
 
 test_that("NA cells count as background and fill when enclosed", {

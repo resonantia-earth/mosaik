@@ -56,7 +56,7 @@ test_that("msk_add carries the added layer's categories", {
 test_that("mdf_filter masks cells", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1,
               vals = list(cover = c(1:25)))
-  f <- mdf_filter(m, cover > 20)
+  f <- mdf_filter(m, cover > 20, value = TRUE)
   vals <- msk_pull(f, "cover")
   expect_equal(sum(!is.na(vals)), 5)
   expect_true(all(vals[!is.na(vals)] > 20))
@@ -65,7 +65,7 @@ test_that("mdf_filter masks cells", {
 test_that("mdf_filter works with multi-layer predicates", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1,
               vals = list(a = 1:25, b = 25:1))
-  f <- mdf_filter(m, a > b, layer = "a")
+  f <- mdf_filter(m, a > b, value = TRUE, layer = "a")
   vals <- msk_pull(f, "a")
   # cells where a <= b should be NA
   orig_a <- 1:25
@@ -136,6 +136,17 @@ test_that("derive records provenance", {
   expect_equal(last_prov[[1]]$wasGeneratedBy$withArguments$label, "edge_density")
 })
 
+test_that(".cell finds the cell a point lies in", {
+  m <- mosaik(extent = c(0, 4, 0, 3), res = 1, vals = list(v = 1:12))
+  # cells are numbered row by row from the top-left corner
+  expect_equal(.cell(m, x = 0.5, y = 2.5), 1)
+  expect_equal(.cell(m, x = 3.5, y = 0.5), 12)
+  expect_equal(msk_pull(m, "v")[.cell(m, x = 1.5, y = 1.5)], 6)
+  # points on the outer edge belong to the last column or row
+  expect_equal(.cell(m, x = c(4, 0), y = c(0, 3)), c(12, 1))
+  expect_true(is.na(.cell(m, x = 5, y = 1)))
+})
+
 test_that("derive with distance.cell computes GYRATE (mean centroid distance)", {
   # 10x10 grid, one 3x3 foreground patch
   vals <- rep(0L, 100)
@@ -143,13 +154,13 @@ test_that("derive with distance.cell computes GYRATE (mean centroid distance)", 
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
   m <- mdf_componentise(m)
   m <- mdf_centroid(m, add = "centroids")
-  m <- mdf_distance(m, source = "centroids", add = "_distance")
+  m <- mdf_distance(m, source = "centroids", add = "_distance_cover")
   m <- msr(m, equation = "mean(distance.cell)", label = "gyrate")
-  # result should be per-patch (2 patches: background + foreground)
-  expect_true("gyrate" %in% names(m@patches))
-  expect_equal(length(m@patches$gyrate), 2)
+  # result should be per-patch (only the foreground patch is numbered)
+  expect_true("gyrate" %in% names(msk_patches(m)))
+  expect_equal(length(msk_patches(m)$gyrate), 1)
   # all values should be finite and non-negative
-  expect_true(all(m@patches$gyrate >= 0))
+  expect_true(all(msk_patches(m)$gyrate >= 0))
 })
 
 test_that("derive with distance.cell computes max distance (CIRCLE)", {
@@ -158,19 +169,19 @@ test_that("derive with distance.cell computes max distance (CIRCLE)", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
   m <- mdf_componentise(m)
   m <- mdf_centroid(m, add = "centroids")
-  m <- mdf_distance(m, source = "centroids", add = "_distance")
+  m <- mdf_distance(m, source = "centroids", add = "_distance_cover")
   m <- msr(m, equation = "max(distance.cell)", label = "circle")
-  expect_true("circle" %in% names(m@patches))
+  expect_true("circle" %in% names(msk_patches(m)))
   # max should be >= mean
   m <- msr(m, equation = "mean(distance.cell)", label = "gyrate")
-  expect_true(all(m@patches$circle >= m@patches$gyrate))
+  expect_true(all(msk_patches(m)$circle >= msk_patches(m)$gyrate))
 })
 
 test_that("derive .cell errors when internal layer missing", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = rep(1L, 100)))
   expect_error(msr(m, equation = "mean(distance.cell)", label = "x"),
-               "_distance.*not found")
+               "_distance_cover.*not found")
 })
 
 test_that("msk_struct creates struct", {

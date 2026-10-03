@@ -92,8 +92,8 @@
 #' a warning: a silently ignored setting looks like the plot simply does not
 #' respond to it, which is far harder to diagnose than a failed call.
 #'
-#' @param x [named list][list]\cr the user-supplied theme.
-#' @param known [character][character]\cr the valid paths.
+#' @param x [`named list`][list]\cr the user-supplied theme.
+#' @param known [`character`][character]\cr the valid paths.
 #' @return invisibly \code{TRUE}; errors when a key is unknown.
 #' @importFrom utils adist
 #' @noRd
@@ -242,7 +242,7 @@
 #' }
 #'
 #' @param colours the \code{colours} theme setting.
-#' @param n [numeric(1)][numeric]\cr how many colours the ramp needs.
+#' @param n [`numeric(1)`][numeric]\cr how many colours the ramp needs.
 #' @return a character vector of \code{n} colours, or -- for the named form --
 #'   the named vector unchanged, for the caller to match against categories.
 #' @importFrom grDevices hcl.colors hcl.pals colorRampPalette

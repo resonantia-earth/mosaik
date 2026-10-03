@@ -7,12 +7,12 @@
 mdf_rotate(obj = NULL, angle = 90L, layer = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{angle}{\link[=integer]{integerish(1)}\cr rotation angle in degrees. Must be
+\item{angle}{\code{\link[=integer]{integerish(1)}}\cr rotation angle in degrees. Must be
 one of \code{90}, \code{180}, or \code{270}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to rotate. If
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to rotate. If
 \code{NULL} (default), all layers are rotated.}
 }
 \value{
@@ -23,9 +23,10 @@ Rotate the grid clockwise by 90, 180, or 270 degrees. Extent and dimensions
 are adjusted accordingly.
 }
 \examples{
-mdf_rotate(landscape, angle = 90)
-mdf_rotate(landscape, angle = 180)
-mdf_rotate(landscape, angle = 270)
+# the map turned by 90, 180 and 270 degrees
+msk_vis(mdf_rotate(landscape, angle = 90), .layer("cover"))
+msk_vis(mdf_rotate(landscape, angle = 180), .layer("cover"))
+msk_vis(mdf_rotate(landscape, angle = 270), .layer("cover"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -41,8 +42,8 @@ Other operators to modify cell values:
 \code{\link{mdf_perturb}()},
 \code{\link{mdf_replace}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

@@ -5,7 +5,7 @@
 \title{Adjacency of cells}
 \usage{
 msr_adjacency(
-  obj,
+  obj = NULL,
   scale = "class",
   type = "like",
   count = "double",
@@ -14,37 +14,41 @@ msr_adjacency(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to measure.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{scale}{\link[=character]{character(1)}\cr \code{"class"} (default) measures
-adjacency between class values; \code{"patch"} labels every patch across
-the whole grid as a distinct node (global componentisation) and measures
-adjacency between patches. \code{type} is ignored at patch scale.}
+\item{scale}{\code{\link[=character]{character(1)}}\cr \code{"class"} (default) measures
+adjacency between class values; \code{"patch"} measures adjacency between
+the patches of \code{layer}, which must have been numbered with
+\code{\link{mdf_componentise}} first. \code{type} is ignored at patch
+scale.}
 
-\item{type}{\link[=character]{character(1)}\cr (class scale only) which adjacencies
+\item{type}{\code{\link[=character]{character(1)}}\cr (class scale only) which adjacencies
 to calculate; \code{"like"} (diagonal of adjacency matrix), \code{"paired"}
 (full matrix) or \code{"pairedSum"} (row sums).}
 
-\item{count}{\link[=character]{character(1)}\cr \code{"single"} counts only right
+\item{count}{\code{\link[=character]{character(1)}}\cr \code{"single"} counts only right
 and bottom neighbours; \code{"double"} also counts left and top.}
 
-\item{connect}{\link[=integer]{integerish(1)}\cr neighbourhood rule: \code{4}
+\item{connect}{\code{\link[=integer]{integerish(1)}}\cr neighbourhood rule: \code{4}
 (rook, orthogonal neighbours only) or \code{8} (queen, also diagonal
-neighbours). Defaults to \code{4}. At patch scale this governs both the
-componentisation and what counts as contact between patches.}
+neighbours). Defaults to \code{4}. At patch scale this governs what counts
+as contact between patches; which cells form a patch was set by
+\code{\link{mdf_componentise}}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with adjacency values attached. At \code{scale =
-  "class"}: \code{@categories} (for \code{type = "like"}/\code{"pairedSum"})
-or \code{@global} (for \code{type = "paired"}, as a matrix). At \code{scale
-  = "patch"}: two patch \eqn{\times} patch matrices in \code{@patches} —
+The input mosaik with adjacency values added to the results of
+\code{layer}. At \code{scale = "class"}: class level (for \code{type =
+  "like"}/\code{"pairedSum"}, see \code{\link{msk_categories}}) or landscape
+level (for \code{type = "paired"}, as a matrix, see
+\code{\link{msk_global}}). At \code{scale = "patch"}: two patch
+\eqn{\times} patch matrices at patch level (see \code{\link{msk_patches}}) —
 \code{adjacency} (count of adjacent cell pairs between patches, symmetric)
 and \code{regions} (number of spatially distinct contact places, read
 \code{regions[fragment, core]}; asymmetric). Row/column names are the
-global patch IDs.
+patch numbers.
 }
 \description{
 Calculate the cell-adjacency matrix for a mosaik and attach the result to
@@ -53,22 +57,22 @@ the attribute table.
 \examples{
 # like-adjacency: number of same-class cell pairs per class
 m <- msr_adjacency(landscape, type = "like")
-m@categories$cover$likeAdj
+msk_categories(m)$likeAdj
 
 # full adjacency matrix (landscape-level)
 m <- msr_adjacency(landscape, type = "paired")
-m@global$adjacency
+msk_global(m)$adjacency
 
 # row sums of adjacency matrix (per class)
 m <- msr_adjacency(landscape, type = "pairedSum")
-m@categories$cover$pairedSum
+msk_categories(m)$pairedSum
 
 # derive: percentage of like adjacencies per class
 m <- msr_adjacency(landscape, type = "like")
 m <- msr_adjacency(m, type = "pairedSum")
 m <- msr(m, equation = "likeAdj.class / pairedSum.class * 100",
          label = "pladj")
-m@categories$cover$pladj
+msk_categories(m)$pladj
 }
 \seealso{
 Other measure: 

@@ -117,23 +117,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// distanceFromPointsCpp
-NumericVector distanceFromPointsCpp(double xmin, double ymax, double res_x, double res_y, int ncol, int nrow, NumericMatrix coords);
-RcppExport SEXP _mosaik_distanceFromPointsCpp(SEXP xminSEXP, SEXP ymaxSEXP, SEXP res_xSEXP, SEXP res_ySEXP, SEXP ncolSEXP, SEXP nrowSEXP, SEXP coordsSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< double >::type xmin(xminSEXP);
-    Rcpp::traits::input_parameter< double >::type ymax(ymaxSEXP);
-    Rcpp::traits::input_parameter< double >::type res_x(res_xSEXP);
-    Rcpp::traits::input_parameter< double >::type res_y(res_ySEXP);
-    Rcpp::traits::input_parameter< int >::type ncol(ncolSEXP);
-    Rcpp::traits::input_parameter< int >::type nrow(nrowSEXP);
-    Rcpp::traits::input_parameter< NumericMatrix >::type coords(coordsSEXP);
-    rcpp_result_gen = Rcpp::wrap(distanceFromPointsCpp(xmin, ymax, res_x, res_y, ncol, nrow, coords));
-    return rcpp_result_gen;
-END_RCPP
-}
 // getValuesCpp
 NumericVector getValuesCpp(NumericMatrix& mat);
 RcppExport SEXP _mosaik_getValuesCpp(SEXP matSEXP) {
@@ -381,7 +364,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosaik_countCellEdgesCpp", (DL_FUNC) &_mosaik_countCellEdgesCpp, 3},
     {"_mosaik_countCellValuesCpp", (DL_FUNC) &_mosaik_countCellValuesCpp, 3},
     {"_mosaik_diamondSquareCpp", (DL_FUNC) &_mosaik_diamondSquareCpp, 4},
-    {"_mosaik_distanceFromPointsCpp", (DL_FUNC) &_mosaik_distanceFromPointsCpp, 7},
     {"_mosaik_getValuesCpp", (DL_FUNC) &_mosaik_getValuesCpp, 1},
     {"_mosaik_isBinaryCpp", (DL_FUNC) &_mosaik_isBinaryCpp, 1},
     {"_mosaik_distanceCpp", (DL_FUNC) &_mosaik_distanceCpp, 4},

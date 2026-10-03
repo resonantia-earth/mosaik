@@ -13,31 +13,58 @@ mdf_componentise(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr a binarised mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{connectivity}{\link[=integer]{integer(1)}\cr neighbourhood connectivity;
+\item{connectivity}{\code{\link[=integer]{integer(1)}}\cr neighbourhood connectivity;
 \code{4} for rook/diamond (default) or \code{8} for queen/box.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr the value any cell with value
-NA should have.}
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr the value of every cell that
+is not in a patch, i.e. cells with the value 0 or \code{NA}.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
-A mosaik of the same dimension as \code{obj}, in which neighboring
-cells of the foreground have been assigned the same value, forming patches.
+A mosaik in which each cell carries the number of its patch.
 }
 \description{
-Patches are sets of cells that are connected.
+A patch is a set of connected cells that share a value. Each patch gets its
+own number; cells with the value 0 or \code{NA} belong to no patch and get
+\code{background}. On a binary layer, the patches are those of the
+foreground (1); on a categorical layer, such as land cover, those of every
+class.
+}
+\details{
+The patches are also recorded with \code{layer}: which layer holds
+their numbers, the connectivity, and the class of each patch (see
+\code{\link{msk_patches}}). The patch-level measures
+(\code{msr_*(scale = "patch")}) measure these patches, so how cells connect
+into patches is always set here and never decided by a measure.
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_componentise(forest)
-mdf_componentise(forest, connectivity = 8L)
+# the forest patches with rook (4) and queen (8) neighbours; drawn in shuffled
+# colours, since neighbouring patch numbers would otherwise get similar ones
+set.seed(1)
+shuffled <- function(m, layer) {
+  sample(hcl.colors(max(msk_pull(m, layer), na.rm = TRUE), "Dark 3"))
+}
+f <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(layer = "forest", add = "rook") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "queen")
+msk_vis(f, .layer("forest"),
+        .layer("rook", colours = shuffled(f, "rook"), legend = FALSE),
+        .layer("queen", colours = shuffled(f, "queen"), legend = FALSE))
+msk_patches(f, layer = "forest")$class
+
+# the patches of every land-cover class
+m <- mdf_componentise(landscape, layer = "cover", add = "patch")
+table(msk_patches(m, layer = "cover")$class)
+msk_vis(m, .layer("cover"),
+        .layer("patch", colours = shuffled(m, "patch"), legend = FALSE))
 }
 \seealso{
 Other operators to determine objects: 

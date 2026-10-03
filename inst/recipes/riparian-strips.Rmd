@@ -1,0 +1,67 @@
+---
+title: "Riparian strips"
+summary: "The share of natural land in a strip along each stretch of a river."
+question: pressure
+about: river
+scale: zone
+declares: ["which land cover counts as natural", "the width of the strip (cells)", "the stretches"]
+uses: [class, distance, zones]
+result:
+  - {object: riparian, layer: natural_share, text: "{v} % of the strip along this stretch of river is natural land", percent: true}
+---
+
+Land use right next to a river acts on it: fertiliser and soil wash in, and
+shade and shelter go missing. Rules for farming near water often require a
+strip along rivers that is kept free of intensive use. The recipe finds the
+strip, splits the river into stretches, and computes the share of natural
+land in the strip along each stretch.
+
+Which land cover counts as natural is a declaration. Here it is the river,
+extensive grassland, fallow and shrub, wetland, and forest:
+
+```{r}
+library(mosaik)
+natural <- c(1, 24, 27, 41, 47)
+
+riparian <- landscape |>
+  mdf_binarise(match = 1, layer = "cover", add = "river") |>
+  mdf_distance(layer = "river", add = "to_river") |>
+  mdf_filter(to_river > 0 & to_river <= 3, add = "strip") |>
+  mdf_binarise(match = natural, layer = "cover", add = "natural") |>
+  drw_gradient(type = "planar", angle = 90, name = "north") |>
+  mdf_categorise(n = 4, layer = "north", add = "stretch") |>
+  mdf_blend(layers = c("strip", "stretch"), fun = "*", add = "zone") |>
+  mdf_summarise(by = "zone", fun = "mean", layer = "natural",
+                add = "natural_share")
+```
+
+The strip is three cells wide on either side. The stretches are four bands of
+equal height from south to north, made by cutting a gradient that rises
+northwards into four classes. Multiplying the strip (0 or 1) by the stretch
+number gives each cell of the strip the number of its stretch, and 0 to every
+other cell, which `mdf_summarise()` leaves out:
+
+```{r, fig.alt = "The strip along the river, its four stretches, and the share of natural land along each"}
+msk_vis(riparian, .layer("strip"), .layer("zone"), .layer("natural_share"))
+```
+
+**Check.** In the southern third of the map, a road runs beside the river,
+first one and then two cells away from it, so the strip along the southern
+stretch is largely road and its natural share should be the lowest. In the
+north, the river runs along a large intensive meadow, so the northern stretch
+should be low as well. The two stretches in between run through land of mixed
+use:
+
+```{r}
+zone <- msk_pull(riparian, "zone")
+shares <- tapply(msk_pull(riparian, "natural_share")[zone > 0], zone[zone > 0],
+                 unique)
+round(shares, 2)
+```
+
+```{r, include = FALSE}
+stopifnot(which.min(shares) == 1, shares[["4"]] < min(shares[c("2", "3")]))
+```
+
+Whether a stretch complies is a further declaration: a rule might demand that
+all of the strip is natural, or a share of it.

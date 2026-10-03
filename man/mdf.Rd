@@ -7,24 +7,38 @@
 mdf(obj, recipe)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to apply the recipe to.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to apply the recipe to.}
 
-\item{recipe}{\link{mosaik}\cr a recipe shell whose \code{@provenance} holds the
-recorded steps (see Details).}
+\item{recipe}{\code{\link{mosaik}}\cr a recipe shell, or any mosaik, whose
+\code{@provenance} holds the steps to repeat.}
 }
 \value{
 The mosaik after all recipe steps have been applied.
 }
 \description{
-Run a recorded sequence of \code{mdf_*} calls on a real mosaik. A recipe is built by calling those functions with \code{obj = NULL}
+Run a recorded sequence of \code{mdf_*} and \code{msr_*} calls on a real
+mosaik. A recipe is built by calling those functions with \code{obj = NULL}
 (or chaining them from an empty mosaik): each call records itself instead of
 executing, and the accumulated \code{@provenance} is the recipe. \code{mdf()}
 replays that sequence on \code{obj}, threading the result of each step into
 the next, so an algorithm can be defined once and applied to many rasters.
 }
 \details{
+Because every call records itself the same way, the history of any mosaik
+is a recipe too: \code{mdf(new, result)} repeats on \code{new} what was done
+to \code{result}. The entry that created \code{result} is skipped, and a
+step whose input was too large to record (a whole vector of values, another
+mosaik) cannot be repeated and stops with an error.
+
+A recipe repeats operations, not data. Every argument is recorded as it was
+given, so a value read off one map, such as a list of patch numbers passed
+to \code{\link{mdf_replace}}, is a constant in the recipe and stays the same
+on every other map. A recipe built with \code{obj = NULL} has no data to read
+values from, so it is the way to be sure a recipe runs on other inputs as it
+is.
+
 Steps that read an earlier intermediate (e.g. the \code{by} of
-\code{\link{mdf_mask}}) reference it by the layer name an earlier step wrote
+\code{\link{mdf_summarise}}) reference it by the layer name an earlier step wrote
 via \code{add}. The chain therefore stays linear in execution while still
 expressing branch-and-recombine algorithms through named layers.
 }
@@ -35,7 +49,8 @@ core <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
 
 # apply to any raster with a 'cover' layer
 result <- mdf(landscape, core)
-msk_names(result)
+msk_vis(result, .layer("cover"), .layer("forest"), .layer("core"))
 
 rotated <- mdf(mdf_rotate(landscape, angle = 90), core)
+msk_vis(rotated, .layer("cover"), .layer("forest"), .layer("core"))
 }

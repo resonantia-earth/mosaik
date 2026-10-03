@@ -2,49 +2,56 @@
 #'
 #' Calculate the area of objects in a mosaik and attach the result to the
 #' attribute table.
-#' @param obj [mosaik]\cr the mosaik to measure.
-#' @param scale [character(1)][character]\cr scale at which to calculate;
+#' @param obj [`mosaik`]\cr the mosaik to measure.
+#' @param scale [`character(1)`][character]\cr scale at which to calculate;
 #'   \code{"patch"}, \code{"class"} or \code{"landscape"}.
-#' @param unit [character(1)][character]\cr \code{"cells"} (default, number of
+#' @param unit [`character(1)`][character]\cr \code{"cells"} (default, number of
 #'   cells) or \code{"map"} (in map units).
-#' @param layer [character(1)][character]\cr the layer to use.
+#' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
-#' @return The input mosaik with an \code{area} column added to
-#'   \code{@patches} (for \code{scale = "patch"}),
-#'   \code{@categories} (for \code{scale = "class"}), or
-#'   \code{@global} (for \code{scale = "landscape"}).
+#' @return The input mosaik with an \code{area} value added to the results of
+#'   \code{layer}: its patches (for \code{scale = "patch"}, which must have
+#'   been numbered with \code{\link{mdf_componentise}} first, see
+#'   \code{\link{msk_patches}}), its classes (\code{scale = "class"}, see
+#'   \code{\link{msk_categories}}) or the layer as a whole
+#'   (\code{scale = "landscape"}, see \code{\link{msk_global}}).
 #' @examples
 #' # landscape-level: total area
 #' m <- msr_area(landscape, scale = "landscape")
-#' m@global$area
+#' msk_global(m)$area
 #'
 #' # class-level: area per class
 #' m <- msr_area(landscape, scale = "class")
-#' m@categories$cover$area
+#' msk_categories(m)$area
 #'
-#' # patch-level: area per patch
-#' m <- msr_area(landscape, scale = "patch")
-#' m@patches$area
-#' m@patches$class   # which class each patch belongs to
-#' m@patches$patch    # patch ID within each class
+#' # patch-level: area per patch, of the patches numbered first
+#' m <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
+#'                       add = "patch")
+#' m <- msr_area(m, scale = "patch")
+#' msk_patches(m)$area
+#' msk_patches(m)$class   # which class each patch belongs to
+#' msk_patches(m)$patch   # the patch number, as in the layer 'patch'
 #'
 #' # derive: proportion of landscape per class (PLAND)
-#' m <- msr_area(landscape, scale = "class")
+#' m <- msr_area(m, scale = "class")
 #' m <- msr_area(m, scale = "landscape")
 #' m <- msr(m, equation = "area.class / area.landscape * 100",
 #'          label = "pland")
-#' m@categories$cover$pland
+#' msk_categories(m)$pland
 #'
 #' # derive: mean patch size per class
 #' m <- msr_number(m, scale = "patch")
 #' m <- msr(m, equation = "area.class / number.class",
 #'          label = "mean_patch_size")
-#' m@categories$cover$mean_patch_size
+#' msk_categories(m)$mean_patch_size
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
 
-msr_area <- function(obj, scale = "patch", unit = "cells", layer = NULL){
+msr_area <- function(obj = NULL, scale = "patch", unit = "cells", layer = NULL){
+
+  step <- .step()
+  if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   assertClass(x = obj, classes = "mosaik")
   assertChoice(x = scale, choices = c("patch", "class", "landscape"))
@@ -64,8 +71,8 @@ msr_area <- function(obj, scale = "patch", unit = "cells", layer = NULL){
       total <- total * theRes[1] * theRes[2]
     }
 
-    # attach to global table
-    obj@global$area <- total
+    # attach to the layer's landscape-level values
+    obj@global[[layer]]$area <- total
 
   } else if(scale == "class"){
 
@@ -91,28 +98,28 @@ msr_area <- function(obj, scale = "patch", unit = "cells", layer = NULL){
 
   } else {
 
-    # ensure cached patch layer exists (also sets @patches$class, $patch)
-    obj <- .ensure_patch_layer(obj, layer)
-    patch_ids <- msk_pull(obj, "_patches")
+    # the patches numbered by mdf_componentise
+    p <- .patches_of(obj, layer)
+    patch_ids <- p$ids
+    patch_ids[!patch_ids %in% p$patch] <- NA
 
     # count cells per patch
     temp_counts <- countCellValuesCpp(vals = as.numeric(patch_ids),
                                       nrow = dims[1], ncol = dims[2])
     temp_counts <- temp_counts[!is.na(temp_counts$value),]
 
-    # align with the roster order from .ensure_patch_layer
-    idx <- match(obj@patches$patch, temp_counts$value)
+    # align with the order of the patch record
+    idx <- match(p$patch, temp_counts$value)
     if(unit == "map"){
-      obj@patches$area <- temp_counts$cells[idx] * theRes[1] * theRes[2]
+      obj@patches[[layer]]$area <- temp_counts$cells[idx] * theRes[1] * theRes[2]
     } else {
-      obj@patches$area <- temp_counts$cells[idx]
+      obj@patches[[layer]]$area <- temp_counts$cells[idx]
     }
 
   }
 
   # provenance
-  prov <- msk_prov("msr_area", list(scale = scale, unit = unit, layer = layer))
-  obj@provenance <- c(obj@provenance, list(prov))
+  obj <- .update_mosaik(obj, step = step)
 
   return(obj)
 }

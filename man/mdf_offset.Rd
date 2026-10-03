@@ -7,18 +7,18 @@
 mdf_offset(obj = NULL, fun = "+", value = 1, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{fun}{\link[=character]{character(1)}\cr function used for offsetting; supported
+\item{fun}{\code{\link[=character]{character(1)}}\cr function used for offsetting; supported
 are all \link[=^]{arithmetic operators}.}
 
-\item{value}{\link[=numeric]{numeric(1)}\cr the value by which to offset all
+\item{value}{\code{\link[=numeric]{numeric(1)}}\cr the value by which to offset all
 values (can also be negative).}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -28,9 +28,13 @@ A mosaik of the same dimension as \code{obj}.
 Apply arithmetic operators to offset all cell values.
 }
 \examples{
-mdf_offset(landscape, fun = "+", value = 10, layer = "intensity")
-mdf_offset(landscape, fun = "*", value = 2, layer = "intensity")
-mdf_offset(landscape, fun = "\%\%", value = 3, layer = "cover")
+# the canopy height plus 5 and times 2, and the land cover modulo 3
+m <- landscape |>
+  mdf_offset(fun = "+", value = 5, layer = "canopy", add = "plus_5") |>
+  mdf_offset(fun = "*", value = 2, layer = "canopy", add = "times_2") |>
+  mdf_offset(fun = "\%\%", value = 3, layer = "cover", add = "modulo_3")
+msk_vis(m, .layer("canopy"), .layer("plus_5"), .layer("times_2"))
+msk_vis(m, .layer("cover"), .layer("modulo_3"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -46,8 +50,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

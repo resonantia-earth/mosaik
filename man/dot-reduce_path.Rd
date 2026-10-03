@@ -7,9 +7,9 @@
 .reduce_path(vals, accumulate)
 }
 \arguments{
-\item{vals}{\link[=numeric]{numeric(.)}\cr the cell values along the path.}
+\item{vals}{\code{\link[=numeric]{numeric(.)}}\cr the cell values along the path.}
 
-\item{accumulate}{\link[=character]{character(1)}\cr the reduction to apply.}
+\item{accumulate}{\code{\link[=character]{character(1)}}\cr the reduction to apply.}
 }
 \value{
 A single numeric value, \code{NA} when nothing remains to reduce.

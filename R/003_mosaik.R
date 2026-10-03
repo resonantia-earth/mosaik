@@ -3,11 +3,11 @@
 #' \code{mosaik} creates a gridded landscape mosaik, either from scratch or by
 #' importing a \code{SpatRaster} (requires the \pkg{terra} package).
 #'
-#' @param extent [numeric(4)][numeric]\cr the extent as \code{c(xmin, xmax,
+#' @param extent [`numeric(4)`][numeric]\cr the extent as \code{c(xmin, xmax,
 #'   ymin, ymax)}. Ignored when \code{rast} is supplied.
-#' @param res [numeric(1) | numeric(2)][numeric]\cr the cell size (resolution).
+#' @param res [`numeric(1) | numeric(2)`][numeric]\cr the cell size (resolution).
 #'   Recycled if length 1. Ignored when \code{rast} is supplied.
-#' @param crs [character(1)][character]\cr coordinate reference system (proj4
+#' @param crs [`character(1)`][character]\cr coordinate reference system (proj4
 #'   string), or \code{NA_character_} for cartesian (the default). Ignored when
 #'   \code{rast} is supplied (CRS is read from the raster).
 #' @param vals a matrix, a named list of matrices or vectors, or \code{NULL}
@@ -15,7 +15,7 @@
 #'   \code{rast} is supplied.
 #' @param rast a \code{SpatRaster} object to import. When supplied,
 #'   \code{extent}, \code{res}, \code{crs}, and \code{vals} are ignored.
-#' @param group [logical(1)][logical]\cr if \code{TRUE} and the raster has no
+#' @param group [`logical(1)`][logical]\cr if \code{TRUE} and the raster has no
 #'   categories, unique values are stored as categories. Only used when
 #'   \code{rast} is supplied.
 #' @return An object of class \code{\link{mosaik-class}}.
@@ -49,10 +49,11 @@
 mosaik <- function(extent = NULL, res = NULL, crs = NA_character_,
                    vals = NULL, rast = NULL, group = FALSE) {
 
+  step <- .step()
   assertLogical(x = group, len = 1)
 
-  # Each input path fills these slots, differently; the object is constructed
-  # once, at the end, so new_mosaik()'s contract is honoured in exactly one place.
+  # Each input path fills these slots, differently; the object is written once,
+  # at the end, through the same writer every other function uses.
   categories <- list()
 
   if (!is.null(rast)) {
@@ -68,13 +69,10 @@ mosaik <- function(extent = NULL, res = NULL, crs = NA_character_,
     if (is.null(crs) || crs == "") crs <- NA_character_
 
     layers <- list()
-    provenance <- list()
     for (i in seq_along(names(rast))) {
       nm <- names(rast)[i]
       rawVal <- terra::values(rast[[i]])[, 1]
       layers[[nm]] <- rawVal
-      provenance <- c(provenance,
-                      list(paste0("layer '", nm, "' imported from SpatRaster.")))
 
       cats <- terra::cats(rast[[i]])
       if (is.data.frame(cats[[1]]) && nrow(cats[[1]]) > 0) {
@@ -113,16 +111,9 @@ mosaik <- function(extent = NULL, res = NULL, crs = NA_character_,
     } else {
       stop("'vals' must be NULL, a matrix, or a named list.")
     }
-
-    provenance <- list("created via mosaik()")
   }
 
-  new_mosaik(
-    extent     = extent,
-    dims       = dims,
-    layers     = layers,
-    categories = categories,
-    crs        = crs,
-    provenance = provenance
-  )
+  base <- methods::new("mosaik", extent = as.numeric(extent),
+                       dims = as.integer(dims), crs = crs)
+  .update_mosaik(base, layers = layers, categories = categories, step = step)
 }

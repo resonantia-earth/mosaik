@@ -14,21 +14,21 @@ msk_struct(
 )
 }
 \arguments{
-\item{type}{\link[=character]{character(1)}\cr the shape, one of 'disc', 'box'
+\item{type}{\code{\link[=character]{character(1)}}\cr the shape, one of 'disc', 'box'
 ('rectangle' and 'square' are accepted as synonyms), 'diamond' or 'cross'.
 Ignored when \code{custom} is given.}
 
-\item{width}{\link[=integer]{integerish(1)}\cr width in number of cells, must be
+\item{width}{\code{\link[=integer]{integerish(1)}}\cr width in number of cells, must be
 odd so that there is a focal cell.}
 
-\item{height}{\link[=integer]{integerish(1)}\cr height in number of cells, must be
+\item{height}{\code{\link[=integer]{integerish(1)}}\cr height in number of cells, must be
 odd so that there is a focal cell.}
 
-\item{rotate}{\link[=logical]{logical(1)}\cr whether to apply all rotations.}
+\item{rotate}{\code{\link[=logical]{logical(1)}}\cr whether to apply all rotations.}
 
-\item{background}{\link[=integer]{integerish(1)}\cr background cell value.}
+\item{background}{\code{\link[=integer]{integerish(1)}}\cr background cell value.}
 
-\item{custom}{\link[=matrix]{matrix(.)}\cr a custom pattern matrix.}
+\item{custom}{\code{\link[=matrix]{matrix(.)}}\cr a custom pattern matrix.}
 }
 \description{
 Make a structuring element

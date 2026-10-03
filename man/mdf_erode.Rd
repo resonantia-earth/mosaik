@@ -7,15 +7,15 @@
 mdf_erode(obj = NULL, struct = NULL, layer = NULL, add = NULL)
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{struct}{\link[=struct]{struct(1)}\cr the structuring element; see
+\item{struct}{\code{\link[=struct]{struct(1)}}\cr the structuring element; see
 \code{\link{msk_struct}} for details.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer in \code{obj} to use.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
-\item{add}{\link[=character]{character(1)}\cr if \code{NULL} (default), overwrite
+\item{add}{\code{\link[=character]{character(1)}}\cr if \code{NULL} (default), overwrite
 \code{layer}; if a string, write to a new layer with that name.}
 }
 \value{
@@ -27,9 +27,13 @@ The morphological operation 'erode' decreases the value of cells that match a
 structuring element.
 }
 \examples{
-forest <- mdf_binarise(landscape, match = 47, layer = "cover")
-mdf_erode(forest)
-mdf_erode(forest, struct = msk_struct("square", width = 3))
+# the forest shrunk by one cell, with the default disc and a 3 x 3 square
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_erode(layer = "forest", add = "eroded") |>
+  mdf_erode(struct = msk_struct("square", width = 3), layer = "forest",
+            add = "eroded_square")
+msk_vis(m, .layer("forest"), .layer("eroded"), .layer("eroded_square"))
 }
 \seealso{
 Other operators to morphologically modify a raster: 

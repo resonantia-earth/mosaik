@@ -14,12 +14,12 @@ mdf_loop(
 )
 }
 \arguments{
-\item{obj}{\link{mosaik}\cr the mosaik to modify.}
+\item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{recipe}{\link{mosaik}\cr a recipe shell holding the steps of one iteration,
+\item{recipe}{\code{\link{mosaik}}\cr a recipe shell holding the steps of one iteration,
 built by calling \code{mdf_*} with \code{obj = NULL}.}
 
-\item{times}{\link[=integer]{integerish(1)}\cr the maximum number of iterations.
+\item{times}{\code{\link[=integer]{integerish(1)}}\cr the maximum number of iterations.
 \code{Inf} (default) runs until a stopping condition is met, and then one
 of \code{until} or \code{stable} is required.}
 
@@ -27,12 +27,12 @@ of \code{until} or \code{stable} is required.}
 iteration stops once it is \code{TRUE}. It must reduce to a single value,
 e.g. \code{sum(corefill) == 0}.}
 
-\item{stable}{\link[=logical]{logical(1)}\cr stop once an iteration no longer
+\item{stable}{\code{\link[=logical]{logical(1)}}\cr stop once an iteration no longer
 changes the layer named by \code{layer} -- a fixpoint. This is the
 condition that cannot be written as an expression over layers, because it
 compares against the previous state.}
 
-\item{layer}{\link[=character]{character(1)}\cr the layer watched by
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer watched by
 \code{stable}. Defaults to the first layer.}
 }
 \value{
@@ -62,18 +62,18 @@ the iterations and guards against a loop that never settles.
 }
 \examples{
 # the forest (class 47), and one of its cells as a seed
-m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
-seed <- as.numeric(seq_len(msk_ncells(m)) ==
-                   which(msk_pull(m, "forest") == 1)[1])
-m <- msk_set(m, "seed", seed, prov = msk_prov("seed", list()))
+m <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  msk_rasterise(geom = data.frame(x = 15, y = 40, id = 1), type = "point",
+                name = "seed") |>
+  mdf_replace(old = NA, new = 0, layer = "seed")
 
 # spread the seed through the forest until it stops growing: what is left is
 # the forest patch the seed sits in
 grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "seed") |>
-  mdf_filter(seed == 1 & forest == 1, value = TRUE, background = 0,
-             add = "seed")
+  mdf_filter(seed == 1 & forest == 1, add = "seed")
 m <- mdf_loop(m, grow, stable = TRUE, layer = "seed")
-sum(msk_pull(m, "seed"))
+msk_vis(m, .layer("forest"), .layer("seed"))
 }
 \seealso{
 Other operators to modify cell values: 
@@ -89,8 +89,8 @@ Other operators to modify cell values:
 \code{\link{mdf_replace}()},
 \code{\link{mdf_rotate}()},
 \code{\link{mdf_scale}()},
+\code{\link{mdf_summarise}()},
 \code{\link{mdf_tesselate}()},
-\code{\link{mdf_transpose}()},
-\code{\link{mdf_zonal}()}
+\code{\link{mdf_transpose}()}
 }
 \concept{operators to modify cell values}

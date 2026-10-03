@@ -3,8 +3,8 @@ test_that("msr_area at landscape scale", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
   a <- msr_area(obj = m, scale = "landscape")
-  expect_true("area" %in% names(a@global))
-  expect_equal(a@global$area, 100)
+  expect_true("area" %in% names(msk_global(a)))
+  expect_equal(msk_global(a)$area, 100)
 })
 
 test_that("msr_area at class scale", {
@@ -20,9 +20,59 @@ test_that("msr_area at patch scale", {
   set.seed(42)
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
+  m <- mdf_componentise(m, add = "patch")
   a <- msr_area(obj = m, scale = "patch")
-  expect_true("area" %in% names(a@patches))
-  expect_equal(sum(a@patches$area), 100)
+  expect_true("area" %in% names(msk_patches(a)))
+  expect_equal(sum(msk_patches(a)$area), 100)
+})
+
+test_that("patch-level measures need patches numbered by mdf_componentise", {
+  m <- mosaik(extent = c(0, 4, 0, 1), res = 1,
+              vals = list(cover = c(1, 0, 1, 1)))
+  expect_error(msr_area(m, scale = "patch"), "mdf_componentise")
+  expect_error(msr_perimeter(m, scale = "patch"), "mdf_componentise")
+  expect_error(msr_number(m, scale = "patch"), "mdf_componentise")
+  expect_error(msr_cost(m, scale = "patch"), "mdf_componentise")
+  expect_error(msr_adjacency(m, scale = "patch"), "mdf_componentise")
+
+  # the record says where the numbers are and how they were found; 0 forms
+  # no patch
+  m <- mdf_componentise(m, connectivity = 8L, add = "patch")
+  rec <- msk_patches(m)
+  expect_equal(rec$ids, "patch")
+  expect_equal(rec$connectivity, 8L)
+  expect_equal(rec$class, c(1, 1))
+  expect_equal(msr_area(m, scale = "patch")@patches$cover$area, c(1, 2))
+})
+
+test_that("mdf_componentise numbers the patches of every class", {
+  v <- c(1, 1, 2,
+         3, 1, 2,
+         3, 3, 0)
+  m <- mosaik(extent = c(0, 3, 0, 3), res = 1, vals = list(cover = v))
+  m <- mdf_componentise(m, add = "patch")
+  expect_equal(msk_patches(m)$class, c(1, 2, 3))
+  expect_true(is.na(msk_pull(m, "patch")[9]))
+  n <- msr_number(m, scale = "patch")
+  expect_equal(msk_categories(n)$number, c(0L, 1L, 1L, 1L))
+})
+
+test_that("the patch record goes when its layers are rewritten", {
+  m <- mosaik(extent = c(0, 4, 0, 1), res = 1,
+              vals = list(cover = c(1, 0, 1, 1)))
+  m <- mdf_componentise(m, add = "patch")
+  # rewriting the source layer drops the record
+  expect_null(msk_patches(mdf_replace(m, old = 0, new = 2), layer = "cover"))
+  # rewriting the layer that holds the numbers drops it too
+  expect_null(msk_patches(mdf_replace(m, old = 1, new = 5, layer = "patch"),
+                          layer = "cover"))
+  # overwriting the source layer with the numbers records them on it
+  o <- mdf_componentise(m)
+  expect_equal(msk_patches(o)$ids, "cover")
+  # removing the number layer keeps the values but not the link
+  r <- msk_remove(msr_area(m, scale = "patch"), patch)
+  expect_equal(msk_patches(r)$area, c(1, 2))
+  expect_error(msr_perimeter(r, scale = "patch"), "mdf_componentise")
 })
 
 test_that("msr_number at class scale counts classes", {
@@ -30,14 +80,15 @@ test_that("msr_number at class scale counts classes", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:3, 100, replace = TRUE)))
   n <- msr_number(obj = m, scale = "class")
-  expect_true("number" %in% names(n@global))
-  expect_equal(n@global$number, 3L)
+  expect_true("number" %in% names(msk_global(n)))
+  expect_equal(msk_global(n)$number, 3L)
 })
 
 test_that("msr_number at patch scale counts patches per class", {
   set.seed(42)
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:3, 100, replace = TRUE)))
+  m <- mdf_componentise(m, add = "patch")
   n <- msr_number(obj = m, scale = "patch")
   expect_true("number" %in% names(n@categories$cover))
   expect_equal(length(n@categories$cover$number), 3L)
@@ -69,11 +120,12 @@ test_that("msr_adjacency at patch scale returns adjacency and region matrices", 
          1, 1, 2, 2,
          3, 3, 2, 2)
   m <- mosaik(extent = c(0, 4, 0, 3), res = 1, vals = list(cover = v))
+  m <- mdf_componentise(m, add = "patch")
   m <- msr_adjacency(m, scale = "patch", connect = 4)
 
-  expect_true(all(c("adjacency", "regions") %in% names(m@patches)))
-  adj <- m@patches$adjacency
-  reg <- m@patches$regions
+  expect_true(all(c("adjacency", "regions") %in% names(msk_patches(m))))
+  adj <- msk_patches(m)$adjacency
+  reg <- msk_patches(m)$regions
 
   # one patch per class -> 3 x 3
   expect_equal(dim(adj), c(3, 3))
@@ -104,9 +156,10 @@ test_that("msr_adjacency at patch scale detects a loop via the region count", {
          2, NA, NA, 2,
          2, 2, 2, 2)
   m <- mosaik(extent = c(0, 4, 0, 4), res = 1, vals = list(cover = v))
+  m <- mdf_componentise(m, connectivity = 8L, add = "patch")
   m <- msr_adjacency(m, scale = "patch", connect = 8)
 
-  reg <- m@patches$regions
+  reg <- msk_patches(m)$regions
   # read fragment -> core: two distinct contact places = loop signature
   expect_equal(reg["2", "1"], 2)
 })
@@ -125,10 +178,10 @@ test_that("msr_adjacency is correct on a non-square grid", {
   # double-counted rook adjacencies:
   #   1-1: 4 undirected pairs -> 8;  2-2: 8 by symmetry
   #   1|2 seam: 2 undirected pairs -> 2 in each off-diagonal cell
-  expect_equal(unname(adj@global$adjacency["1", "1"]), 8)
-  expect_equal(unname(adj@global$adjacency["2", "2"]), 8)
-  expect_equal(unname(adj@global$adjacency["1", "2"]), 2)
-  expect_equal(unname(adj@global$adjacency["2", "1"]), 2)
+  expect_equal(unname(msk_global(adj)$adjacency["1", "1"]), 8)
+  expect_equal(unname(msk_global(adj)$adjacency["2", "2"]), 8)
+  expect_equal(unname(msk_global(adj)$adjacency["1", "2"]), 2)
+  expect_equal(unname(msk_global(adj)$adjacency["2", "1"]), 2)
 })
 
 test_that("msr_cost computes pairwise patch distance matrices", {
@@ -139,13 +192,14 @@ test_that("msr_cost computes pairwise patch distance matrices", {
             2, 2, 2, 2, 2,
             1, 2, 2, 2, 1)
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = vals))
+  m <- mdf_componentise(m, add = "patch")
   m <- msr_cost(m, routing = "straight")
 
-  expect_true("distance" %in% names(m@patches))
-  expect_true("1" %in% names(m@patches$distance))
+  expect_true("distance" %in% names(msk_patches(m)))
+  expect_true("1" %in% names(msk_patches(m)$distance))
 
   # class 1 has 4 patches (4 corners), so 4x4 matrix
-  dmat <- m@patches$distance[["1"]]
+  dmat <- msk_patches(m)$distance[["1"]]
   expect_equal(nrow(dmat), 4)
   expect_equal(ncol(dmat), 4)
 
@@ -168,10 +222,11 @@ test_that("msr_cost handles single-patch class", {
             1, 2, 2, 2, 2,
             2, 2, 2, 2, 2)
   m <- mosaik(extent = c(0, 5, 0, 4), res = 1, vals = list(cover = vals))
+  m <- mdf_componentise(m, add = "patch")
   m <- msr_cost(m, routing = "straight")
 
   # class 3 has 1 patch: 1x1 matrix with Inf
-  dmat <- m@patches$distance[["3"]]
+  dmat <- msk_patches(m)$distance[["3"]]
   expect_equal(nrow(dmat), 1)
   expect_equal(dmat[1, 1], Inf)
 })
@@ -181,8 +236,8 @@ test_that("msr_cost scale = 'cell' registers an edge-distance surface", {
   vals[c(34, 35, 36, 44, 45, 46, 54, 55, 56)] <- 1L
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
   m <- msr_cost(m, scale = "cell")
-  expect_true("_distance" %in% names(m@layers))
-  dv <- msk_pull(m, "_distance")
+  expect_true("_distance_cover" %in% names(m@layers))
+  dv <- msk_pull(m, "_distance_cover")
   # centre of the foreground block should have largest edge distance
   expect_true(dv[45] > dv[34])
 })
@@ -196,24 +251,26 @@ test_that("msr_cost with a cost surface accumulates sum and max", {
             1,1,3,2,2)
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = vals))
   m <- mdf_replace(m, old = c(1, 2, 3, 9), new = c(1, 1, 1, 10), add = "fric")
+  m <- mdf_componentise(m, layer = "cover", add = "patch")
 
   # sum: the cheapest route crosses one cost-10 barrier cell plus cheap cells
   rs <- msr_cost(m, cost = "fric", routing = "cheapest", accumulate = "sum",
                  layer = "cover")
-  expect_equal(rs@patches$fric[["1"]][1, 2], 11)
+  expect_equal(msk_patches(rs)$fric[["1"]][1, 2], 11)
 
   # max: the worst cell on that same path is the barrier itself
   rm <- msr_cost(m, cost = "fric", routing = "cheapest", accumulate = "max",
                  layer = "cover")
-  expect_equal(rm@patches$fric[["1"]][1, 2], 10)
+  expect_equal(msk_patches(rm)$fric[["1"]][1, 2], 10)
 
   # the surface is named after what it measures, not the function
-  expect_true("fric" %in% names(rs@patches))
-  expect_false("distance" %in% names(rs@patches))
+  expect_true("fric" %in% names(msk_patches(rs)))
+  expect_false("distance" %in% names(msk_patches(rs)))
 
-  # patch IDs are global: class 1 and the other classes share one ID space
-  ids1 <- rownames(rs@patches$fric[["1"]])
-  ids3 <- rownames(rs@patches$fric[["3"]])
+  # patch numbers are unique across classes: class 1 and the other classes
+  # share one numbering
+  ids1 <- rownames(msk_patches(rs)$fric[["1"]])
+  ids3 <- rownames(msk_patches(rs)$fric[["3"]])
   expect_length(intersect(ids1, ids3), 0)
 })
 
@@ -226,10 +283,11 @@ test_that("msr_cost returns NA across an impassable barrier", {
             1,1,1,1,1)
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = vals))
   m <- mdf_replace(m, old = c(1, 9), new = c(1, NA), add = "fric")
+  m <- mdf_componentise(m, layer = "cover", add = "patch")
 
   r <- msr_cost(m, cost = "fric", routing = "cheapest", accumulate = "sum",
                 layer = "cover")
-  mat <- r@patches$fric[["1"]]
+  mat <- msk_patches(r)$fric[["1"]]
   expect_true(is.na(mat[1, 2]))          # unreachable, distinct from a cost of 0
   expect_true(all(is.infinite(diag(mat))))  # self stays Inf
 })
@@ -242,10 +300,10 @@ test_that("msr_cost scale = 'cell' with a cost surface names the layer after it"
   m <- msr_cost(m, scale = "cell", cost = "friction", layer = "cover")
 
   # the surface is named after what it measures, not after the function
-  expect_true("_friction" %in% names(m@layers))
-  expect_false("_distance" %in% names(m@layers))
+  expect_true("_friction_cover" %in% names(m@layers))
+  expect_false("_distance_cover" %in% names(m@layers))
 
-  fv <- msk_pull(m, "_friction")
+  fv <- msk_pull(m, "_friction_cover")
   # the source cells themselves cost nothing to reach
   expect_equal(fv[45], 0)
   # and cost accumulates away from them
@@ -278,20 +336,20 @@ test_that("derive with distance.patch produces per-patch ENN", {
             2, 2, 2, 2, 2,
             1, 2, 2, 2, 1)
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = vals))
-  m <- msr_area(m, scale = "patch")
+  m <- mdf_componentise(m, add = "patch")
   m <- msr_cost(m, routing = "straight")
   m <- suppressWarnings(msr(m, equation = "min(distance.patch)", label = "enn"))
 
   # one ENN value per patch
-  expect_equal(length(m@patches$enn), length(m@patches$patch))
+  expect_equal(length(msk_patches(m)$enn), length(msk_patches(m)$patch))
 
   # class 1 has 4 corner patches, each nearest neighbour is 4 cells away
-  cls1_idx <- which(m@patches$class == 1)
-  expect_equal(m@patches$enn[cls1_idx], rep(4, 4))
+  cls1_idx <- which(msk_patches(m)$class == 1)
+  expect_equal(msk_patches(m)$enn[cls1_idx], rep(4, 4))
 
   # class 2 has 1 patch, no neighbours → Inf
-  cls2_idx <- which(m@patches$class == 2)
-  expect_equal(m@patches$enn[cls2_idx], Inf)
+  cls2_idx <- which(msk_patches(m)$class == 2)
+  expect_equal(msk_patches(m)$enn[cls2_idx], Inf)
 })
 
 test_that("msr_dissimilarity at landscape scale", {
@@ -307,6 +365,98 @@ test_that("msr_dissimilarity at landscape scale", {
                  dimnames = list(c("1", "2", "3"), c("1", "2", "3")))
 
   m <- msr_dissimilarity(m, contrast = cmat, scale = "landscape")
-  expect_true("dissimilarity" %in% names(m@global))
-  expect_true(m@global$dissimilarity > 0)
+  expect_true("dissimilarity" %in% names(msk_global(m)))
+  expect_true(msk_global(m)$dissimilarity > 0)
+})
+
+test_that("msr builds a metric from an earlier metric", {
+  m <- landscape |>
+    msr_area(scale = "class", layer = "cover") |>
+    msr_area(scale = "landscape", layer = "cover") |>
+    msr(equation = "area.class / area.landscape * 100", label = "pland",
+        layer = "cover") |>
+    msr(equation = "-sum(pland.class / 100 * log(pland.class / 100))",
+        label = "shannon", layer = "cover")
+  p <- m@categories$cover$area / msk_global(m)$area
+  expect_equal(msk_global(m)$shannon, -sum(p * log(p)))
+})
+
+test_that("msr refuses a label that already exists at its level", {
+  m <- landscape |>
+    msr_area(scale = "class", layer = "cover") |>
+    msr_area(scale = "landscape", layer = "cover")
+  expect_error(msr(m, equation = "area.class * 2", label = "area",
+                   layer = "cover"), "already exists at class level")
+  expect_error(msr(m, equation = "area.class * 2", label = "gid",
+                   layer = "cover"), "already exists at class level")
+  expect_error(msr(m, equation = "area.landscape * 2", label = "area",
+                   layer = "cover"), "already exists at landscape level")
+})
+
+test_that("results are stored per layer and do not overwrite each other", {
+  m <- landscape |>
+    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    msr_perimeter(scale = "landscape", layer = "cover") |>
+    msr_perimeter(scale = "landscape", layer = "forest") |>
+    mdf_componentise(layer = "cover", add = "cover_patch") |>
+    mdf_componentise(layer = "forest", add = "forest_patch") |>
+    msr_area(scale = "patch", layer = "cover") |>
+    msr_area(scale = "patch", layer = "forest")
+  expect_false(msk_global(m, "cover")$perimeter == msk_global(m, "forest")$perimeter)
+  expect_equal(sum(msk_patches(m, "cover")$area), 3360)
+  # only the forest (1) forms patches in a binary layer
+  expect_equal(sum(msk_patches(m, "forest")$area),
+               sum(msk_pull(m, "forest") == 1))
+  expect_equal(unique(msk_patches(m, "forest")$class), 1)
+})
+
+test_that("rewriting a layer drops what was measured on it", {
+  m <- landscape |>
+    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_componentise(layer = "forest", add = "patch") |>
+    msr_area(scale = "patch", layer = "forest") |>
+    msr_area(scale = "landscape", layer = "forest") |>
+    mdf_erode(layer = "forest")
+  expect_null(msk_patches(m, "forest"))
+  expect_null(msk_global(m, "forest"))
+})
+
+test_that("msr combines class values of two layers with the same classes", {
+  m <- landscape |>
+    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_erode(layer = "forest", add = "core") |>
+    msr_area(scale = "class", layer = "forest") |>
+    msr_area(scale = "class", layer = "core") |>
+    msr(equation = "area.class_core / area.class_forest", label = "share",
+        layer = "core")
+  cats <- msk_categories(m, "core")
+  expect_equal(cats$share,
+               cats$area / msk_categories(m, "forest")$area)
+})
+
+test_that("msr refuses class or patch values of layers that do not correspond", {
+  m <- landscape |>
+    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_erode(layer = "forest", add = "core") |>
+    msr_area(scale = "class", layer = "cover") |>
+    msr_area(scale = "class", layer = "forest") |>
+    mdf_componentise(layer = "forest", add = "forest_patch") |>
+    mdf_componentise(layer = "core", add = "core_patch") |>
+    msr_area(scale = "patch", layer = "forest") |>
+    msr_area(scale = "patch", layer = "core")
+  expect_error(msr(m, equation = "area.class_cover / area.class", label = "x",
+                   layer = "forest"), "classes .* differ")
+  expect_error(msr(m, equation = "area.patch_core / area.patch", label = "x",
+                   layer = "forest"), "patches differ")
+  expect_error(msr(m, equation = "area.class_nothere", label = "x",
+                   layer = "forest"), "not in 'obj'")
+})
+
+test_that("a layer name with underscores is read whole", {
+  m <- landscape |>
+    mdf_binarise(match = 47, layer = "cover", add = "forest_2020") |>
+    msr_area(scale = "landscape", layer = "forest_2020") |>
+    msr(equation = "area.landscape_forest_2020 * 2", label = "double",
+        layer = "cover")
+  expect_equal(msk_global(m, "cover")$double, 6720)
 })
