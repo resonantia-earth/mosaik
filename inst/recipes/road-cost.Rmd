@@ -12,7 +12,7 @@ result:
 
 Many forest species need core habitat: forest far enough from any edge to be
 free of the light, wind, noise and predators that come in from outside. Here
-that is forest more than two cells from an edge. A road through a forest
+that is forest two or more cells from an edge. A road through a forest
 takes far more core habitat than its own surface, because it makes a new
 edge on both sides: along the road, a band two cells deep on either side
 stops being core. A road one or two cells wide therefore destroys core in a

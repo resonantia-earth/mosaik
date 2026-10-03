@@ -9,8 +9,8 @@ mdf_binarise(obj = NULL, thresh = NULL, match = NULL, layer = NULL, add = NULL)
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
-\item{thresh}{\code{\link[=numeric]{numeric(1)}}\cr value above which the cell will be
-set to 1, below which it will be set to 0.}
+\item{thresh}{\code{\link[=numeric]{numeric(1)}}\cr value at or above which the cell will
+be set to 1, below which it will be set to 0.}
 
 \item{match}{\code{\link[=numeric]{numeric(.)}}\cr one or more values which will be set
 to 1, while the remaining values will be set to 0.}

@@ -2,8 +2,8 @@
 #'
 #' Transform a mosaik so that it has the values 0 and 1.
 #' @param obj [`mosaik`]\cr the mosaik to modify.
-#' @param thresh [`numeric(1)`][numeric]\cr value above which the cell will be
-#'   set to 1, below which it will be set to 0.
+#' @param thresh [`numeric(1)`][numeric]\cr value at or above which the cell will
+#'   be set to 1, below which it will be set to 0.
 #' @param match [`numeric(.)`][numeric]\cr one or more values which will be set
 #'   to 1, while the remaining values will be set to 0.
 #' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.

@@ -26,7 +26,7 @@ core <- landscape |>
 ```
 
 The distance is 1 in the outermost row of forest cells and grows towards the
-inside of each patch; cells more than two cells from the edge are core:
+inside of each patch; cells two or more cells from the edge are core:
 
 ```{r, fig.width = 9, fig.alt = "The forest, the distance of each forest cell to the edge, and the core"}
 msk_vis(core, .layer("forest"),

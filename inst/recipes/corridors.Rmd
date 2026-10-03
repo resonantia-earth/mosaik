@@ -17,7 +17,7 @@ different cores is a corridor, a piece that touches one is a dead end: a
 branch, a loop that returns to its core, or a corridor that has been
 interrupted.
 
-The cores are the forest more than two cells from its edge:
+The cores are the forest two or more cells from its edge:
 
 ```{r}
 library(mosaik)

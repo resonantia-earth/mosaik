@@ -1,0 +1,51 @@
+---
+title: "Islets"
+summary: "Patches of forest too small or too narrow to hold any core."
+question: arrangement
+about: forest
+scale: patch
+declares: ["the edge width (cells)"]
+uses: [patches, core]
+result:
+  - {object: islets, layer: islet, text: "on an islet: a patch too small or too narrow to hold any core"}
+---
+
+A patch without any core is edge throughout: whatever lies outside reaches
+every part of it. Such patches can still carry species that move through the
+land, as stepping stones, but they hold no interior habitat of their own. The
+recipe asks of every patch whether any of its cells is core, with the core
+two or more cells from the edge:
+
+```{r}
+library(mosaik)
+islets <- landscape |>
+  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  mdf_distance(source = "background", layer = "forest", add = "depth") |>
+  mdf_binarise(thresh = 2, layer = "depth", add = "core") |>
+  mdf_summarise(by = "patch", fun = "any", layer = "core", add = "has_core") |>
+  mdf_filter(forest == 1 & has_core == 0, add = "islet") |>
+  mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")
+```
+
+```{r, fig.alt = "The forest, its core, and the patches without core"}
+msk_vis(islets, .layer("forest"), .layer("core"), .layer("islet"))
+```
+
+**Check.** Being an islet is a matter of shape as much as of size. The
+smallest patches are islets, and so is the strip in the south, 30 cells long
+but too narrow for any core. The patch at the south-eastern corner is smaller,
+26 cells, but compact, and holds core:
+
+```{r}
+p <- msk_pull(islets, "patch")
+patches <- data.frame(size = tapply(msk_pull(islets, "size"), p, unique),
+                      islet = tapply(msk_pull(islets, "islet"), p, max))
+patches[order(patches$size, decreasing = TRUE), ][1:6, ]
+```
+
+```{r, include = FALSE}
+stopifnot(all(patches$islet[patches$size < 12] == 1),
+          patches["15", "islet"] == 1, patches["17", "islet"] == 0,
+          sum(patches$islet) == 13)
+```

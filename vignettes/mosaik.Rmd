@@ -50,8 +50,8 @@ map (`cover`) and the height of the vegetation on each cell (`canopy`, in metres
 landscape
 ```
 
-```{r, fig.alt = "The cover layer of the example data, ten land-cover classes"}
-msk_vis(landscape, .layer("cover"))
+```{r, fig.width = 9, fig.alt = "The two layers of the example data: ten land-cover classes, and the canopy height in metres"}
+msk_vis(landscape, .layer("cover"), .layer("canopy"))
 ```
 
 The cell values of `cover` are the class identifiers themselves: 1, 11, 21 and

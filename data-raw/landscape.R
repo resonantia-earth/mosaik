@@ -107,7 +107,7 @@ cover[glade] <- 27L                                  # fallow and shrub
 # B: patch in the north-east with an old square glade, a dead-end branch to
 # the south and an irregular loop to the east
 cover <- blob(cover, 47, 42, 7, 7, 47L)
-cover <- paint(cover, 49:50, 44:45, 24L)
+cover <- paint(cover, 48:49, 43:44, 24L)
 cover <- path(cover, 46, 36, 46, 26, 47L, bend = 1)  # branch
 cover <- path(cover, 52, 47, 57, 47, 47L, width = 1, bend = 0.7)   # loop
 cover <- path(cover, 57, 47, 57, 37, 47L, width = 1, bend = 1)

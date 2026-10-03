@@ -26,8 +26,9 @@ components, a zonal summary, a thinning) which mosaik already provides. What
 follows composes the full classification from those parts and reproduces the
 published result cell for cell.
 
-If you want the classification and not the explanation, skip to the last
-section and take the code.
+If you want the classification and not the explanation, skip to the section
+with the whole classification in one function and take the code. The section
+after it runs the method on an ordinary map and looks at what it makes of it.
 
 ## The seven classes
 
@@ -405,6 +406,142 @@ The seven do not quite fall out as a partition on their own. Eighteen cells of
 this pattern satisfy two definitions at once, eleven of them both edge and
 bridge, seven both perforation and loop, which is why the assembling step needs
 an order at all. The panels above apply that order, so each cell appears once.
+
+## The whole classification in one function
+
+The steps above, collected into one function that takes a mosaik with a
+binary layer `pattern` and returns the class codes of its cells. The edge
+width is fixed at `size = 1` and written out as `sqrt(2)`: the two recipes
+`peel` and `grow` are replayed by `mdf_loop()`, and a recipe takes its values
+with it rather than reading variables around it.
+
+```{r classify}
+mspa_classify <- function(m) {
+  m <- mdf_distance(m, source = "background", layer = "pattern", add = "edt") |>
+    mdf_filter(edt > sqrt(2), add = "core") |>
+    mdf_componentise(connectivity = 8L, layer = "pattern", add = "cc")
+  m <- mdf_filter(m, pattern != 0, value = TRUE, layer = "cc") |>
+    mdf_replace(old = NA, new = 0, layer = "cc") |>
+    mdf_summarise(by = "cc", fun = "any", layer = "core", background = 0,
+                  add = "hasCore") |>
+    mdf_filter(pattern == 1 & hasCore == 0, add = "patch") |>
+    mdf_distance(source = "foreground", layer = "core", add = "dcore") |>
+    mdf_filter(core == 1 | (dcore > 0 & dcore <= sqrt(2)), add = "opening") |>
+    mdf_offset(value = 0, layer = "core", add = "work") |>
+    mdf_fill(connectivity = 4L, layer = "work", add = "corefill") |>
+    mdf_filter(corefill == 1 & work == 0, add = "holes") |>
+    mdf_filter(pattern < 0, add = "edges")
+  peel <- mdf_distance(source = "foreground", layer = "corefill", add = "dfill") |>
+    mdf_filter(edges == 1 | (corefill == 0 & dfill > 0 & dfill <= sqrt(2)),
+               add = "edges") |>
+    mdf_fill(connectivity = 8L, layer = "holes", add = "i0") |>
+    mdf_filter(corefill == 1 & i0 == 0, add = "corefill") |>
+    mdf_filter(work == 1 & corefill == 0, add = "work") |>
+    mdf_fill(connectivity = 4L, layer = "work", add = "corefill") |>
+    mdf_filter(corefill == 1 & work == 0, add = "holes")
+  if (sum(msk_pull(m, "corefill")) > 0) {
+    m <- mdf_loop(m, peel, until = sum(corefill, na.rm = TRUE) == 0)
+  }
+  m <- mdf_filter(m, edges == 1 & core == 0, add = "edges") |>
+    mdf_filter(core == 0 & dcore > 0 & dcore <= sqrt(2) & edges == 0,
+               add = "perf") |>
+    mdf_filter(pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0,
+               add = "residues") |>
+    mdf_filter(opening == 1 | residues == 1, add = "skin") |>
+    mdf_skeletonise(anchor = "core", background = 0, layer = "skin",
+                    add = "sk", method = "homotopic") |>
+    mdf_filter(sk == 1 & core == 0, add = "sk") |>
+    mdf_filter((opening == 1 & core == 0) | residues == 1, add = "i0") |>
+    mdf_offset(value = 0, layer = "sk", add = "rec")
+  grow <- mdf_dilate(struct = msk_struct("square", width = 3), layer = "rec") |>
+    mdf_filter(rec == 1 & i0 == 1, add = "rec")
+  m <- mdf_loop(m, grow, stable = TRUE, layer = "rec") |>
+    mdf_filter(sk == 1 & i0 == 1 & rec == 1, add = "connector") |>
+    mdf_componentise(connectivity = 8L, layer = "connector", add = "strand")
+  m <- mdf_filter(m, connector != 0, value = TRUE, layer = "strand") |>
+    mdf_replace(old = NA, new = 0, layer = "strand") |>
+    mdf_componentise(connectivity = 8L, layer = "core", add = "coreID")
+  m <- mdf_filter(m, core != 0, value = TRUE, layer = "coreID") |>
+    mdf_replace(old = NA, new = 0, layer = "coreID") |>
+    mdf_summarise(by = "strand", fun = "n_distinct", neighbours = TRUE,
+                  connectivity = 8L, layer = "coreID", background = 0,
+                  add = "nCores") |>
+    mdf_summarise(by = "strand", fun = "n", layer = "strand", background = 0,
+                  add = "strandSize") |>
+    mdf_filter(connector == 1 & nCores >= 2 & strandSize >= 2, add = "bridge") |>
+    mdf_filter(connector == 1 & bridge == 0, add = "loop") |>
+    mdf_filter(pattern == 1 & core == 0 & patch == 0 & perf == 0 &
+                 edges == 0 & bridge == 0 & loop == 0, add = "branch")
+  cls <- rep(0L, prod(msk_dims(m)))
+  for (nm in names(classes)) cls[msk_pull(m, nm) == 1] <- as.integer(classes[[nm]])
+  cls[msk_pull(m, "pattern") != 1] <- 0L
+  cls
+}
+```
+
+It gives the published classification again:
+
+```{r classify-check}
+sum(mspa_classify(mspa) == cls)
+```
+
+## On an ordinary map
+
+The pattern of the paper was drawn to show the method: each class appears,
+cleanly, where one would expect it. The forest of `landscape` is an ordinary
+map by comparison, with irregular outlines, a road through a patch, a glade
+and a windthrow, hedgerows and a corridor cut by a river. It is not coarser
+than the pattern of the paper: both are read at `size = 1`, and the patches
+of `landscape` are, if anything, larger.
+
+```{r landscape}
+forest <- mdf_binarise(landscape, match = 47, layer = "cover", add = "pattern")
+lcls <- mspa_classify(forest)
+table(factor(lcls, c(1, 6, 3, 4, 5, 2, 7),
+             c("core", "edge", "perforation", "islet", "bridge", "loop",
+               "branch")))
+```
+
+```{r landscape-fig, echo = FALSE, fig.width = 7, fig.height = 6.5}
+lmap <- msk_add(landscape, mspa = as.numeric(lcls))
+msk_vis(lmap, .layer("mspa", colours = mspaCols[sort(unique(lcls)) + 1L]))
+```
+
+Much of this reads well. The core is the interior of the large patches, and
+the hedgerows and small patches are islets. The one bridge is the corridor
+that joins the forest in the south-west to the rest, and the corridor between
+the two large northern patches, cut by the river, falls apart into two
+branches, as it should.
+
+Three things read less well, and they follow from the definitions, not from
+this map.
+
+- **Corners become branches.** Of the 84 branch cells, 61 are the dead ends
+  one would name so: the two halves of the cut corridor, and the strip that
+  leaves the north-eastern patch to the south. The other 23, in ten pieces of
+  one to nine cells, are corners and prongs of large patches. Anything that
+  lies more than `sqrt(2)` cells from the core and connects no two cores is
+  branch, whether it leads anywhere or is a slightly irregular outline.
+- **Edge exists only next to core.** Of the outermost forest cells of the
+  patches that hold core, 216 of 357 are edge. The rest are branch, loop,
+  bridge or perforation, so the edge of MSPA is not the boundary of the forest
+  but the boundary of its core.
+- **A perforation needs a hole that core encloses on every side.** The glade
+  in the north-eastern patch lies deep enough and is ringed by 12 cells of
+  perforation. The windthrow in the north-western patch lies just as much
+  inside the forest, but so close to its outline that no closed ring of core
+  forms around it, and its boundary is edge.
+
+None of this is an error of the implementation: the classification above
+reproduces the published one cell for cell, and the reference implementation
+of MSPA (`mspa_win64.exe`, as shipped with GuidosToolbox, run at `size = 1`
+with 8-connected habitat) gives the same classes on this map for 3359 of its
+3360 cells, the corners and prongs included. The one cell that differs is the
+corner of the map at the bottom right, where the two treat the edge of the map
+differently. It is what seven geometric
+definitions do on an outline that was not drawn for them. A larger `size`
+moves the threshold but not the logic: whatever lies more than `size` times
+`sqrt(2)` cells beyond the core is still branch, loop or bridge.
 
 ## What to take from this
 

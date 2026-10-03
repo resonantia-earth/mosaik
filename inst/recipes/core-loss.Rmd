@@ -13,7 +13,7 @@ result:
 Clearing forest removes the cleared cells, but it also turns forest next to
 them into edge. What a clearing costs the forest interior is therefore more
 than its own area. The recipe compares the forest of an earlier date with the
-forest of today, twice: as area, and as core more than two cells from any
+forest of today, twice: as area, and as core two or more cells from any
 edge.
 
 `landscape` holds only today's map, so the forest of the earlier date is

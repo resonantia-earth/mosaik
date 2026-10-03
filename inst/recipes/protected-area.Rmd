@@ -14,7 +14,7 @@ result:
 A protected area is usually given as a polygon. `msk_rasterise()` writes it
 onto the grid of the map, and from there its structure is measured like
 anything else: how much of it is forest, how much of that forest is core,
-more than two cells from any edge, and into how many patches the forest falls.
+two or more cells from any edge, and into how many patches the forest falls.
 
 ```{r}
 library(mosaik)
