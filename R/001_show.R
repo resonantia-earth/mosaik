@@ -46,7 +46,7 @@ setMethod(f = "show",
                 fields <- names(entry)
                 what <- nm
                 if (s == "patches") {
-                  fields <- setdiff(fields, c("class", "patch", "ids", "connectivity"))
+                  fields <- setdiff(fields, c("class", "patch", "ids"))
                   # how many patches, and where they are numbered
                   what <- paste0(nm, ", ", length(entry$patch), " patches",
                                  if (!is.null(entry$ids)) paste0(" in '", entry$ids, "'"))

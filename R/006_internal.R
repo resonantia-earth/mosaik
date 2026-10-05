@@ -127,15 +127,15 @@
 #'
 #' Patches are never found by a measure: \code{\link{mdf_componentise}} numbers
 #' them, with a connectivity the user states, and records under
-#' \code{@patches[[layer]]} the layer holding the numbers (\code{ids}), the
-#' connectivity, and the class and number of each patch. The patch-level
+#' \code{@patches[[layer]]} the layer holding the numbers (\code{ids}) and the
+#' class and number of each patch. The patch-level
 #' measures read that record here, and stop with a pointer to
 #' \code{mdf_componentise} if there is none.
 #'
 #' @param obj a mosaik
 #' @param layer character(1) the layer whose patches are measured
 #' @return list: \code{ids} (patch number per cell), \code{class} and
-#'   \code{patch} (one entry per patch, in record order), \code{connectivity}.
+#'   \code{patch} (one entry per patch, in record order).
 #' @noRd
 
 .patches_of <- function(obj, layer) {
@@ -153,8 +153,14 @@
       "longer in 'obj'. Number them again with mdf_componentise()."),
       layer, rec$ids), call. = FALSE)
   }
-  list(ids = msk_pull(obj, rec$ids), class = rec$class, patch = rec$patch,
-       connectivity = rec$connectivity)
+  ids <- msk_pull(obj, rec$ids)
+
+  # patches the map border cuts: their full extent is unknown
+  grid <- matrix(ids, nrow = obj@dims[2], ncol = obj@dims[1], byrow = TRUE)
+  border <- c(grid[1, ], grid[nrow(grid), ], grid[, 1], grid[, ncol(grid)])
+
+  list(ids = ids, class = rec$class, patch = rec$patch,
+       clipped = rec$patch %in% border)
 }
 
 

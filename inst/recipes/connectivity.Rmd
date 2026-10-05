@@ -32,8 +32,8 @@ connectivity <- landscape |>
               add = "friction") |>
   msr_cost(scale = "patch", layer = "forest") |>
   msr_cost(scale = "patch", cost = "friction", layer = "forest") |>
-  msr(equation = "min(distance.patch)", label = "straight", layer = "forest") |>
-  msr(equation = "min(friction.patch)", label = "through", layer = "forest")
+  msr(equation = "min(distance.patch)", label = "straight.patch", layer = "forest") |>
+  msr(equation = "min(friction.patch)", label = "through.patch", layer = "forest")
 p <- msk_patches(connectivity, layer = "forest")
 ```
 
@@ -60,12 +60,12 @@ should differ, although their straight distances are the same:
 ```{r}
 ratio <- data.frame(patch = p$patch, straight = round(p$straight, 1),
                     through = round(p$through, 1))
-print(ratio[ratio$straight == 2, ], row.names = FALSE)
+print(ratio[which(ratio$straight == 2), ], row.names = FALSE)
 ```
 
 ```{r, include = FALSE}
-stopifnot(all(p$through >= p$straight),
-          length(unique(ratio$through[ratio$straight == 2])) > 2)
+stopifnot(all(p$through >= p$straight, na.rm = TRUE),
+          length(unique(ratio$through[which(ratio$straight == 2)])) > 2)
 ```
 
 The recipe on isolation measures the straight distance only. Two patches

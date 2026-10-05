@@ -16,7 +16,7 @@
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik in which each cell carries the number of its patch.
 #' @details The patches are also recorded with \code{layer}: which layer holds
-#'   their numbers, the connectivity, and the class of each patch (see
+#'   their numbers and the class of each patch (see
 #'   \code{\link{msk_patches}}). The patch-level measures
 #'   (\code{msr_*(scale = "patch")}) measure these patches, so how cells connect
 #'   into patches is always set here and never decided by a measure.
@@ -75,10 +75,9 @@ mdf_componentise <- function(obj = NULL,
                         connectivity = connectivity)
   ids <- sort(unique(temp[!is.na(temp)]))
 
-  # the record the patch-level measures read: where the numbers are, how they
-  # were found, and the class of each patch
-  record <- list(ids = step$to, connectivity = as.integer(connectivity),
-                 class = vals[match(ids, temp)], patch = ids)
+  # the record the patch-level measures read: where the numbers are and the
+  # class of each patch; the connectivity is in the provenance
+  record <- list(ids = step$to, class = vals[match(ids, temp)], patch = ids)
   temp[is.na(temp)] <- background
 
   # results measured on the old patches of 'layer', or on the layer that is

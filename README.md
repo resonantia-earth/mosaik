@@ -40,7 +40,7 @@ writes one.
 | `mdf_*` | modify layers with generic operators | `mdf_binarise()`, `mdf_dilate()`, `mdf_filter()` |
 | `mdf()` | replay a recorded sequence of `mdf_*` steps on new data | `mdf(obj, recipe)` |
 | `msr_*` | measure a primitive | `msr_area()`, `msr_perimeter()`, `msr_adjacency()` |
-| `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.class / area.class", "edge_density")` |
+| `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.class / area.class", "edge_density.class")` |
 | `msk_*` | accessors and utilities | `msk_vis()`, `msk_categories()`, `msk_terra()` |
 
 The primitives are area, number, perimeter, adjacency, dissimilarity and cost
@@ -69,9 +69,9 @@ m <- landscape |>
   msr_area(scale = "class", layer = "cover") |>
   msr_area(scale = "landscape", layer = "cover") |>
   msr_perimeter(scale = "class", layer = "cover") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland",
+  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
       layer = "cover") |>
-  msr(equation = "perimeter.class / area.landscape", label = "edge_density",
+  msr(equation = "perimeter.class / area.landscape", label = "edge_density.class",
       layer = "cover")
 
 msk_categories(m, layer = "cover")

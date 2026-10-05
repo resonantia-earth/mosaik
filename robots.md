@@ -12,17 +12,17 @@ Read "Common mistakes" first.
 1. **There is no `derive()`.** A metric built from primitives is computed with
    `msr(obj = NULL, equation, label, layer)`, where `equation` is a character string in
    `metric.scale` notation:
-   `msr(m, "perimeter.class / area.class", "edge_density", layer = "cover")`.
+   `msr(m, "perimeter.class / area.class", "edge_density.class", layer = "cover")`.
 2. **Measure the primitives before `msr()`.** The equation reads results that
    `msr_*` already stored. `area.landscape` exists only after
    `msr_area(scale = "landscape")`.
 3. **The name in an equation is the stored column name.** `msr_adjacency(type =
    "like")` stores `likeAdj`, so the equation uses `likeAdj.class`, not
-   `adjacency.class`. See the storage table below.
-4. **`msr_number()` names its scale by what is counted.** `scale = "patch"`
-   counts patches per class and stores `number` in the categories (use
-   `number.class`). `scale = "class"` counts classes and stores `number` in the
-   global slot (use `number.landscape`).
+   `adjacency.class` (that is the `"paired"` matrix). See the storage table below.
+4. **`msr_number()` names its scale by where the count is stored.** `scale =
+   "class"` counts patches per class and stores `number` in the categories (use
+   `number.class`). `scale = "landscape"` counts classes and stores `number` in
+   the global slot (use `number.landscape`).
 5. **`msk_vis()` takes layer specifications, not a `layer` argument.** Write
    `msk_vis(m, .layer("cover"))`, not `msk_vis(m, layer = "cover")`.
 6. **`msr_*` results are not returned as tables.** Every function returns the
@@ -43,7 +43,7 @@ Read "Common mistakes" first.
    on; use the R functions.
 10. **Number the patches before measuring them.** Every patch-level measure
     (`msr_area/msr_perimeter/msr_cost/msr_adjacency(scale = "patch")`,
-    `msr_number(scale = "patch")`, and `msr()` with a `.patch` or `.cell`
+    `msr_number(scale = "class")`, and `msr()` with a `.patch` or `.cell`
     variable) measures the patches `mdf_componentise(layer = ...)` numbered
     on that layer, and stops if there are none. The measures never find
     patches themselves, because the connectivity (4 or 8) must be stated.
@@ -58,7 +58,7 @@ One S4 class, `mosaik`, with these slots:
 | `dims` | `c(ncols, nrows)` |
 | `layers` | named list of flat row-major vectors, compressed with `rle()` when smaller |
 | `categories` | per layer: `gid` (class IDs) and `val` (labels) for a categorical layer, plus class-level results |
-| `patches` | per layer, written by `mdf_componentise`: `ids` (the layer holding the patch numbers), `connectivity`, `class` and `patch` per patch; then one field per patch-level metric |
+| `patches` | per layer, written by `mdf_componentise`: `ids` (the layer holding the patch numbers), `class` and `patch` per patch; then one field per patch-level metric |
 | `global` | landscape-level results |
 | `crs` | a CRS string, or `NA` |
 | `provenance` | one entry per operation, in order |
@@ -206,11 +206,12 @@ numbers drops the patches too. Patch-level calls need
 | `msr_area(scale = "class")` | `@categories[[layer]]$area` | `area.class` |
 | `msr_area(scale = "landscape")` | `@global[[layer]]$area` | `area.landscape` |
 | `msr_perimeter(...)` | as `msr_area`, column `perimeter` | `perimeter.patch/.class/.landscape` |
-| `msr_number(scale = "patch")` | `@categories[[layer]]$number` (patches per class) | `number.class` |
-| `msr_number(scale = "class")` | `@global[[layer]]$number` (number of classes) | `number.landscape` |
+| `msr_number(scale = "class")` | `@categories[[layer]]$number` (patches per class) | `number.class` |
+| `msr_number(scale = "landscape")` | `@global[[layer]]$number` (number of classes) | `number.landscape` |
 | `msr_adjacency(type = "like")` | `@categories[[layer]]$likeAdj` | `likeAdj.class` |
 | `msr_adjacency(type = "pairedSum")` | `@categories[[layer]]$pairedSum` | `pairedSum.class` |
-| `msr_adjacency(type = "paired")` | `@global[[layer]]$adjacency` (a matrix) | not usable in equations |
+| `msr_adjacency(type = "paired")` | `@categories[[layer]]$adjacency` (class by class matrix) | `adjacency.class` |
+| `msr_adjacency(scale = "patch")` | `@patches[[layer]]$adjacency`, `$regions` (patch by patch matrices) | `adjacency.patch`, `regions.patch` |
 | `msr_dissimilarity(contrast, scale = "class")` | `@categories[[layer]]$dissimilarity` | `dissimilarity.class` |
 | `msr_dissimilarity(contrast, scale = "landscape")` | `@global[[layer]]$dissimilarity` | `dissimilarity.landscape` |
 | `msr_cost(scale = "patch")` | `@patches[[layer]]$distance` (per class, patch-to-patch matrix) | `distance.patch` |
@@ -220,9 +221,10 @@ Signatures:
 
 - `msr_area(obj = NULL, scale = "patch", unit = "cells", layer = NULL)`, `unit` is
   `"cells"` or `"map"`; `msr_perimeter` the same.
-- `msr_number(obj = NULL, scale = "class", layer = NULL)`, `scale` is `"class"` or
-  `"patch"`.
-- `msr_adjacency(obj = NULL, scale = "class", type = "like", count = "double", connect = 4, layer = NULL)`.
+- `msr_number(obj = NULL, scale = "landscape", layer = NULL)`, `scale` is
+  `"landscape"` or `"class"`.
+- `msr_adjacency(obj = NULL, scale = "class", type = "like", connect = 4, layer = NULL)`;
+  every pair of bordering cells is counted from both sides.
 - `msr_dissimilarity(obj = NULL, contrast, scale = "class", layer = NULL)`, `contrast`
   a symmetric matrix with class IDs as row and column names.
 - `msr_cost(obj = NULL, scale = "patch", cost = NULL, routing = "cheapest", accumulate = "sum", layer = NULL)`:
@@ -232,24 +234,29 @@ Signatures:
 
 ## msr(): compose a metric
 
-`msr(obj = NULL, equation, label, layer = NULL)`. The result goes where its length says:
-one value per class to the categories, one per patch to the patches, a single
-value to the global slot, always under `layer`. Scales in names: `class`,
+`msr(obj = NULL, equation, label, layer = NULL)`. Write the level into the
+label like a variable: `"pland.class"`, `"enn.patch"`, `"shdi.landscape"`; the
+result is stored there under the name before the dot, always under `layer`, and
+`msr()` stops if it does not fit (one value per class, per patch, or one).
+Without a level the length decides, which goes wrong when the counts coincide
+(one class on a binary layer). `pi` and other base constants may appear. Scales in names: `class`,
 `patch`, `landscape`, `cell`. A variable may end in `_<layer>` to read another
 layer (`area.class_core / area.class_forest`); without it, it reads `layer`.
 Class values of two layers combine only if both have the same classes, patch
 values only if both have the same patches; otherwise `msr()` stops (relate
 patches of different layers with `mdf_summarise()`).
 With `distance.patch`, the equation is evaluated once per patch on that patch's
-row of the distance matrix (self-distance is `Inf`), so `"min(distance.patch)"`
-is the nearest-neighbour distance. Any `.patch` or `.cell` variable needs the
+row of the distance matrix (self-distance is `Inf`), and every other `.patch`
+variable holds the values of the patches in that row, so `"min(distance.patch)"`
+is the nearest-neighbour distance and `"sum(area.patch / distance.patch^2)"` the
+proximity index. Any `.patch` or `.cell` variable needs the
 patches numbered by `mdf_componentise()` on `layer`:
 
 ```r
 m <- landscape |>
   mdf_componentise(connectivity = 8L, layer = "cover", add = "patch") |>
   msr_cost(scale = "patch", layer = "cover") |>
-  msr("min(distance.patch)", "enn", layer = "cover")
+  msr("min(distance.patch)", "enn.patch", layer = "cover")
 ```
 
 Costs are named after what they measure, not after the primitive: `distance`
@@ -260,11 +267,11 @@ without a cost surface, otherwise the name of the cost layer
 m <- landscape |>
   msr_area(scale = "class", layer = "cover") |>
   msr_area(scale = "landscape", layer = "cover") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland",
+  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
       layer = "cover")
 msk_categories(m, layer = "cover")$pland
 
-m <- msr(m, layer = "cover", label = "shannon",
+m <- msr(m, layer = "cover", label = "shannon.landscape",
          equation = "-sum(area.class / area.landscape * log(area.class / area.landscape))")
 msk_global(m, layer = "cover")$shannon
 ```

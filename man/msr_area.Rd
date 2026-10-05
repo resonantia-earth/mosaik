@@ -19,46 +19,36 @@ cells) or \code{"map"} (in map units).}
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with an \code{area} value added to the results of
-\code{layer}: its patches (for \code{scale = "patch"}, which must have
-been numbered with \code{\link{mdf_componentise}} first, see
-\code{\link{msk_patches}}), its classes (\code{scale = "class"}, see
-\code{\link{msk_categories}}) or the layer as a whole
-(\code{scale = "landscape"}, see \code{\link{msk_global}}).
+The input mosaik with \code{area} added to the results of
+\code{layer}, in its patches, classes or landscape values (see
+\code{\link{msk_patches}}, \code{\link{msk_categories}},
+\code{\link{msk_global}}).
 }
 \description{
 Calculate the area of objects in a mosaik and attach the result to the
 attribute table.
 }
+\details{
+At \code{scale = "patch"}, the patches are those numbered by
+\code{\link{mdf_componentise}} on \code{layer}, which must run first.
+}
 \examples{
-# landscape-level: total area
+# the area of the whole layer
 m <- msr_area(landscape, scale = "landscape")
 msk_global(m)$area
 
-# class-level: area per class
+# the area of each class
 m <- msr_area(landscape, scale = "class")
 msk_categories(m)$area
 
-# patch-level: area per patch, of the patches numbered first
+# to calculate patch-level metrics, number the patches first; scale =
+# "patch" looks for the table mdf_componentise writes
 m <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
                       add = "patch")
 m <- msr_area(m, scale = "patch")
 msk_patches(m)$area
 msk_patches(m)$class   # which class each patch belongs to
 msk_patches(m)$patch   # the patch number, as in the layer 'patch'
-
-# derive: proportion of landscape per class (PLAND)
-m <- msr_area(m, scale = "class")
-m <- msr_area(m, scale = "landscape")
-m <- msr(m, equation = "area.class / area.landscape * 100",
-         label = "pland")
-msk_categories(m)$pland
-
-# derive: mean patch size per class
-m <- msr_number(m, scale = "patch")
-m <- msr(m, equation = "area.class / number.class",
-         label = "mean_patch_size")
-msk_categories(m)$mean_patch_size
 }
 \seealso{
 Other measure: 

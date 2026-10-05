@@ -128,21 +128,22 @@ class covers, and its edge density:
 
 ```{r}
 m <- m |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland",
+  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
       layer = "cover") |>
-  msr(equation = "perimeter.class / area.landscape", label = "edge_density",
+  msr(equation = "perimeter.class / area.landscape", label = "edge_density.class",
       layer = "cover")
 
 data.frame(msk_categories(m, layer = "cover")[c("val", "pland", "edge_density")])
 ```
 
-The result is stored where its length says it belongs: one value per class goes
-to the class level, a single value to the landscape level.
+The label is written like a variable: `pland.class` stores the result with the
+classes, under the name `pland`, and `msr()` stops if the equation does not give
+one value per class.
 
-Shannon diversity sums over the classes, so it lands at the landscape level:
+Shannon diversity sums over the classes into one value for the landscape:
 
 ```{r}
-m <- msr(m, layer = "cover", label = "shannon",
+m <- msr(m, layer = "cover", label = "shannon.landscape",
          equation = "-sum(area.class / area.landscape *
                           log(area.class / area.landscape))")
 msk_global(m, layer = "cover")$shannon
@@ -156,7 +157,7 @@ patch:
 
 ```{r}
 f <- msr(f, equation = "perimeter.patch / sqrt(area.patch)",
-         label = "shape_index", layer = "forest")
+         label = "shape_index.patch", layer = "forest")
 ```
 
 No function was written for any of these metrics. A metric that no catalogue

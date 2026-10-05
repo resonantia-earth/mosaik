@@ -1,64 +1,57 @@
 #' Number of objects
 #'
-#' Count the number of objects at the given scale in a mosaik and attach the
-#' result to the attribute table.
+#' Count the classes of a layer, or the patches of each class.
 #' @param obj [`mosaik`]\cr the mosaik to measure.
-#' @param scale [`character(1)`][character]\cr the level to report at;
-#'   \code{"class"} (number of distinct classes, a landscape-level value) or
-#'   \code{"patch"} (number of patches per class, a class-level value; the
-#'   patches must have been numbered with \code{\link{mdf_componentise}}).
+#' @param scale [`character(1)`][character]\cr where the count is stored:
+#'   \code{"landscape"} (default) counts the classes of the layer,
+#'   \code{"class"} counts the patches of each class, which must have been
+#'   numbered with \code{\link{mdf_componentise}} first.
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
-#' @return The input mosaik with a \code{number} value added to the results of
-#'   \code{layer}: at landscape level for \code{scale = "class"} (see
-#'   \code{\link{msk_global}}), at class level for \code{scale = "patch"} (see
-#'   \code{\link{msk_categories}}).
+#' @return The input mosaik with \code{number} added to the results of
+#'   \code{layer}, in its landscape values (see \code{\link{msk_global}}) or
+#'   in its classes (see \code{\link{msk_categories}}).
+#' @details A class that forms no patch, such as 0 on a binary layer, counts
+#'   0 patches.
 #' @examples
-#' # count distinct classes (landscape-level)
-#' m <- msr_number(landscape, scale = "class")
+#' # the number of classes
+#' m <- msr_number(landscape, scale = "landscape")
 #' msk_global(m)$number
 #'
-#' # count patches per class (class-level), of the patches numbered first
+#' # to count the patches of each class, number the patches first; scale =
+#' # "class" looks for the table mdf_componentise writes
 #' p <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
 #'                       add = "patch")
-#' m <- msr_number(p, scale = "patch")
+#' m <- msr_number(p, scale = "class")
 #' msk_categories(m)$number
-#'
-#' # derive: patch density (patches per unit area)
-#' m <- msr_number(p, scale = "patch")
-#' m <- msr_area(m, scale = "landscape")
-#' m <- msr(m, equation = "number.class / area.landscape",
-#'          label = "patch_density")
-#' msk_categories(m)$patch_density
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
 
-msr_number <- function(obj = NULL, scale = "class", layer = NULL){
+msr_number <- function(obj = NULL, scale = "landscape", layer = NULL){
 
   step <- .step()
   if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   assertClass(x = obj, classes = "mosaik")
-  assertChoice(x = scale, choices = c("class", "patch"))
+  assertChoice(x = scale, choices = c("landscape", "class"))
   assertCharacter(x = layer, null.ok = TRUE)
 
   # pull data ----
   if(is.null(layer)) layer <- names(obj@layers)[1]
   vals <- msk_pull(obj, layer)
-  dims <- obj@dims
 
   uVals <- sort(unique(vals[!is.na(vals)]))
 
-  if(scale == "class"){
+  if(scale == "landscape"){
 
-    # number of distinct classes (landscape-level result)
+    # number of distinct classes
     obj@global[[layer]]$number <- length(uVals)
 
   } else {
 
-    # number of patches per class (class-level result), from the patches
-    # numbered by mdf_componentise; a class without patches (0) counts none
+    # number of patches per class, from the patches numbered by
+    # mdf_componentise; a class without patches (0) counts none
     p <- .patches_of(obj, layer)
     patches_per_class <- vapply(uVals, function(v) sum(p$class == v),
                                 integer(1))

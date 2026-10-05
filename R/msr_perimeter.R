@@ -9,40 +9,29 @@
 #'   \code{"map"} (in map units).
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
-#' @return The input mosaik with a \code{perimeter} value added to the results
-#'   of \code{layer}: its patches (for \code{scale = "patch"}, which must have
-#'   been numbered with \code{\link{mdf_componentise}} first, see
-#'   \code{\link{msk_patches}}), its classes (\code{scale = "class"}, see
-#'   \code{\link{msk_categories}}) or the layer as a whole
-#'   (\code{scale = "landscape"}, see \code{\link{msk_global}}).
+#' @return The input mosaik with \code{perimeter} added to the results of
+#'   \code{layer}, in its patches, classes or landscape values (see
+#'   \code{\link{msk_patches}}, \code{\link{msk_categories}},
+#'   \code{\link{msk_global}}).
+#' @details At \code{scale = "patch"}, the patches are those numbered by
+#'   \code{\link{mdf_componentise}} on \code{layer}, which must run first.
+#'   A patch that touches the map border has perimeter \code{NA}: the map
+#'   ends there, the patch may not, so its outline is unknown.
 #' @examples
-#' # landscape-level: total perimeter
+#' # the perimeter of the whole layer
 #' m <- msr_perimeter(landscape, scale = "landscape")
 #' msk_global(m)$perimeter
 #'
-#' # class-level: perimeter per class
+#' # the perimeter of each class
 #' m <- msr_perimeter(landscape, scale = "class")
 #' msk_categories(m)$perimeter
 #'
-#' # patch-level: perimeter per patch, of the patches numbered first
+#' # to calculate patch-level metrics, number the patches first; scale =
+#' # "patch" looks for the table mdf_componentise writes
 #' p <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
 #'                       add = "patch")
 #' m <- msr_perimeter(p, scale = "patch")
 #' msk_patches(m)$perimeter
-#'
-#' # derive: edge density (perimeter / landscape area)
-#' m <- msr_perimeter(landscape, scale = "class")
-#' m <- msr_area(m, scale = "landscape")
-#' m <- msr(m, equation = "perimeter.class / area.landscape",
-#'          label = "edge_density")
-#' msk_categories(m)$edge_density
-#'
-#' # derive: shape index per patch
-#' m <- msr_perimeter(p, scale = "patch")
-#' m <- msr_area(m, scale = "patch")
-#' m <- msr(m, equation = "perimeter.patch / sqrt(area.patch)",
-#'          label = "shape_index")
-#' msk_patches(m)$shape_index
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
@@ -65,9 +54,9 @@ msr_perimeter <- function(obj = NULL, scale = "patch", unit = "cells", layer = N
 
   if(scale == "landscape"){
 
-    values <- countCellEdgesCpp(vals = vals, nrow = dims[1], ncol = dims[2])
+    values <- countCellEdgesCpp(vals = vals, nrow = dims[2], ncol = dims[1])
     if(unit == "map"){
-      total <- sum(values$edgesX) * theRes[1] + sum(values$edgesY) * theRes[2]
+      total <- sum(values$edgesX) * theRes[2] + sum(values$edgesY) * theRes[1]
     } else {
       total <- sum(values$edgesX) + sum(values$edgesY)
     }
@@ -76,11 +65,11 @@ msr_perimeter <- function(obj = NULL, scale = "patch", unit = "cells", layer = N
 
   } else if(scale == "class"){
 
-    values <- countCellEdgesCpp(vals = vals, nrow = dims[1], ncol = dims[2])
+    values <- countCellEdgesCpp(vals = vals, nrow = dims[2], ncol = dims[1])
     classes <- values$value
 
     if(unit == "map"){
-      edges <- values$edgesX * theRes[1] + values$edgesY * theRes[2]
+      edges <- values$edgesX * theRes[2] + values$edgesY * theRes[1]
     } else {
       edges <- values$edgesX + values$edgesY
     }
@@ -106,17 +95,19 @@ msr_perimeter <- function(obj = NULL, scale = "patch", unit = "cells", layer = N
 
     # count edges per patch
     temp_edges <- countCellEdgesCpp(vals = as.numeric(patch_ids),
-                                    nrow = dims[1], ncol = dims[2])
+                                    nrow = dims[2], ncol = dims[1])
     temp_edges <- temp_edges[temp_edges$value != 0,]
 
     # align with the order of the patch record
     idx <- match(p$patch, temp_edges$value)
     if(unit == "map"){
-      obj@patches[[layer]]$perimeter <- temp_edges$edgesX[idx] * theRes[1] +
-                                        temp_edges$edgesY[idx] * theRes[2]
+      perim <- temp_edges$edgesX[idx] * theRes[2] + temp_edges$edgesY[idx] * theRes[1]
     } else {
-      obj@patches[[layer]]$perimeter <- temp_edges$edgesX[idx] + temp_edges$edgesY[idx]
+      perim <- temp_edges$edgesX[idx] + temp_edges$edgesY[idx]
     }
+
+    perim[p$clipped] <- NA
+    obj@patches[[layer]]$perimeter <- perim
 
   }
 

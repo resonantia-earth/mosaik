@@ -39,7 +39,7 @@ class.
 }
 \details{
 The patches are also recorded with \code{layer}: which layer holds
-their numbers, the connectivity, and the class of each patch (see
+their numbers and the class of each patch (see
 \code{\link{msk_patches}}). The patch-level measures
 (\code{msr_*(scale = "patch")}) measure these patches, so how cells connect
 into patches is always set here and never decided by a measure.

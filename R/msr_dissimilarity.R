@@ -89,7 +89,7 @@ msr_dissimilarity <- function(obj = NULL, contrast, scale = "class", layer = NUL
   }
 
   # compute adjacency matrix (double-counted)
-  adj <- countCellAdjacenciesCpp(vals = vals, nrow = dims[1], ncol = dims[2],
+  adj <- countCellAdjacenciesCpp(vals = vals, nrow = dims[2], ncol = dims[1],
                                   doublecount = TRUE)
   rownames(adj) <- uChars
   colnames(adj) <- uChars

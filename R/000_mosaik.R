@@ -17,7 +17,7 @@
 #'   functions such as \code{\link{msr_area}(scale = "class")}.
 #' @slot patches [`list`][list]\cr named list of per-layer patch tables. An entry
 #'   is created by \code{\link{mdf_componentise}}: the layer holding the patch
-#'   numbers (\code{ids}), the \code{connectivity}, and the \code{class} and
+#'   numbers (\code{ids}), and the \code{class} and
 #'   number (\code{patch}) of each patch. Patch-level measures such as
 #'   \code{\link{msr_area}(scale = "patch")} add their values to it.
 #' @slot global [`list`][list]\cr named list of per-layer landscape-level values,

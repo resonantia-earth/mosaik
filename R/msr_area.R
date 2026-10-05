@@ -9,41 +9,29 @@
 #'   cells) or \code{"map"} (in map units).
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
-#' @return The input mosaik with an \code{area} value added to the results of
-#'   \code{layer}: its patches (for \code{scale = "patch"}, which must have
-#'   been numbered with \code{\link{mdf_componentise}} first, see
-#'   \code{\link{msk_patches}}), its classes (\code{scale = "class"}, see
-#'   \code{\link{msk_categories}}) or the layer as a whole
-#'   (\code{scale = "landscape"}, see \code{\link{msk_global}}).
+#' @return The input mosaik with \code{area} added to the results of
+#'   \code{layer}, in its patches, classes or landscape values (see
+#'   \code{\link{msk_patches}}, \code{\link{msk_categories}},
+#'   \code{\link{msk_global}}).
+#' @details At \code{scale = "patch"}, the patches are those numbered by
+#'   \code{\link{mdf_componentise}} on \code{layer}, which must run first.
 #' @examples
-#' # landscape-level: total area
+#' # the area of the whole layer
 #' m <- msr_area(landscape, scale = "landscape")
 #' msk_global(m)$area
 #'
-#' # class-level: area per class
+#' # the area of each class
 #' m <- msr_area(landscape, scale = "class")
 #' msk_categories(m)$area
 #'
-#' # patch-level: area per patch, of the patches numbered first
+#' # to calculate patch-level metrics, number the patches first; scale =
+#' # "patch" looks for the table mdf_componentise writes
 #' m <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
 #'                       add = "patch")
 #' m <- msr_area(m, scale = "patch")
 #' msk_patches(m)$area
 #' msk_patches(m)$class   # which class each patch belongs to
 #' msk_patches(m)$patch   # the patch number, as in the layer 'patch'
-#'
-#' # derive: proportion of landscape per class (PLAND)
-#' m <- msr_area(m, scale = "class")
-#' m <- msr_area(m, scale = "landscape")
-#' m <- msr(m, equation = "area.class / area.landscape * 100",
-#'          label = "pland")
-#' msk_categories(m)$pland
-#'
-#' # derive: mean patch size per class
-#' m <- msr_number(m, scale = "patch")
-#' m <- msr(m, equation = "area.class / number.class",
-#'          label = "mean_patch_size")
-#' msk_categories(m)$mean_patch_size
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
@@ -76,7 +64,7 @@ msr_area <- function(obj = NULL, scale = "patch", unit = "cells", layer = NULL){
 
   } else if(scale == "class"){
 
-    values <- countCellValuesCpp(vals = vals, nrow = dims[1], ncol = dims[2])
+    values <- countCellValuesCpp(vals = vals, nrow = dims[2], ncol = dims[1])
     classes <- values$value
 
     if(unit == "map"){
@@ -105,16 +93,18 @@ msr_area <- function(obj = NULL, scale = "patch", unit = "cells", layer = NULL){
 
     # count cells per patch
     temp_counts <- countCellValuesCpp(vals = as.numeric(patch_ids),
-                                      nrow = dims[1], ncol = dims[2])
+                                      nrow = dims[2], ncol = dims[1])
     temp_counts <- temp_counts[!is.na(temp_counts$value),]
 
     # align with the order of the patch record
     idx <- match(p$patch, temp_counts$value)
     if(unit == "map"){
-      obj@patches[[layer]]$area <- temp_counts$cells[idx] * theRes[1] * theRes[2]
+      area <- temp_counts$cells[idx] * theRes[1] * theRes[2]
     } else {
-      obj@patches[[layer]]$area <- temp_counts$cells[idx]
+      area <- temp_counts$cells[idx]
     }
+    area[p$clipped] <- NA
+    obj@patches[[layer]]$area <- area
 
   }
 

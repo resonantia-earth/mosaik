@@ -214,6 +214,14 @@ msr_cost <- function(obj = NULL, scale = "patch", cost = NULL, routing = "cheape
     cost_matrices[[as.character(uVals[i])]] <- mat
   }
 
+  # a patch the map border cuts may lie closer to others beyond it; the way
+  # from a whole patch to the part of it on the map is still measured
+  cut <- as.character(pt$patch[pt$clipped])
+  cost_matrices <- lapply(cost_matrices, function(mat){
+    mat[rownames(mat) %in% cut, ] <- NA
+    mat
+  })
+
   obj@patches[[layer]][[metric]] <- cost_matrices
 
   obj <- .update_mosaik(obj, step = step)

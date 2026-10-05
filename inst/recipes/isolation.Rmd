@@ -21,7 +21,7 @@ isolation <- landscape |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   msr_area(scale = "patch", layer = "forest") |>
   msr_cost(scale = "patch", routing = "straight", layer = "forest") |>
-  msr(equation = "min(distance.patch)", label = "nearest", layer = "forest")
+  msr(equation = "min(distance.patch)", label = "nearest.patch", layer = "forest")
 p <- msk_patches(isolation, layer = "forest")
 ```
 
@@ -45,16 +45,19 @@ msk_vis(isolation, .layer("forest"), .layer("gap"))
 
 **Check.** The patch at the southern edge of the map lies furthest from any
 other forest, and the three large patches 3, 4 and 5 lie closest together,
-only a road or a river apart:
+only a road or a river apart. The map border cuts the southern patch, so its
+own distance is NA: forest beyond the map could lie closer. The way to it
+from every other patch is measured, though, and is the longest of all:
 
 ```{r}
 nearest <- data.frame(patch = p$patch, area = p$area, nearest = p$nearest)
-print(nearest[order(-nearest$nearest), ][1:3, ], row.names = FALSE)
 print(nearest[nearest$patch %in% 3:5, ], row.names = FALSE)
+toward <- apply(p$distance[["1"]], 2, min, na.rm = TRUE)
+far <- as.numeric(names(which.max(toward)))
+toward[as.character(far)]
 ```
 
 ```{r, include = FALSE}
-far <- nearest$patch[which.max(nearest$nearest)]
 cells <- msk_pull(isolation, "patch") == far
 rows <- ceiling(which(cells) / msk_dims(isolation)[1])
 stopifnot(min(rows) > msk_dims(isolation)[2] - 6,

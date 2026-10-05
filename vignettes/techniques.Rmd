@@ -94,7 +94,7 @@ core_share <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
   mdf_erode(layer = "forest", add = "core") |>
   msr_area(scale = "class", layer = "core") |>
   msr_area(scale = "landscape", layer = "core") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pcore",
+  msr(equation = "area.class / area.landscape * 100", label = "pcore.class",
       layer = "core")
 
 r <- mdf(landscape, core_share)
@@ -121,7 +121,7 @@ in `layer`. The share of the forest that is core:
 
 ```{r}
 r <- msr(r, equation = "area.class_core / area.class_forest * 100",
-         label = "core_of_forest", layer = "core")
+         label = "core_of_forest.class", layer = "core")
 msk_categories(r, layer = "core")$core_of_forest
 ```
 
@@ -144,12 +144,12 @@ from Shannon diversity and the number of classes:
 m <- landscape |>
   msr_area(scale = "class", layer = "cover") |>
   msr_area(scale = "landscape", layer = "cover") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland",
+  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
       layer = "cover") |>
   msr(equation = "-sum(pland.class / 100 * log(pland.class / 100))",
-      label = "shannon", layer = "cover") |>
+      label = "shannon.landscape", layer = "cover") |>
   msr(equation = "shannon.landscape / log(length(pland.class))",
-      label = "evenness", layer = "cover")
+      label = "evenness.landscape", layer = "cover")
 
 msk_global(m, layer = "cover")
 ```
