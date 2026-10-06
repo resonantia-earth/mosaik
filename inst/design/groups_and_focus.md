@@ -105,8 +105,24 @@ enough. A name in an equation that matches a layer always means that layer;
 otherwise it means a stored value. No further rule is needed. Weighted
 distances (`msr_distance` with a cost layer) are stored under a name the
 user chooses, not automatically under the cost layer's name as today.
-Candidate for a reserved name with a function: `x` and `y`, the cell
-coordinates (GYRATE, CIRCLE), instead of adding them by hand.
+
+Reserved names (no layer may take them):
+
+| name | what it holds |
+|---|---|
+| `area`, `perimeter`, `adjacency`, `distance`, `dissimilarity` | the primitives (`number` only if `msr_number` survives; without scales, the number of classes is `length(gid.all)`) |
+| `gid` | the code of each class |
+| `complete` | TRUE if a class has no cell on the map border |
+| `val`, `colour` | label and colour of each class (class table) |
+| `x`, `y` | the coordinates of every cell's centre, in map units |
+
+Names R knows as constants (`pi`, `T`, `F`, `LETTERS`, ...) are read as
+constants, so a layer with such a name could not be reached either.
+
+`x` and `y` are cell values provided without a layer. The radius of
+gyration of each patch, without adding coordinate layers by hand:
+`mean(sqrt((x.self - mean(x.self))^2 + (y.self - mean(y.self))^2))`, on the
+group layer `patch`, one value per patch.
 
 ## Prototype test, 2026-10-06
 
