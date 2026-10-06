@@ -137,17 +137,21 @@ Result on `landscape` (forest patches as the group layer `patch`):
   the prototype sets them to 0 before measuring; with NA, the edges along
   the outside would not be counted and every perimeter would be too short.
 
-## Open
+## Classes cut by the map border (decided 2026-10-06)
 
-- **Groups cut by the map border.** Primitives store what they measure, no
-  NA. The idea was that `msr()` leaves out the classes that touch the map
-  border; the prototype shows that is wrong (see above): cut groups must stay
-  in the population, only their own result is unknown. On `cover` almost every class touches the border,
-  so `msr()` must know whether a layer's classes are groups or land cover
-  classes (marked by `mdf_componentise`, or said by the user). Not decided.
-- The NA-for-cut-patches built on 2026-10-05/06 (in `msr_area`,
-  `msr_perimeter`, `msr_adjacency`, `msr_distance`, `msr()`) is replaced by
-  the rule above once it is decided.
+Every class of every layer gets a column `complete` in its class table: TRUE
+if none of its cells lies on the map border, FALSE otherwise. It is measured
+like any value, for patches and land cover classes alike, so no function has
+to know whether a layer's classes are groups. Primitives store what they
+measure, no NA, and `msr()` leaves nothing out on its own. The user decides
+per equation, e.g. the largest complete patch:
+`max(area.all[complete.all])`. Cut groups stay in the population as
+neighbours and in counts (the prototype showed leaving them out is wrong).
+`complete` is a reserved name like the primitives.
+
+The NA-for-cut-patches built on 2026-10-05/06 (in `msr_area`,
+`msr_perimeter`, `msr_adjacency`, `msr_distance`, `msr()`) goes when this is
+built.
 
 ## Rejected on the way (do not propose again)
 
