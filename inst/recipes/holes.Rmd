@@ -20,7 +20,7 @@ The forest patches are numbered first. The three large ones get the numbers
 ```{r}
 library(mosaik)
 patches <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch")
 ```
 

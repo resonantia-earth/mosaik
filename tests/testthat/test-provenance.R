@@ -1,7 +1,7 @@
 test_that("every step records itself in the PROV shape", {
-  m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+  m <- mdf_filter(landscape, cover == 47, add = "forest")
   last <- m@provenance[[length(m@provenance)]]
-  expect_equal(names(last), "mdf_binarise")
+  expect_equal(names(last), "mdf_filter")
   e <- last[[1]]
   expect_named(e, c("wasGeneratedBy", "wasDerivedFrom", "generated",
                     "wasAssociatedWith", "atTime", "hash"))
@@ -9,7 +9,7 @@ test_that("every step records itself in the PROV shape", {
   expect_equal(e$generated, "forest")
   expect_match(e$wasAssociatedWith, "^mosaik ")
   # defaults are recorded too, not only what was typed
-  expect_true("thresh" %in% names(e$wasGeneratedBy$withArguments))
+  expect_true("value" %in% names(e$wasGeneratedBy$withArguments))
 })
 
 test_that("the input layer is resolved when none is given", {
@@ -33,7 +33,7 @@ test_that("a call inside another mosaik function is not recorded twice", {
 })
 
 test_that("a loop is one entry, not one per iteration", {
-  m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+  m <- mdf_filter(landscape, cover == 47, add = "forest")
   n <- length(m@provenance)
   grow <- mdf_dilate(layer = "forest")
   m <- mdf_loop(m, grow, times = 3, layer = "forest")
@@ -43,7 +43,7 @@ test_that("a loop is one entry, not one per iteration", {
 
 test_that("the history of a result replays as a recipe", {
   r <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     mdf_erode(layer = "forest", add = "core")
   again <- mdf(landscape, r)
   expect_equal(msk_pull(again, "core"), msk_pull(r, "core"))

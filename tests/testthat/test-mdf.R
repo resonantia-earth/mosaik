@@ -1,7 +1,7 @@
-test_that("mdf_binarise works", {
+test_that("mdf_filter writes a 0/1 mask", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1,
               vals = list(cover = sample(1:5, 25, replace = TRUE)))
-  b <- mdf_binarise(obj = m, thresh = 3)
+  b <- mdf_filter(m, cover >= 3, layer = "cover")
   vals <- msk_pull(b, "cover")
   expect_true(all(vals %in% c(0L, 1L)))
 })
@@ -82,7 +82,7 @@ test_that("mdf_componentise works", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1,
               vals = list(cover = c(1,0,1,0,1, 0,0,0,0,0, 1,0,1,0,1,
                                     0,0,0,0,0, 1,0,1,0,1)))
-  b <- mdf_binarise(obj = m, match = 1L)
+  b <- mdf_filter(m, cover == 1, layer = "cover")
   co <- mdf_componentise(obj = b)
   vals <- msk_pull(co, "cover")
   # each isolated pixel should get its own component id
@@ -107,7 +107,7 @@ test_that("mdf_resize works", {
 
 test_that("a second layer is named, never passed as a mosaik", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = 1:25))
-  other <- mdf_binarise(obj = m, thresh = 12)
+  other <- mdf_filter(m, cover >= 12, layer = "cover")
 
   # passing a mosaik is refused, and the error says what to do instead
   expect_error(mdf_summarise(m, by = other, fun = "n"), "msk_add")
@@ -125,7 +125,7 @@ test_that("mdf_dilate and mdf_erode work", {
   set.seed(42)
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
-  b <- mdf_binarise(obj = m, thresh = 3)
+  b <- mdf_filter(m, cover >= 3, layer = "cover")
   d <- mdf_dilate(obj = b)
   e <- mdf_erode(obj = b)
   expect_true(all(msk_pull(d, "cover") %in% c(0, 1)))
@@ -138,7 +138,7 @@ test_that("mdf_distance works", {
   set.seed(42)
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
-  b <- mdf_binarise(obj = m, thresh = 3)
+  b <- mdf_filter(m, cover >= 3, layer = "cover")
   d <- mdf_distance(obj = b)
   vals <- msk_pull(d, "cover")
   expect_true(min(vals) == 0)
@@ -268,11 +268,11 @@ test_that("mdf_tesselate partitions grid", {
 })
 
 test_that("recipe records steps without an input mosaik", {
-  recipe <- mdf_binarise(thresh = 3, layer = "cover", add = "fg") |>
+  recipe <- mdf_filter(expr = cover >= 3, add = "fg") |>
     mdf_componentise(layer = "fg", add = "cc")
   steps <- recipe@provenance
   expect_length(steps, 2)
-  expect_equal(names(steps[[1]]), "mdf_binarise")
+  expect_equal(names(steps[[1]]), "mdf_filter")
   expect_equal(steps[[1]][[1]]$wasGeneratedBy$withArguments$add, "fg")
   expect_length(recipe@layers, 0)
 })
@@ -280,12 +280,12 @@ test_that("recipe records steps without an input mosaik", {
 test_that("mdf replays a recipe onto a real mosaik", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
-  recipe <- mdf_binarise(thresh = 3, layer = "cover", add = "fg") |>
+  recipe <- mdf_filter(expr = cover >= 3, add = "fg") |>
     mdf_componentise(layer = "fg", add = "cc")
   out <- mdf(m, recipe)
   expect_true(all(c("cover", "fg", "cc") %in% msk_names(out)))
   # same result as running the steps directly
-  direct <- mdf_componentise(mdf_binarise(m, thresh = 3, layer = "cover", add = "fg"),
+  direct <- mdf_componentise(mdf_filter(m, cover >= 3, add = "fg"),
                              layer = "fg", add = "cc")
   expect_equal(msk_pull(out, "cc"), msk_pull(direct, "cc"))
 })
@@ -293,7 +293,7 @@ test_that("mdf replays a recipe onto a real mosaik", {
 test_that("recipe step references an earlier layer by name", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
-  recipe <- mdf_binarise(thresh = 3, layer = "cover", add = "fg") |>
+  recipe <- mdf_filter(expr = cover >= 3, add = "fg") |>
     mdf_summarise(by = "fg", fun = "n", layer = "cover", add = "masked")
   out <- mdf(m, recipe)
   expect_true("masked" %in% msk_names(out))
@@ -329,9 +329,9 @@ test_that("value-only mdf_* keep attached fields on overwrite", {
 
 test_that("kind-changing mdf_* drop attached fields on overwrite", {
   g <- .tagged()
-  expect_null(.tag_of(mdf_binarise(g, thresh = 0.5, layer = "terrain"),
+  expect_null(.tag_of(mdf_filter(g, terrain >= 0.5, layer = "terrain"),
                       "terrain"))
-  b <- mdf_binarise(g, thresh = 0.5, layer = "terrain")
+  b <- mdf_filter(g, terrain >= 0.5, layer = "terrain")
   expect_null(.tag_of(mdf_componentise(b, layer = "terrain"), "terrain"))
 })
 
@@ -352,7 +352,7 @@ test_that("a categorical write starts a fresh category entry", {
 # --- measurements inside a recipe ------------------------------------------
 
 test_that("msr_* and msr() record into a recipe and replay with mdf()", {
-  rec <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  rec <- mdf_filter(expr = cover == 47, add = "forest") |>
     msr_area(scale = "class", layer = "forest") |>
     mdf_erode(layer = "forest", add = "core") |>
     msr_area(scale = "class", layer = "core") |>
@@ -364,7 +364,7 @@ test_that("msr_* and msr() record into a recipe and replay with mdf()", {
   expect_length(rec@layers, 0)
 
   direct <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     msr_area(scale = "class", layer = "forest") |>
     mdf_erode(layer = "forest", add = "core") |>
     msr_area(scale = "class", layer = "core") |>
@@ -389,7 +389,7 @@ test_that("an argument recorded into a recipe is stored by value", {
 })
 
 test_that("mdf_morph with identity and max/min is dilation/erosion", {
-  f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+  f <- mdf_filter(landscape, cover == 47, add = "forest")
   s <- msk_struct("square", width = 3, height = 3)
   morph <- function(merge) {
     msk_pull(mdf_morph(f, struct = s, blend = "identity", merge = merge,
@@ -416,7 +416,7 @@ test_that("mdf_morph refuses to rotate a kernel that is not square", {
 })
 
 test_that("mdf_morph respects the shape of the structuring element", {
-  f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+  f <- mdf_filter(landscape, cover == 47, add = "forest")
   d <- msk_struct("disc", width = 5, height = 5)
   expect_equal(
     msk_pull(mdf_morph(f, struct = d, blend = "identity", merge = "max",

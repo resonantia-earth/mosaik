@@ -23,7 +23,7 @@ The narrow parts are what opening removes:
 library(mosaik)
 square <- msk_struct("square", width = 3)
 critical <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_erode(struct = square, layer = "forest", add = "wide") |>
   mdf_dilate(struct = square, layer = "wide") |>
   mdf_filter(forest == 1 & wide == 0, add = "narrow")

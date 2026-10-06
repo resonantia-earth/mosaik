@@ -30,7 +30,7 @@ records itself. A chain of such calls is a recipe, and `mdf()` runs it on
 whatever mosaik it is given. The core of a forest is the forest minus its edge:
 
 ```{r}
-core <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+core <- mdf_filter(expr = cover == 47, add = "forest") |>
   mdf_erode(layer = "forest", add = "core")
 ```
 
@@ -70,7 +70,7 @@ patches. The last step subtracts `class41`, which was made two steps earlier,
 from `filled`, which was made by the step before:
 
 ```{r}
-holes <- mdf_binarise(match = 41, layer = "cover", add = "class41") |>
+holes <- mdf_filter(expr = cover == 41, add = "class41") |>
   mdf_fill(layer = "class41", add = "filled") |>
   mdf_blend(layers = c("filled", "class41"), fun = "-", add = "holes")
 
@@ -89,7 +89,7 @@ measures the forest, erodes it to its core, measures the core, and works out
 what share of the map the core takes up:
 
 ```{r}
-core_share <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+core_share <- mdf_filter(expr = cover == 47, add = "forest") |>
   msr_area(scale = "class", layer = "forest") |>
   mdf_erode(layer = "forest", add = "core") |>
   msr_area(scale = "class", layer = "core") |>
@@ -182,7 +182,7 @@ patch:
 
 ```{r}
 z <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")
 ```
@@ -260,7 +260,7 @@ Here one forest cell grows into its neighbours, but only where there is forest.
 Once it has nowhere left to grow, it has covered the patch it started in:
 
 ```{r}
-m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+m <- mdf_filter(landscape, cover == 47, add = "forest")
 m <- mdf_distance(m, source = "background", layer = "forest", add = "depth")
 start <- which.max(msk_pull(m, "depth"))             # the deepest forest cell
 seed <- as.numeric(seq_len(msk_ncells(m)) == start)
@@ -281,8 +281,8 @@ msk_vis(m, .layer("forest"), .layer("seed"))
 # the figure of the call above, drawn as an animation: one frame per round of
 # the loop, from the single seed cell to the whole patch, with the last frame
 # held so the result can be seen
-cur <- msk_add(mdf_binarise(landscape, match = 47, layer = "cover",
-                            add = "forest"), seed = seed)
+cur <- msk_add(mdf_filter(landscape, cover == 47, add = "forest"),
+               seed = seed)
 repeat {
   msk_vis(cur, .layer("forest"), .layer("seed"))
   nxt <- mdf(cur, grow)

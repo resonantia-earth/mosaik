@@ -61,7 +61,7 @@
 #' @examples
 #' # the size of each forest patch, written onto every cell of the patch
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
 #'   mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")
 #' msk_vis(m, .layer("forest"), .layer("size"))

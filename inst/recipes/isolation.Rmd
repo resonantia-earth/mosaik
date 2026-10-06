@@ -17,10 +17,10 @@ Its minimum over the other patches is the distance to the nearest one.
 ```{r}
 library(mosaik)
 isolation <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   msr_area(scale = "patch", layer = "forest") |>
-  msr_cost(scale = "patch", routing = "straight", layer = "forest") |>
+  msr_distance(routing = "straight", layer = "forest") |>
   msr(equation = "min(distance.patch)", label = "nearest.patch", layer = "forest")
 p <- msk_patches(isolation, layer = "forest")
 ```
@@ -64,6 +64,6 @@ stopifnot(min(rows) > msk_dims(isolation)[2] - 6,
           all(nearest$nearest[nearest$patch %in% 3:5] <= 3))
 ```
 
-With a cost surface instead of straight distance (`msr_cost(cost = ...)`),
+With a cost surface instead of straight distance (`msr_distance(cost = ...)`),
 the same recipe measures isolation for an animal that crosses a road
 reluctantly and follows hedgerows readily.

@@ -25,7 +25,7 @@ reference <- 25
 collapse <- 0
 
 condition <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_summarise(by = "patch", fun = "mean", layer = "canopy",
                 add = "height") |>

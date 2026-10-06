@@ -52,7 +52,7 @@ that order, and is what MSPA builds on (see
 \examples{
 # the skeleton of the forest, by thinning and by homotopic thinning
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_skeletonise(layer = "forest", add = "zhangSuen") |>
   mdf_skeletonise(method = "homotopic", layer = "forest", add = "homotopic")
 msk_vis(m, .layer("forest"), .layer("zhangSuen"), .layer("homotopic"))

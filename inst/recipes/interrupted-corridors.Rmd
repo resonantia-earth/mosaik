@@ -17,7 +17,7 @@ afterwards were separated only by a narrow break.
 ```{r}
 library(mosaik)
 joined <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_dilate(layer = "forest", add = "closed") |>
   mdf_erode(layer = "closed") |>

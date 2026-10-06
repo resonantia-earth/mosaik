@@ -63,7 +63,6 @@ msk_vis(m, .layer("forest"), .layer("core"), .layer("rim"))
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_categorise}()},
 \code{\link{mdf_distance}()},
 \code{\link{mdf_interpolate}()},

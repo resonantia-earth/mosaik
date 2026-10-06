@@ -29,7 +29,7 @@ a structuring element.
 \examples{
 # the forest grown by one cell, and by two cells with a 5 x 5 square
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_dilate(layer = "forest", add = "dilated") |>
   mdf_dilate(struct = msk_struct("square", width = 5), layer = "forest",
              add = "dilated_5")

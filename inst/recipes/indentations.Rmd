@@ -26,7 +26,7 @@ grow into each other. Here patch 4, the large patch in the north-west:
 ```{r}
 library(mosaik)
 one <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_filter(patch == 4, add = "one") |>
   mdf_fill(layer = "one", add = "one_filled")

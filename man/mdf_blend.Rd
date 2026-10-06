@@ -54,8 +54,8 @@ function is evaluated once per cell, so it is slower.
 \examples{
 # the distance to the forest, to the river, and to whichever is nearer
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
-  mdf_binarise(match = 1, layer = "cover", add = "river") |>
+  mdf_filter(cover == 47, add = "forest") |>
+  mdf_filter(cover == 1, add = "river") |>
   mdf_distance(layer = "forest", add = "to_forest") |>
   mdf_distance(layer = "river", add = "to_river") |>
   mdf_blend(layers = c("to_forest", "to_river"), fun = "min",

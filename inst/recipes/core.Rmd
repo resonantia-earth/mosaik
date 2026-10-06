@@ -19,10 +19,10 @@ width, here two cells:
 ```{r}
 library(mosaik)
 core <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_distance(source = "background", layer = "forest", add = "depth") |>
-  mdf_binarise(thresh = 2, layer = "depth", add = "core")
+  mdf_filter(depth >= 2, add = "core")
 ```
 
 The distance is 1 in the outermost row of forest cells and grows towards the

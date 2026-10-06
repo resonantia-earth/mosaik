@@ -26,12 +26,12 @@ cost <- c("1" = 20, "11" = 5, "21" = 4, "24" = 2, "27" = 2, "31" = 30,
           "35" = 50, "41" = 3, "44" = 3, "47" = 1)
 
 connectivity <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_replace(old = as.numeric(names(cost)), new = cost, layer = "cover",
               add = "friction") |>
-  msr_cost(scale = "patch", layer = "forest") |>
-  msr_cost(scale = "patch", cost = "friction", layer = "forest") |>
+  msr_distance(layer = "forest") |>
+  msr_distance(cost = "friction", layer = "forest") |>
   msr(equation = "min(distance.patch)", label = "straight.patch", layer = "forest") |>
   msr(equation = "min(friction.patch)", label = "through.patch", layer = "forest")
 p <- msk_patches(connectivity, layer = "forest")

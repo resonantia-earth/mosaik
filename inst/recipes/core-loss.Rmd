@@ -26,7 +26,7 @@ library(mosaik)
 square <- msk_struct("square", width = 3)
 seven <- msk_struct("square", width = 7)
 change <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest_now") |>
+  mdf_filter(cover == 47, add = "forest_now") |>
   mdf_componentise(connectivity = 8L, layer = "forest_now", add = "patch") |>
   mdf_filter(patch == 4, add = "four") |>
   mdf_dilate(struct = seven, layer = "four", add = "whole") |>
@@ -36,9 +36,9 @@ change <- landscape |>
   mdf_filter(forest_now == 1 | (whole == 1 & cover == 27) |
                (cover == 35 & closed == 1), add = "forest_then") |>
   mdf_distance(source = "background", layer = "forest_then", add = "depth_then") |>
-  mdf_binarise(thresh = 2, layer = "depth_then", add = "core_then") |>
+  mdf_filter(depth_then >= 2, add = "core_then") |>
   mdf_distance(source = "background", layer = "forest_now", add = "depth_now") |>
-  mdf_binarise(thresh = 2, layer = "depth_now", add = "core_now") |>
+  mdf_filter(depth_now >= 2, add = "core_now") |>
   mdf_filter(forest_then == 1 & forest_now == 0, add = "area_lost") |>
   mdf_filter(core_then == 1 & core_now == 0, add = "core_lost")
 ```

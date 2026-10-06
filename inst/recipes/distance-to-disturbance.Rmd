@@ -18,8 +18,8 @@ here it is the road and the settlements.
 ```{r}
 library(mosaik)
 disturbance <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
-  mdf_binarise(match = c(31, 35), layer = "cover", add = "source") |>
+  mdf_filter(cover == 47, add = "forest") |>
+  mdf_filter(cover %in% c(31, 35), add = "source") |>
   mdf_distance(layer = "source", add = "distance") |>
   mdf_filter(forest == 1, value = TRUE, layer = "distance",
              add = "from_disturbance")

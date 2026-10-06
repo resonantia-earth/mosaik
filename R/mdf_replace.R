@@ -36,7 +36,7 @@ mdf_replace <- function(obj = NULL,
   # branches on all(is.na(old)) for exactly this case.
   assertNumeric(x = old, min.len = 1)
   # NA in 'new' is allowed: replacing a value with NA marks those cells as
-  # excluded, e.g. an impassable class for msr_cost
+  # excluded, e.g. an impassable class for msr_distance
   assertNumeric(x = new, min.len = 1)
   if(length(old) != length(new)){
     newValues <- rep(new, length.out = length(old))

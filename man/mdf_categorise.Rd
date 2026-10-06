@@ -73,7 +73,6 @@ msk_vis(f, .layer("field"), .layer("classes"))
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_distance}()},
 \code{\link{mdf_filter}()},
 \code{\link{mdf_interpolate}()},

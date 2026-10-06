@@ -85,7 +85,7 @@ msk_vis(m, .layer("canopy"), .layer("mean"), .layer("max"))
 
 # the interior of a binary layer: cells whose whole neighbourhood is 1
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_morph(struct = s, blend = "equal", merge = "all", layer = "forest",
             add = "interior")
 msk_vis(m, .layer("forest"), .layer("interior"))

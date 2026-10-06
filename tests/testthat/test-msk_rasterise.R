@@ -58,7 +58,7 @@ test_that("rasterised points feed mdf_distance", {
   p <- data.frame(x = 5.5, y = 5.5, id = 1)
   m <- grid10() |>
     msk_rasterise(geom = p, type = "point", name = "pt") |>
-    mdf_binarise(match = 1, layer = "pt", add = "src") |>
+    mdf_filter(pt == 1, add = "src") |>
     mdf_distance(layer = "src", add = "d")
   v <- msk_pull(m, "d")
   expect_equal(v[.cell(m, x = 5.5, y = 5.5)], 0)

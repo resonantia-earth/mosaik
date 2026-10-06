@@ -45,7 +45,7 @@ outward as well.
 \examples{
 # the forest with its holes filled, and the holes alone
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_fill(layer = "forest", add = "filled") |>
   mdf_filter(filled == 1 & forest == 0, add = "holes")
 msk_vis(m, .layer("forest"), .layer("filled"), .layer("holes"))

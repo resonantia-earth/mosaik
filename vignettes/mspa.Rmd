@@ -495,7 +495,7 @@ than the pattern of the paper: both are read at `size = 1`, and the patches
 of `landscape` are, if anything, larger.
 
 ```{r landscape}
-forest <- mdf_binarise(landscape, match = 47, layer = "cover", add = "pattern")
+forest <- mdf_filter(landscape, cover == 47, add = "pattern")
 lcls <- mspa_classify(forest)
 table(factor(lcls, c(1, 6, 3, 4, 5, 2, 7),
              c("core", "edge", "perforation", "islet", "bridge", "loop",

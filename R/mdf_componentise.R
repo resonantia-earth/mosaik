@@ -28,7 +28,7 @@
 #'   sample(hcl.colors(max(msk_pull(m, layer), na.rm = TRUE), "Dark 3"))
 #' }
 #' f <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_componentise(layer = "forest", add = "rook") |>
 #'   mdf_componentise(connectivity = 8L, layer = "forest", add = "queen")
 #' msk_vis(f, .layer("forest"),

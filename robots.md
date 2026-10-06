@@ -38,11 +38,11 @@ Read "Common mistakes" first.
    prefixes `mk_`, `gnrt_`, `mg_`, `sim_`, `make_`. Terrain, climate, soil,
    vegetation, land-use and simulation functions belong to the separate package
    mundus, not to mosaik. `msr_distance` does not exist either: distance is
-   `msr_cost()` without a cost surface.
+   `msr_distance()` without a cost surface.
 9. **C++ functions are internal.** Do not call `morphCpp`, `distanceCpp` and so
    on; use the R functions.
 10. **Number the patches before measuring them.** Every patch-level measure
-    (`msr_area/msr_perimeter/msr_cost/msr_adjacency(scale = "patch")`,
+    (`msr_area/msr_perimeter/msr_distance/msr_adjacency(scale = "patch")`,
     `msr_number(scale = "class")`, and `msr()` with a `.patch` or `.cell`
     variable) measures the patches `mdf_componentise(layer = ...)` numbered
     on that layer, and stops if there are none. The measures never find
@@ -119,8 +119,6 @@ Generic operations; none knows what a layer represents. All have
 
 Values:
 
-- `mdf_binarise(obj, thresh = NULL, match = NULL, layer, add)`: 1 where the value
-  is above `thresh` or in `match`, else 0.
 - `mdf_categorise(obj, breaks = NULL, n = NULL, shares = NULL, layer, add)`: bin
   into classes, by break points, into `n` classes of equal width, or so that
   the classes cover the given `shares` of the cells (lowest values first;
@@ -186,7 +184,7 @@ Recipes:
   stops changing (`stable = TRUE`).
 
 ```r
-core <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+core <- mdf_filter(expr = cover == 47, add = "forest") |>
   mdf_erode(layer = "forest", add = "core")
 result <- mdf(landscape, core)
 ```
@@ -214,8 +212,8 @@ numbers drops the patches too. Patch-level calls need
 | `msr_adjacency(scale = "patch")` | `@patches[[layer]]$adjacency`, `$regions` (patch by patch matrices) | `adjacency.patch`, `regions.patch` |
 | `msr_dissimilarity(contrast, scale = "class")` | `@categories[[layer]]$dissimilarity` | `dissimilarity.class` |
 | `msr_dissimilarity(contrast, scale = "landscape")` | `@global[[layer]]$dissimilarity` | `dissimilarity.landscape` |
-| `msr_cost(scale = "patch")` | `@patches[[layer]]$distance` (per class, patch-to-patch matrix) | `distance.patch` |
-| `msr_cost(scale = "cell")` | internal layer `_distance_<layer>` | `distance.cell` |
+| `msr_distance()` | `@patches[[layer]]$distance` (per class, patch-to-patch matrix) | `distance.patch` |
+| any layer, e.g. `canopy` | the layer itself | `canopy.cell` |
 
 Signatures:
 
@@ -227,41 +225,43 @@ Signatures:
   every pair of bordering cells is counted from both sides.
 - `msr_dissimilarity(obj = NULL, contrast, scale = "class", layer = NULL)`, `contrast`
   a symmetric matrix with class IDs as row and column names.
-- `msr_cost(obj = NULL, scale = "patch", cost = NULL, routing = "cheapest", accumulate = "sum", layer = NULL)`:
-  without `cost`, the cost is distance in metres; with a layer of per-cell
-  traversal costs, any other cost. `routing` is `"cheapest"` or `"straight"`;
-  `accumulate` is `"sum"`, `"max"`, `"min"`, `"product"` or `"mean"`.
+- `msr_distance(obj = NULL, cost = NULL, routing = "cheapest", layer = NULL)`:
+  without `cost`, every cell counts the same (distance in cells); with a layer
+  of per-cell costs, the distance is the sum of the costs of the cells crossed.
+  `routing` is `"cheapest"` or `"straight"`.
 
 ## msr(): compose a metric
 
 `msr(obj = NULL, equation, label, layer = NULL)`. Write the level into the
-label like a variable: `"pland.class"`, `"enn.patch"`, `"shdi.landscape"`; the
-result is stored there under the name before the dot, always under `layer`, and
-`msr()` stops if it does not fit (one value per class, per patch, or one).
-Without a level the length decides, which goes wrong when the counts coincide
-(one class on a binary layer). `pi` and other base constants may appear. Scales in names: `class`,
-`patch`, `landscape`, `cell`. A variable may end in `_<layer>` to read another
-layer (`area.class_core / area.class_forest`); without it, it reads `layer`.
-Class values of two layers combine only if both have the same classes, patch
-values only if both have the same patches; otherwise `msr()` stops (relate
-patches of different layers with `mdf_summarise()`).
-With `distance.patch`, the equation is evaluated once per patch on that patch's
-row of the distance matrix (self-distance is `Inf`), and every other `.patch`
-variable holds the values of the patches in that row, so `"min(distance.patch)"`
-is the nearest-neighbour distance and `"sum(area.patch / distance.patch^2)"` the
-proximity index. Any `.patch` or `.cell` variable needs the
-patches numbered by `mdf_componentise()` on `layer`:
+label like a variable: `"pland.class"`, `"enn.patch"`, `"shdi.landscape"`. The
+level is the group: the equation is evaluated once per class of `layer`, per
+patch, or once for the whole layer, every variable holds that group's values,
+and the result must be one value per group. The result is stored under the
+name before the dot, always under `layer`. Without a level, an equation with
+`.cell` or `distance.patch` variables is grouped by patch; any other is
+evaluated once and its length decides where it goes. `pi` and other base
+constants may appear. Scales in names: `class`, `patch`, `landscape`, `cell`.
+A variable may end in `_<layer>` to read another layer
+(`area.class_core / area.class_forest`); without it, it reads `layer`. A
+`.cell` variable names a layer itself (`canopy.cell` = the layer `canopy`),
+so any layer can be summarised per patch or class. Class values of two layers
+combine only if both have the same classes, patch values only if both have the
+same patches. Within a patch, `distance.patch` is that patch's row of the
+distance matrix (self-distance is `Inf`), so `"min(distance.patch)"` is the
+nearest-neighbour distance. Any `.patch` variable, and `.cell` grouped by
+patch, needs the patches numbered by `mdf_componentise()` on `layer`:
 
 ```r
 m <- landscape |>
   mdf_componentise(connectivity = 8L, layer = "cover", add = "patch") |>
-  msr_cost(scale = "patch", layer = "cover") |>
+  msr_distance(layer = "cover") |>
   msr("min(distance.patch)", "enn.patch", layer = "cover")
 ```
 
-Costs are named after what they measure, not after the primitive: `distance`
-without a cost surface, otherwise the name of the cost layer
-(`friction.patch`, `friction.cell`).
+Distances are named after what they measure, not after the primitive:
+`distance` without a cost layer, otherwise the name of the cost layer
+(`friction.patch`). A distance for every cell is a layer: `mdf_distance()`,
+with `cost` for a cost layer.
 
 ```r
 m <- landscape |>

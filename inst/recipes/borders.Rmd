@@ -17,7 +17,7 @@ kind of land borders one class, a patch between fields, roads and rivers many.
 ```{r}
 library(mosaik)
 contrast <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_summarise(by = "patch", fun = "n_distinct", neighbours = TRUE,
                 layer = "cover", add = "classes")

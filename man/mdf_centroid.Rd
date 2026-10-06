@@ -28,7 +28,7 @@ The centroid is the average location of all cells of a foreground patch.
 \examples{
 # the forest patches and the centroid of each
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(layer = "forest", add = "patch") |>
   mdf_centroid(layer = "patch", add = "centroid")
 msk_vis(m, .layer("patch"),

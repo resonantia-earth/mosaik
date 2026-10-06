@@ -87,7 +87,7 @@ msk_vis(g, .layer("inverted"))
 
 # any other shape as the origin: here the forest of the example data
 g <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   drw_gradient(origin = "forest", name = "from_forest")
 msk_vis(g, .layer("forest"), .layer("from_forest"))
 }

@@ -30,7 +30,6 @@ msk_vis(mdf_rotate(landscape, angle = 270), .layer("cover"))
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_categorise}()},
 \code{\link{mdf_distance}()},
 \code{\link{mdf_filter}()},

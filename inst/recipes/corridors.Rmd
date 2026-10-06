@@ -22,9 +22,9 @@ The cores are the forest two or more cells from its edge:
 ```{r}
 library(mosaik)
 corridors <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_distance(source = "background", layer = "forest", add = "depth") |>
-  mdf_binarise(thresh = 2, layer = "depth", add = "core") |>
+  mdf_filter(depth >= 2, add = "core") |>
   mdf_componentise(connectivity = 8L, background = 0, layer = "core",
                    add = "core_id") |>
   mdf_skeletonise(layer = "forest", add = "skeleton") |>

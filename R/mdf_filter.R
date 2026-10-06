@@ -89,7 +89,7 @@ mdf_filter <- function(obj = NULL,
     vals <- msk_pull(obj, layer)
     vals[!hit] <- NA
   } else {
-    vals <- as.numeric(hit)
+    vals <- as.integer(hit)
   }
 
   # build output ----

@@ -31,7 +31,7 @@
 #' @examples
 #' # the forest with its holes filled, and the holes alone
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_fill(layer = "forest", add = "filled") |>
 #'   mdf_filter(filled == 1 & forest == 0, add = "holes")
 #' msk_vis(m, .layer("forest"), .layer("filled"), .layer("holes"))
@@ -56,7 +56,7 @@ mdf_fill <- function(obj = NULL,
   if(is.null(layer)) layer <- names(obj@layers)[1]
   vals <- msk_pull(obj, layer)
   if(!isBinaryCpp(vals = vals)){
-    stop("layer '", layer, "' is not binary; run 'mdf_binarise()' first.",
+    stop("layer '", layer, "' is not binary; make it binary with 'mdf_filter()' first.",
          call. = FALSE)
   }
   dims <- obj@dims

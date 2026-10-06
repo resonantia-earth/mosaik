@@ -26,7 +26,7 @@
 #' @examples
 #' # the skeleton of the forest, by thinning and by homotopic thinning
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_skeletonise(layer = "forest", add = "zhangSuen") |>
 #'   mdf_skeletonise(method = "homotopic", layer = "forest", add = "homotopic")
 #' msk_vis(m, .layer("forest"), .layer("zhangSuen"), .layer("homotopic"))
@@ -63,7 +63,7 @@ mdf_skeletonise <- function(obj = NULL,
 
   # body ----
   if(!isBinaryCpp(vals = vals)){
-    stop("'obj' is not binary, please run 'mdf_binarise()' first.")
+    stop("'obj' is not binary, make it binary with 'mdf_filter()' first.")
   }
   anchorVec <- if(is.null(anchor)) numeric(0) else as.numeric(msk_pull(obj, anchor))
   temp <- skeletoniseCpp(vals = vals, nrow = dims[2], ncol = dims[1],

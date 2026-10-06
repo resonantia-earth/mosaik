@@ -89,7 +89,7 @@ connected components, pair it with \code{\link{mdf_componentise}}.
 \examples{
 # the size of each forest patch, written onto every cell of the patch
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")
 msk_vis(m, .layer("forest"), .layer("size"))
@@ -104,7 +104,6 @@ msk_vis(m, .layer("forest"), .layer("open"), .layer("touching"))
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_categorise}()},
 \code{\link{mdf_distance}()},
 \code{\link{mdf_filter}()},

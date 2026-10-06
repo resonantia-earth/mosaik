@@ -20,7 +20,7 @@ a larger structuring element.
 ```{r}
 library(mosaik)
 boundary <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_dilate(layer = "forest", add = "grown") |>
   mdf_erode(layer = "forest", add = "shrunk") |>
   mdf_blend(layers = c("grown", "shrunk"), fun = "-", add = "boundary")

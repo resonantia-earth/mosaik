@@ -29,7 +29,7 @@ partitioning of the grid. The input must contain distinct patches (run
 # every cell assigned to the forest patch whose centroid is nearest; drawn in
 # shuffled colours, since neighbouring numbers would otherwise get similar ones
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(layer = "forest", add = "patch") |>
   mdf_tesselate(layer = "patch", add = "regions")
 set.seed(1)
@@ -40,7 +40,6 @@ msk_vis(m, .layer("patch", colours = colours, legend = FALSE),
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_categorise}()},
 \code{\link{mdf_distance}()},
 \code{\link{mdf_filter}()},

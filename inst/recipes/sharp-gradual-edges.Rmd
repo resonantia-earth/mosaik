@@ -22,7 +22,7 @@ the median of the interior.
 ```{r}
 library(mosaik)
 edge <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_distance(source = "background", layer = "forest", add = "depth") |>
   mdf_filter(depth >= 1 & depth < 1.5, add = "rim")
 level <- median(msk_pull(edge, "canopy")[msk_pull(edge, "depth") > 3])
@@ -41,7 +41,7 @@ while few of the gradual ones do:
 
 ```{r}
 fresh <- landscape |>
-  mdf_binarise(match = c(35, 27), layer = "cover", add = "fresh") |>
+  mdf_filter(cover %in% c(35, 27), add = "fresh") |>
   mdf_dilate(struct = msk_struct("square", width = 3, height = 3),
              layer = "fresh")
 near <- msk_pull(fresh, "fresh") == 1

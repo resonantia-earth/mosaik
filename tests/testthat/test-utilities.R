@@ -147,15 +147,15 @@ test_that(".cell finds the cell a point lies in", {
   expect_true(is.na(.cell(m, x = 5, y = 1)))
 })
 
-test_that("derive with distance.cell computes GYRATE (mean centroid distance)", {
+test_that("derive with a cell variable computes GYRATE (mean centroid distance)", {
   # 10x10 grid, one 3x3 foreground patch
   vals <- rep(0L, 100)
   vals[c(23, 24, 25, 33, 34, 35, 43, 44, 45)] <- 1L
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
   m <- mdf_componentise(m)
   m <- mdf_centroid(m, add = "centroids")
-  m <- mdf_distance(m, source = "centroids", add = "_distance_cover")
-  m <- msr(m, equation = "mean(distance.cell)", label = "gyrate")
+  m <- mdf_distance(m, source = "centroids", add = "dist")
+  m <- msr(m, equation = "mean(dist.cell)", label = "gyrate")
   # result should be per-patch (only the foreground patch is numbered)
   expect_true("gyrate" %in% names(msk_patches(m)))
   expect_equal(length(msk_patches(m)$gyrate), 1)
@@ -163,25 +163,68 @@ test_that("derive with distance.cell computes GYRATE (mean centroid distance)", 
   expect_true(all(msk_patches(m)$gyrate >= 0))
 })
 
-test_that("derive with distance.cell computes max distance (CIRCLE)", {
+test_that("derive with a cell variable computes max distance (CIRCLE)", {
   vals <- rep(0L, 100)
   vals[c(23, 24, 25, 33, 34, 35, 43, 44, 45)] <- 1L
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
   m <- mdf_componentise(m)
   m <- mdf_centroid(m, add = "centroids")
-  m <- mdf_distance(m, source = "centroids", add = "_distance_cover")
-  m <- msr(m, equation = "max(distance.cell)", label = "circle")
+  m <- mdf_distance(m, source = "centroids", add = "dist")
+  m <- msr(m, equation = "max(dist.cell)", label = "circle")
   expect_true("circle" %in% names(msk_patches(m)))
   # max should be >= mean
-  m <- msr(m, equation = "mean(distance.cell)", label = "gyrate")
+  m <- msr(m, equation = "mean(dist.cell)", label = "gyrate")
   expect_true(all(msk_patches(m)$circle >= msk_patches(m)$gyrate))
 })
 
-test_that("derive .cell errors when internal layer missing", {
+test_that("a cell variable names a layer that must exist", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = rep(1L, 100)))
-  expect_error(msr(m, equation = "mean(distance.cell)", label = "x"),
-               "_distance_cover.*not found")
+  expect_error(msr(m, equation = "mean(dist.cell)", label = "x"),
+               "layer 'dist', which is not in 'obj'")
+  expect_error(msr(m, equation = "mean(cover.cell_cover)", label = "x"),
+               "takes no _layer suffix")
+})
+
+test_that("the label's scale groups the cells", {
+  #   1 1 2 2       canopy  10 20 30 30
+  #   1 1 2 2               10 20 30 30
+  v <- c(1, 1, 2, 2,
+         1, 1, 2, 2)
+  h <- c(10, 20, 30, 30,
+         10, 20, 30, 30)
+  m <- mosaik(extent = c(0, 4, 0, 2), res = 1,
+              vals = list(cover = v, canopy = h))
+  m <- msr(m, equation = "mean(canopy.cell)", label = "height.class",
+           layer = "cover")
+  expect_equal(msk_categories(m, "cover")$height, c(15, 30))
+  m <- msr(m, equation = "mean(canopy.cell)", label = "height.landscape",
+           layer = "cover")
+  expect_equal(msk_global(m, "cover")$height, 22.5)
+
+  # within a group, a class value is that class's own value
+  m <- msr_area(m, scale = "class", layer = "cover")
+  m <- msr(m, equation = "sum(canopy.cell) / area.class", label = "mean.class",
+           layer = "cover")
+  expect_equal(msk_categories(m, "cover")$mean, c(15, 30))
+})
+
+test_that("within a patch, a patch value is that patch's own value", {
+  v <- c(0, 0, 0, 0, 0, 0,
+         0, 1, 1, 0, 1, 0,
+         0, 1, 1, 0, 1, 0,
+         0, 0, 0, 0, 0, 0)
+  h <- v * c(0, 0, 0, 0, 0, 0,
+             0, 10, 20, 0, 40, 0,
+             0, 10, 20, 0, 40, 0,
+             0, 0, 0, 0, 0, 0)
+  m <- mosaik(extent = c(0, 6, 0, 4), res = 1,
+              vals = list(forest = v, canopy = h))
+  m <- mdf_componentise(m, layer = "forest", add = "patch") |>
+    msr_area(scale = "patch", layer = "forest") |>
+    msr(equation = "sum(canopy.cell) / area.patch", label = "height.patch",
+        layer = "forest")
+  expect_equal(msk_patches(m, "forest")$height, c(15, 40))
 })
 
 test_that("msk_struct creates struct", {

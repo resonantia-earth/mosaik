@@ -74,7 +74,7 @@ msk_categories(m)$pairedSum
 
 # to calculate patch-level metrics, number the patches first; scale =
 # "patch" looks for the table mdf_componentise writes
-f <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest") |>
+f <- mdf_filter(landscape, cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   msr_adjacency(scale = "patch", connect = 8, layer = "forest")
 msk_patches(f, layer = "forest")$adjacency
@@ -83,8 +83,8 @@ msk_patches(f, layer = "forest")$adjacency
 Other measure: 
 \code{\link{msr}()},
 \code{\link{msr_area}()},
-\code{\link{msr_cost}()},
 \code{\link{msr_dissimilarity}()},
+\code{\link{msr_distance}()},
 \code{\link{msr_number}()},
 \code{\link{msr_perimeter}()}
 }

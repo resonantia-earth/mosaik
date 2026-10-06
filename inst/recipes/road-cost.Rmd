@@ -34,7 +34,7 @@ wide <- msk_struct("square", width = 5)
 road <- landscape |>
   msk_rasterise(geom = area, name = "area") |>
   mdf_replace(old = NA, new = 0, layer = "area") |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_dilate(struct = square, layer = "forest", add = "closed") |>
   mdf_erode(struct = square, layer = "closed") |>
   mdf_filter(area == 1 & cover == 35 & closed == 1, add = "through") |>

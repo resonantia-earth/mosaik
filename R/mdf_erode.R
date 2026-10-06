@@ -14,7 +14,7 @@
 #' @examples
 #' # the forest shrunk by one cell, with the default disc and a 3 x 3 square
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_erode(layer = "forest", add = "eroded") |>
 #'   mdf_erode(struct = msk_struct("square", width = 3), layer = "forest",
 #'             add = "eroded_square")

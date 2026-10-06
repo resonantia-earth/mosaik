@@ -19,10 +19,10 @@ two or more cells from the edge:
 ```{r}
 library(mosaik)
 islets <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_distance(source = "background", layer = "forest", add = "depth") |>
-  mdf_binarise(thresh = 2, layer = "depth", add = "core") |>
+  mdf_filter(depth >= 2, add = "core") |>
   mdf_summarise(by = "patch", fun = "any", layer = "core", add = "has_core") |>
   mdf_filter(forest == 1 & has_core == 0, add = "islet") |>
   mdf_summarise(by = "patch", fun = "n", layer = "patch", add = "size")

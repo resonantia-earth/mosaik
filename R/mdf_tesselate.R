@@ -15,7 +15,7 @@
 #' # every cell assigned to the forest patch whose centroid is nearest; drawn in
 #' # shuffled colours, since neighbouring numbers would otherwise get similar ones
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_componentise(layer = "forest", add = "patch") |>
 #'   mdf_tesselate(layer = "patch", add = "regions")
 #' set.seed(1)

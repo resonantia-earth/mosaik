@@ -11,12 +11,19 @@
 #'   calculate. Either \code{"euclidean"} (default), \code{"manhattan"} or
 #'   \code{"chessboard"}. Applies to \code{"foreground"} and
 #'   \code{"background"}; distances to target cells are always Euclidean.
+#' @param cost [`character(1)`][character]\cr the name of a layer with the cost
+#'   of crossing each cell; \code{NA} marks a cell that cannot be crossed. With
+#'   a cost layer, each cell gets the lowest total cost of reaching it from
+#'   the source, and \code{method} is not used. Only for \code{"foreground"}
+#'   and \code{"background"}. If \code{NULL} (default), every cell costs the
+#'   same.
 #' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
 #' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik in which each cell carries its distance to the nearest
-#'   source, in cells.
+#'   source, in cells, or with \code{cost} the lowest total cost of reaching
+#'   it.
 #' @details
 #'   The three modes of \code{source}:
 #'   \describe{
@@ -37,7 +44,7 @@
 #' @examples
 #' # distance from the forest, outward and inward
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   mdf_distance(layer = "forest", add = "outward") |>
 #'   mdf_distance(source = "background", layer = "forest", add = "inward")
 #' msk_vis(m, .layer("forest"), .layer("outward"), .layer("inward"))
@@ -47,6 +54,14 @@
 #'   mdf_distance(method = "manhattan", layer = "forest", add = "manhattan") |>
 #'   mdf_distance(method = "chessboard", layer = "forest", add = "chessboard")
 #' msk_vis(m, .layer("outward"), .layer("manhattan"), .layer("chessboard"))
+#'
+#' # the cost of reaching each cell from the forest, over a cost layer built
+#' # from the classes
+#' m <- m |>
+#'   mdf_replace(old = c(21, 24, 47), new = c(5, 2, 1), layer = "cover",
+#'               add = "friction") |>
+#'   mdf_distance(cost = "friction", layer = "forest", add = "reach")
+#' msk_vis(m, .layer("friction"), .layer("reach"))
 #'
 #' # distance from each cell to the centroid of its own patch
 #' m <- m |>
@@ -65,6 +80,7 @@
 mdf_distance <- function(obj = NULL,
                          source = "foreground",
                          method = "euclidean",
+                         cost = NULL,
                          layer = NULL,
                          add = NULL){
 
@@ -75,29 +91,45 @@ mdf_distance <- function(obj = NULL,
   assertClass(x = obj, classes = "mosaik")
   assertString(x = source)
   assertChoice(x = method, choices = c("euclidean", "manhattan", "chessboard"))
+  assertCharacter(x = cost, len = 1, null.ok = TRUE)
   assertCharacter(x = layer, null.ok = TRUE)
   assertCharacter(x = add, len = 1, null.ok = TRUE)
 
   # pull data ----
   if(is.null(layer)) layer <- names(obj@layers)[1]
   dims <- obj@dims
+  if(!is.null(cost) && !(cost %in% names(obj@layers))){
+    stop("cost layer '", cost, "' not found in 'obj'.")
+  }
 
   if(source %in% c("foreground", "background")){
     # binary distance transform
     vals <- msk_pull(obj, layer)
     if(!isBinaryCpp(vals = vals)){
-      stop("'obj' is not binary, please run 'mdf_binarise()' first.")
+      stop("'obj' is not binary, make it binary with 'mdf_filter()' first.")
     }
 
     if(source == "background"){
       vals <- as.integer(vals == 0)
     }
 
-    temp <- distanceCpp(vals = vals, nrow = dims[2], ncol = dims[1],
-                        method = method)
-    if(method == "euclidean") temp <- sqrt(temp)
+    if(is.null(cost)){
+      temp <- distanceCpp(vals = vals, nrow = dims[2], ncol = dims[1],
+                          method = method)
+      if(method == "euclidean") temp <- sqrt(temp)
+    } else {
+      # the cheapest accumulated cost from any source cell
+      cd <- costDistanceCpp(cost = msk_pull(obj, cost),
+                            from = which(!is.na(vals) & vals == 1),
+                            nrow = dims[2], ncol = dims[1], diagonal = TRUE)
+      temp <- cd$dist
+      temp[is.infinite(temp)] <- NA_real_
+    }
 
   } else {
+    if(!is.null(cost)){
+      stop("'cost' works only with source = \"foreground\" or \"background\".")
+    }
     # layer-based mode: source is a layer name with target points
     if(!(source %in% names(obj@layers))){
       stop("source layer '", source, "' not found in the mosaik.")

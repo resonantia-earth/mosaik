@@ -86,7 +86,7 @@ msk_vis(landscape, .layer("cover", colours = "viridis", limits = c(0, 60)))
 
 # an explicit colour per category, which fixes the meaning of each colour
 # across every figure in a series
-m <- mdf_binarise(landscape, match = 47, layer = "cover", add = "forest")
+m <- mdf_filter(landscape, cover == 47, add = "forest")
 msk_vis(m, .layer("forest", colours = c("0" = "khaki", "1" = "darkgreen")))
 
 # a variable drawn over shaded terrain: same panel, one legend each, and
@@ -95,7 +95,7 @@ msk_vis(m, .layer("forest", colours = c("0" = "khaki", "1" = "darkgreen")))
 t <- mosaik(extent = c(0, 10000, 0, 10000), res = 100) |>
   drw_texture(name = "dem", hurst = 0.9, seed = 1) |>
   mdf_scale(layer = "dem", range = c(0, 200))
-t <- mdf_binarise(t, thresh = 160, layer = "dem", add = "high")
+t <- mdf_filter(t, dem >= 160, add = "high")
 t <- mdf_filter(t, high == 1, value = TRUE, layer = "high")
 msk_vis(t,
         .layer("dem", panel = "relief", colours = "terrain",

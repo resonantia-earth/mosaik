@@ -68,7 +68,7 @@ gives the forest core, the forest that is not edge.
 
 ```{r, fig.alt = "Forest and its core after eroding by one cell", fig.height = 3}
 f <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_erode(layer = "forest", add = "core")
 msk_vis(f, .layer("forest"), .layer("core"))
 ```

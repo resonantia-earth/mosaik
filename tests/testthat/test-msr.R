@@ -40,7 +40,7 @@ test_that("patches the map border cuts have NA values", {
   m <- mdf_componentise(m, add = "patch") |>
     msr_area(scale = "patch") |>
     msr_perimeter(scale = "patch") |>
-    msr_cost(scale = "patch", routing = "straight") |>
+    msr_distance(routing = "straight") |>
     msr_adjacency(scale = "patch")
   pt <- msk_patches(m)
   expect_equal(pt$area, c(NA, 2))
@@ -58,7 +58,7 @@ test_that("patch-level measures need patches numbered by mdf_componentise", {
   expect_error(msr_area(m, scale = "patch"), "mdf_componentise")
   expect_error(msr_perimeter(m, scale = "patch"), "mdf_componentise")
   expect_error(msr_number(m, scale = "class"), "mdf_componentise")
-  expect_error(msr_cost(m, scale = "patch"), "mdf_componentise")
+  expect_error(msr_distance(m), "mdf_componentise")
   expect_error(msr_adjacency(m, scale = "patch"), "mdf_componentise")
 
   # the record says where the numbers are; 0 forms no patch
@@ -223,7 +223,7 @@ test_that("paired adjacency is a class table: diagonal is like, row sums are pai
   expect_equal(unname(rowSums(cats$adjacency)), unname(cats$pairedSum))
 })
 
-test_that("msr_cost computes pairwise patch distance matrices", {
+test_that("msr_distance computes pairwise patch distance matrices", {
   # 5x5 grid with two classes: class 1 in corners, class 2 elsewhere
   vals <- c(1, 2, 2, 2, 1,
             2, 2, 2, 2, 2,
@@ -233,7 +233,7 @@ test_that("msr_cost computes pairwise patch distance matrices", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = vals))
   m <- mdf_pad(m, value = 0)
   m <- mdf_componentise(m, add = "patch")
-  m <- msr_cost(m, routing = "straight")
+  m <- msr_distance(m, routing = "straight")
 
   expect_true("distance" %in% names(msk_patches(m)))
   expect_true("1" %in% names(msk_patches(m)$distance))
@@ -255,7 +255,7 @@ test_that("msr_cost computes pairwise patch distance matrices", {
   expect_true(all(is.finite(offdiag)))
 })
 
-test_that("msr_cost handles single-patch class", {
+test_that("msr_distance handles single-patch class", {
   # class 3 appears only once
   vals <- c(1, 1, 2, 2, 3,
             1, 1, 2, 2, 2,
@@ -264,7 +264,7 @@ test_that("msr_cost handles single-patch class", {
   m <- mosaik(extent = c(0, 5, 0, 4), res = 1, vals = list(cover = vals))
   m <- mdf_pad(m, value = 0)
   m <- mdf_componentise(m, add = "patch")
-  m <- msr_cost(m, routing = "straight")
+  m <- msr_distance(m, routing = "straight")
 
   # class 3 has 1 patch: 1x1 matrix with Inf
   dmat <- msk_patches(m)$distance[["3"]]
@@ -272,18 +272,7 @@ test_that("msr_cost handles single-patch class", {
   expect_equal(dmat[1, 1], Inf)
 })
 
-test_that("msr_cost scale = 'cell' registers an edge-distance surface", {
-  vals <- rep(0L, 100)
-  vals[c(34, 35, 36, 44, 45, 46, 54, 55, 56)] <- 1L
-  m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
-  m <- msr_cost(m, scale = "cell")
-  expect_true("_distance_cover" %in% names(m@layers))
-  dv <- msk_pull(m, "_distance_cover")
-  # centre of the foreground block should have largest edge distance
-  expect_true(dv[45] > dv[34])
-})
-
-test_that("msr_cost with a cost surface accumulates sum and max", {
+test_that("msr_distance with a cost surface sums the costs along the path", {
   # two class-1 blocks with an expensive band between them
   vals <- c(1,1,3,2,2,
             1,1,3,2,2,
@@ -295,15 +284,9 @@ test_that("msr_cost with a cost surface accumulates sum and max", {
   m <- mdf_replace(m, old = c(1, 2, 3, 9), new = c(1, 1, 1, 10), add = "fric")
   m <- mdf_componentise(m, layer = "cover", add = "patch")
 
-  # sum: the cheapest route crosses one cost-10 barrier cell plus cheap cells
-  rs <- msr_cost(m, cost = "fric", routing = "cheapest", accumulate = "sum",
-                 layer = "cover")
+  # the cheapest route crosses one cost-10 barrier cell plus cheap cells
+  rs <- msr_distance(m, cost = "fric", routing = "cheapest", layer = "cover")
   expect_equal(msk_patches(rs)$fric[["1"]][1, 2], 11)
-
-  # max: the worst cell on that same path is the barrier itself
-  rm <- msr_cost(m, cost = "fric", routing = "cheapest", accumulate = "max",
-                 layer = "cover")
-  expect_equal(msk_patches(rm)$fric[["1"]][1, 2], 10)
 
   # the surface is named after what it measures, not the function
   expect_true("fric" %in% names(msk_patches(rs)))
@@ -316,7 +299,7 @@ test_that("msr_cost with a cost surface accumulates sum and max", {
   expect_length(intersect(ids1, ids3), 0)
 })
 
-test_that("msr_cost returns NA across an impassable barrier", {
+test_that("msr_distance returns NA across an impassable barrier", {
   # a full NA row seals the two class-1 blocks off from each other
   vals <- c(1,1,1,1,1,
             1,1,1,1,1,
@@ -328,29 +311,26 @@ test_that("msr_cost returns NA across an impassable barrier", {
   m <- mdf_replace(m, old = c(1, 9), new = c(1, NA), add = "fric")
   m <- mdf_componentise(m, layer = "cover", add = "patch")
 
-  r <- msr_cost(m, cost = "fric", routing = "cheapest", accumulate = "sum",
-                layer = "cover")
+  r <- msr_distance(m, cost = "fric", routing = "cheapest", layer = "cover")
   mat <- msk_patches(r)$fric[["1"]]
   expect_true(is.na(mat[1, 2]))          # unreachable, distinct from a cost of 0
   expect_true(all(is.infinite(diag(mat))))  # self stays Inf
 })
 
-test_that("msr_cost scale = 'cell' with a cost surface names the layer after it", {
+test_that("mdf_distance with a cost layer gives the cost of reaching each cell", {
   vals <- rep(0L, 100)
   vals[c(34, 35, 36, 44, 45, 46, 54, 55, 56)] <- 1L
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
   m <- mdf_replace(m, old = c(0, 1), new = c(2, 1), add = "friction")
-  m <- msr_cost(m, scale = "cell", cost = "friction", layer = "cover")
+  m <- mdf_distance(m, cost = "friction", layer = "cover", add = "reach")
 
-  # the surface is named after what it measures, not after the function
-  expect_true("_friction_cover" %in% names(m@layers))
-  expect_false("_distance_cover" %in% names(m@layers))
-
-  fv <- msk_pull(m, "_friction_cover")
+  fv <- msk_pull(m, "reach")
   # the source cells themselves cost nothing to reach
   expect_equal(fv[45], 0)
   # and cost accumulates away from them
   expect_true(fv[1] > 0)
+  expect_error(mdf_distance(m, source = "cover", cost = "friction"),
+               "only with source")
 })
 
 test_that("msr_dissimilarity at class scale", {
@@ -381,7 +361,7 @@ test_that("derive with distance.patch produces per-patch ENN", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1, vals = list(cover = vals))
   m <- mdf_pad(m, value = 0)
   m <- mdf_componentise(m, add = "patch")
-  m <- msr_cost(m, routing = "straight")
+  m <- msr_distance(m, routing = "straight")
   m <- suppressWarnings(msr(m, equation = "min(distance.patch)", label = "enn"))
 
   # one ENN value per patch
@@ -440,7 +420,7 @@ test_that("msr refuses a label that already exists at its level", {
 test_that("results are stored per layer and do not overwrite each other", {
   m <- landscape |>
     mdf_pad() |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     msr_perimeter(scale = "landscape", layer = "cover") |>
     msr_perimeter(scale = "landscape", layer = "forest") |>
     mdf_componentise(layer = "cover", add = "cover_patch") |>
@@ -457,7 +437,7 @@ test_that("results are stored per layer and do not overwrite each other", {
 
 test_that("rewriting a layer drops what was measured on it", {
   m <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     mdf_componentise(layer = "forest", add = "patch") |>
     msr_area(scale = "patch", layer = "forest") |>
     msr_area(scale = "landscape", layer = "forest") |>
@@ -468,7 +448,7 @@ test_that("rewriting a layer drops what was measured on it", {
 
 test_that("msr combines class values of two layers with the same classes", {
   m <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     mdf_erode(layer = "forest", add = "core") |>
     msr_area(scale = "class", layer = "forest") |>
     msr_area(scale = "class", layer = "core") |>
@@ -481,7 +461,7 @@ test_that("msr combines class values of two layers with the same classes", {
 
 test_that("msr refuses class or patch values of layers that do not correspond", {
   m <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     mdf_erode(layer = "forest", add = "core") |>
     msr_area(scale = "class", layer = "cover") |>
     msr_area(scale = "class", layer = "forest") |>
@@ -499,7 +479,7 @@ test_that("msr refuses class or patch values of layers that do not correspond", 
 
 test_that("a layer name with underscores is read whole", {
   m <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest_2020") |>
+    mdf_filter(cover == 47, add = "forest_2020") |>
     msr_area(scale = "landscape", layer = "forest_2020") |>
     msr(equation = "area.landscape_forest_2020 * 2", label = "double",
         layer = "cover")
@@ -510,7 +490,7 @@ test_that("the level in the label decides where the result is stored", {
   # a binary layer has one class, so one value fits the classes and the
   # landscape; the label says which
   f <- landscape |>
-    mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+    mdf_filter(cover == 47, add = "forest") |>
     mdf_replace(old = 0, new = NA, layer = "forest") |>
     msr_area(scale = "class", layer = "forest") |>
     msr_area(scale = "landscape", layer = "cover")
@@ -530,7 +510,7 @@ test_that("the level in the label decides where the result is stored", {
     mdf_componentise(layer = "cover", add = "patch") |>
     msr_area(scale = "patch", layer = "cover")
   expect_error(msr(m, "area.patch / sum(area.class)", "x.class", layer = "cover"),
-               "one value per class")
+               "one value for each class")
   expect_error(msr(m, "area.class", "x.landscape", layer = "cover"),
                "takes one value")
   expect_error(msr(m, "area.class", "x.y.class", layer = "cover"), "without '.'")

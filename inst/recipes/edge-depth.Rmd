@@ -19,7 +19,7 @@ against its depth.
 ```{r}
 library(mosaik)
 depth <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_distance(source = "background", layer = "forest", add = "depth") |>
   mdf_filter(forest == 1, value = TRUE, layer = "depth") |>
   mdf_categorise(breaks = 1:8, layer = "depth", add = "ring") |>

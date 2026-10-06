@@ -21,16 +21,16 @@ The stretches are the parts of the road within squares of six by six cells:
 ```{r}
 library(mosaik)
 stretches <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_distance(source = "background", layer = "forest", add = "depth") |>
-  mdf_binarise(thresh = 2, layer = "depth", add = "core") |>
+  mdf_filter(depth >= 2, add = "core") |>
   drw_pattern(type = "checkerboard", frequency = 6, n = 0, name = "square") |>
-  mdf_binarise(match = 35, layer = "cover", add = "road") |>
+  mdf_filter(cover == 35, add = "road") |>
   mdf_blend(layers = c("road", "square"), fun = "*", add = "stretch")
 
 # the core habitat of a forest layer "without", recorded once as a recipe
 core_of <- mdf_distance(source = "background", layer = "without", add = "d") |>
-  mdf_binarise(thresh = 2, layer = "d", add = "c")
+  mdf_filter(d >= 2, add = "c")
 
 ids <- sort(setdiff(unique(msk_pull(stretches, "stretch")), 0))
 core_now <- sum(msk_pull(stretches, "core"))

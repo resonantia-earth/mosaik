@@ -8,6 +8,7 @@ mdf_distance(
   obj = NULL,
   source = "foreground",
   method = "euclidean",
+  cost = NULL,
   layer = NULL,
   add = NULL
 )
@@ -25,6 +26,13 @@ calculate. Either \code{"euclidean"} (default), \code{"manhattan"} or
 \code{"chessboard"}. Applies to \code{"foreground"} and
 \code{"background"}; distances to target cells are always Euclidean.}
 
+\item{cost}{\code{\link[=character]{character(1)}}\cr the name of a layer with the cost
+of crossing each cell; \code{NA} marks a cell that cannot be crossed. With
+a cost layer, each cell gets the lowest total cost of reaching it from
+the source, and \code{method} is not used. Only for \code{"foreground"}
+and \code{"background"}. If \code{NULL} (default), every cell costs the
+same.}
+
 \item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
 
@@ -33,7 +41,8 @@ Defaults to the first layer.}
 }
 \value{
 A mosaik in which each cell carries its distance to the nearest
-source, in cells.
+source, in cells, or with \code{cost} the lowest total cost of reaching
+it.
 }
 \description{
 Replace each cell value with its distance to the nearest source, where the
@@ -60,7 +69,7 @@ with \code{\link{msk_rasterise}} first and binarise the result.
 \examples{
 # distance from the forest, outward and inward
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_distance(layer = "forest", add = "outward") |>
   mdf_distance(source = "background", layer = "forest", add = "inward")
 msk_vis(m, .layer("forest"), .layer("outward"), .layer("inward"))
@@ -70,6 +79,14 @@ m <- m |>
   mdf_distance(method = "manhattan", layer = "forest", add = "manhattan") |>
   mdf_distance(method = "chessboard", layer = "forest", add = "chessboard")
 msk_vis(m, .layer("outward"), .layer("manhattan"), .layer("chessboard"))
+
+# the cost of reaching each cell from the forest, over a cost layer built
+# from the classes
+m <- m |>
+  mdf_replace(old = c(21, 24, 47), new = c(5, 2, 1), layer = "cover",
+              add = "friction") |>
+  mdf_distance(cost = "friction", layer = "forest", add = "reach")
+msk_vis(m, .layer("friction"), .layer("reach"))
 
 # distance from each cell to the centroid of its own patch
 m <- m |>
@@ -86,7 +103,6 @@ and Its Applications to Image and Signal Processing. Springer, pp. 331-340.
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_categorise}()},
 \code{\link{mdf_filter}()},
 \code{\link{mdf_interpolate}()},

@@ -44,7 +44,7 @@ expressing branch-and-recombine algorithms through named layers.
 }
 \examples{
 # define once, without data: the core of class 47, one cell in from its edge
-core <- mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+core <- mdf_filter(expr = cover == 47, add = "forest") |>
   mdf_erode(layer = "forest", add = "core")
 
 # apply to any raster with a 'cover' layer

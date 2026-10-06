@@ -24,10 +24,10 @@ library(mosaik)
 natural <- c(1, 24, 27, 41, 47)
 
 riparian <- landscape |>
-  mdf_binarise(match = 1, layer = "cover", add = "river") |>
+  mdf_filter(cover == 1, add = "river") |>
   mdf_distance(layer = "river", add = "to_river") |>
   mdf_filter(to_river > 0 & to_river <= 3, add = "strip") |>
-  mdf_binarise(match = natural, layer = "cover", add = "natural") |>
+  mdf_filter(cover %in% natural, add = "natural") |>
   drw_gradient(type = "planar", angle = 90, name = "north") |>
   mdf_categorise(n = 4, layer = "north", add = "stretch") |>
   mdf_blend(layers = c("strip", "stretch"), fun = "*", add = "zone") |>

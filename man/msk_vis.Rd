@@ -103,7 +103,7 @@ msk_vis(landscape, .layer("cover"), .layer("canopy"),
 # two layers in one panel: an overlay only shows through where the upper
 # layer is NA, so it is built by masking down to the cells of interest --
 # here the cells without vegetation, flagged over the cover map
-m <- mdf_binarise(landscape, match = 0, layer = "canopy", add = "flat")
+m <- mdf_filter(landscape, canopy == 0, add = "flat")
 m <- mdf_filter(m, flat == 1, value = TRUE, layer = "flat")
 msk_vis(m,
         .layer("cover",  panel = "landscape", colours = "Terrain 2"),

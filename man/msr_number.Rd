@@ -46,8 +46,8 @@ Other measure:
 \code{\link{msr}()},
 \code{\link{msr_adjacency}()},
 \code{\link{msr_area}()},
-\code{\link{msr_cost}()},
 \code{\link{msr_dissimilarity}()},
+\code{\link{msr_distance}()},
 \code{\link{msr_perimeter}()}
 }
 \concept{measure}

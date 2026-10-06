@@ -63,7 +63,7 @@ the iterations and guards against a loop that never settles.
 \examples{
 # the forest (class 47), and one of its cells as a seed
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   msk_rasterise(geom = data.frame(x = 15, y = 40, id = 1), type = "point",
                 name = "seed") |>
   mdf_replace(old = NA, new = 0, layer = "seed")
@@ -77,7 +77,6 @@ msk_vis(m, .layer("forest"), .layer("seed"))
 }
 \seealso{
 Other operators to modify cell values: 
-\code{\link{mdf_binarise}()},
 \code{\link{mdf_categorise}()},
 \code{\link{mdf_distance}()},
 \code{\link{mdf_filter}()},

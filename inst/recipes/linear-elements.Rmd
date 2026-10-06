@@ -17,7 +17,7 @@ or two cells wide almost every cell is skeleton, in a compact patch few are.
 ```{r}
 library(mosaik)
 linear <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   mdf_skeletonise(layer = "forest", add = "skeleton") |>
   mdf_summarise(by = "patch", fun = "sum", layer = "skeleton", add = "spine") |>

@@ -23,7 +23,7 @@ area <- data.frame(x = c(3, 25, 25, 3), y = c(25, 25, 53, 53), id = 1)
 protected <- landscape |>
   msk_rasterise(geom = area, name = "area") |>
   mdf_replace(old = NA, new = 0, layer = "area") |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_filter(area == 1 & forest == 1, add = "area_forest") |>
   mdf_erode(struct = msk_struct("square", width = 5), layer = "area_forest",
             add = "area_core") |>

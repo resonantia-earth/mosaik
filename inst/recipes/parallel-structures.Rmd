@@ -17,9 +17,9 @@ the road, shows where it does.
 ```{r}
 library(mosaik)
 parallel <- landscape |>
-  mdf_binarise(match = 1, layer = "cover", add = "river") |>
+  mdf_filter(cover == 1, add = "river") |>
   mdf_distance(source = "foreground", layer = "river", add = "to_river") |>
-  mdf_binarise(match = 35, layer = "cover", add = "road") |>
+  mdf_filter(cover == 35, add = "road") |>
   mdf_filter(road == 1 & to_river <= 3, value = TRUE, add = "beside")
 ```
 

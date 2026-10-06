@@ -39,7 +39,7 @@
 #' @examples
 #' # the forest (class 47), and one of its cells as a seed
 #' m <- landscape |>
-#'   mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+#'   mdf_filter(cover == 47, add = "forest") |>
 #'   msk_rasterise(geom = data.frame(x = 15, y = 40, id = 1), type = "point",
 #'                 name = "seed") |>
 #'   mdf_replace(old = NA, new = 0, layer = "seed")

@@ -26,7 +26,7 @@ library(mosaik)
 square <- msk_struct("square", width = 3)
 seven <- msk_struct("square", width = 7)
 then_and_now <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest_now") |>
+  mdf_filter(cover == 47, add = "forest_now") |>
   mdf_componentise(connectivity = 8L, layer = "forest_now", add = "patch") |>
   mdf_filter(patch == 4, add = "four") |>
   mdf_dilate(struct = seven, layer = "four", add = "whole") |>

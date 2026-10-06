@@ -52,7 +52,7 @@ end <- msk_struct(custom = matrix(c( 0, 0,  0,
 # isolated cells, line ends in all four directions, and only those whose line
 # leaves downwards; drawn over the forest
 m <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_match(struct = isolated, layer = "forest", add = "isolated") |>
   mdf_match(struct = end, layer = "forest", add = "ends") |>
   mdf_match(struct = end, rotate = FALSE, layer = "forest", add = "ends_down")

@@ -54,8 +54,8 @@ msk_patches(m)$patch   # the patch number, as in the layer 'patch'
 Other measure: 
 \code{\link{msr}()},
 \code{\link{msr_adjacency}()},
-\code{\link{msr_cost}()},
 \code{\link{msr_dissimilarity}()},
+\code{\link{msr_distance}()},
 \code{\link{msr_number}()},
 \code{\link{msr_perimeter}()}
 }

@@ -21,7 +21,7 @@ library(mosaik)
 reach <- 3
 disc <- msk_struct("disc", width = 2 * reach + 1, height = 2 * reach + 1)
 within <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_morph(struct = disc, blend = "product", merge = "mean",
             layer = "forest", add = "share")
 ```
