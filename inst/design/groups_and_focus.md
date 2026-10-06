@@ -22,6 +22,14 @@ arbitrary groups, so they should not be built into the measuring.
 
 ## Decided direction
 
+The user's name for the whole mechanism: a **spatio-thematic group_by**. A
+grouping can be spatial (patches, zones, tessellation cells) or thematic
+(land cover classes); `msr()` treats both as `group_by()` followed by an
+equation. The focus (`self`, `others`) corresponds to dplyr's
+`cur_group_rows()` (dplyr >= 1.1), which marks the current group within the
+whole table; in mosaik `.others` comes ready as a value instead of being
+reached by hand.
+
 **Groups are the classes of a group layer.** A grouping is a layer of
 numbers: every cell carries the number of its group. `mdf_componentise`
 makes one kind (connected areas), `msk_rasterise` (zones), `mdf_tesselate`
@@ -43,8 +51,11 @@ Consequences:
   order of the class table, so it lines up with the other class values. On
   a group layer these are distances between groups (also across what used to
   be classes, which SIMI needs); on `cover`, between land cover classes.
-- The metric app changes throughout: the patch boxes merge into the class
-  boxes, all patch metrics' code changes.
+- The metric app changes throughout: its middle column (each primitive at
+  patch, class and landscape scale) has nothing left to show. It could show
+  the focus instead (`area.self`, `area.others`, `area.all`), which tells
+  which metrics look only at the class in focus and which at the others.
+  All metric code moves to the new notation; the decision tree stays.
 
 **Variables name a value and a focus, not a scale.** Notation
 `<name>.<focus>_<layer>`; the scale moves out of the variable. Within one
