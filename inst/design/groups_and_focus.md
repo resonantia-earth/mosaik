@@ -67,9 +67,14 @@ evaluation (one class in focus):
 | `.others` | every other class of the layer| 20, 5                             |
 | `.all`    | all classes                   | 10, 20, 5                         |
 
-The label keeps its level and with it the focus and the storage: `.class`
-evaluates once per class, `.landscape` once for the whole layer (only
-`.all` makes sense there).
+The label needs no level (user, 2026-10-06): the focus words decide it. An
+equation with `.self` or `.others` runs once per class and is stored in the
+class table; an equation with only `.all` runs once and is stored as one
+value for the layer. There is no third case (only `.all` evaluated per class
+would give every class the same value). The label is then just a name
+(`prox`, not `prox.class`), and the old ambiguity of storing by the number
+of values is gone. (The tables below still show the level; drop it when
+building.)
 
 | metric | equation | label |
 |---|---|---|
