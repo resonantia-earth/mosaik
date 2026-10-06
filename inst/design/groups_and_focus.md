@@ -93,11 +93,44 @@ cells, `mdf_replace` turns a column into a layer). Tables tied to classes
 (a cost per land cover class) are columns of the class table and read the
 same way (`cost.self`). Layer names and stored value names must not clash.
 
+## Prototype test, 2026-10-06
+
+`inst/design/groups_prototype.R` (run from the package root) implements the
+design outside the package: class values per layer (area, perimeter,
+adjacency table, distance table between classes, border flag), an
+evaluator for `<name>.<self|others|all>[_layer]` with the label's level as
+focus, and all 42 metrics of the app rewritten in the new notation
+(`groups_prototype_today.R` holds today's code for comparison). It assumes
+the open border rule as "leave cut groups out of the population".
+
+Result on `landscape` (forest patches as the group layer `patch`):
+
+- **37 metrics give exactly today's values**: AREA PERIM GYRATE CA PLAND LPI
+  TE ED PARA SHAPE FRAC PAFRAC LSI CORE NCORE CAI TCA CPLAND CWED TECI PLADJ
+  AI CONTAG IJI DIVISION SPLIT MESH COHESION PR PRD RPR SHDI SIDI MSIDI SHEI
+  SIEI MSIEI. PROX is back and equals the old values:
+  `sum(area.others / distance.others^2 * (distance.others <= 10))`.
+- **4 differ, all for one reason, the border rule**: leaving the 3 cut
+  patches out of the population makes NP 14 instead of 17 (and PD), CONNECT
+  28.6 instead of 21.7, and ENN of patch 8 3.61 instead of 2.24 (its nearest
+  neighbour is a cut patch). So "leave cut groups out" is wrong. A cut group
+  must stay in the population (it exists, it can be a neighbour, it counts);
+  only its own result is unknown. That is today's rule (own row NA, the way
+  to it measured), and it points the open decision below in that direction.
+- **The name clash happened at once**: the CORE metric was first labelled
+  `core.class`, and then `core.self` in CAI read that stored value instead of
+  the layer `core` (CAI 1.18 instead of 53.39). Names of layers and stored
+  values must be kept apart, by a rule or by a check that stops.
+- **A group layer's outside cells must count as "outside", not as no data**:
+  the prototype sets them to 0 before measuring; with NA, the edges along
+  the outside would not be counted and every perimeter would be too short.
+
 ## Open
 
 - **Groups cut by the map border.** Primitives store what they measure, no
-  NA. `msr()` leaves out the classes that touch the map border when it
-  evaluates an equation. On `cover` almost every class touches the border,
+  NA. The idea was that `msr()` leaves out the classes that touch the map
+  border; the prototype shows that is wrong (see above): cut groups must stay
+  in the population, only their own result is unknown. On `cover` almost every class touches the border,
   so `msr()` must know whether a layer's classes are groups or land cover
   classes (marked by `mdf_componentise`, or said by the user). Not decided.
 - The NA-for-cut-patches built on 2026-10-05/06 (in `msr_area`,
