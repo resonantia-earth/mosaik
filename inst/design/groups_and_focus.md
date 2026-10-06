@@ -74,6 +74,7 @@ value for the layer. There is no third case (only `.all` evaluated per class
 would give every class the same value). The label is then just a name
 (`prox`, not `prox.class`), and the old ambiguity of storing by the number
 of values is gone.
+
 | metric | equation | label | result |
 |---|---|---|---|
 | PARA | `perimeter.self / area.self` | `para` | one per class |
@@ -89,8 +90,10 @@ equation.
 
 **A name is either a layer or a stored value.** `canopy.self` reads cells
 (the canopy values in the cells of the class in focus) because `canopy` is
-a layer; `area.self` reads a stored value because `area` was measured. The
-user sees this as the strong point: any layer enters the interface, from a
+a layer; `area.self` reads a stored value because `area` was measured. This
+is the strong point of the design, and it is not new: `msr_distance(cost =
+"friction")` already lets a layer's name become the name of the measured
+value (`friction.patch`). Any layer enters the interface, from a
 `drw_` field to a table tied to coordinates (`msk_rasterise` puts records on
 cells, `mdf_replace` turns a column into a layer). Tables tied to classes
 (a cost per land cover class) are columns of the class table and read the
