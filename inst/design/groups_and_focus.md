@@ -97,7 +97,12 @@ value (`friction.patch`). Any layer enters the interface, from a
 `drw_` field to a table tied to coordinates (`msk_rasterise` puts records on
 cells, `mdf_replace` turns a column into a layer). Tables tied to classes
 (a cost per land cover class) are columns of the class table and read the
-same way (`cost.self`). Layer names and stored value names must not clash.
+same way (`cost.self`).
+
+Names (user, 2026-10-06): the names of the primitives are reserved, no layer
+may take them, and layer names contain no `.` or `_`; documenting this is
+enough. A name in an equation that matches a layer always means that layer;
+otherwise it means a stored value. No further rule is needed.
 
 ## Prototype test, 2026-10-06
 
@@ -125,8 +130,9 @@ Result on `landscape` (forest patches as the group layer `patch`):
   to it measured), and it points the open decision below in that direction.
 - **The name clash happened at once**: the CORE metric was first labelled
   `core.class`, and then `core.self` in CAI read that stored value instead of
-  the layer `core` (CAI 1.18 instead of 53.39). Names of layers and stored
-  values must be kept apart, by a rule or by a check that stops.
+  the layer `core` (CAI 1.18 instead of 53.39). The prototype looked up
+  stored values before layers; with layers first (see Names above) the
+  clash does not arise.
 - **A group layer's outside cells must count as "outside", not as no data**:
   the prototype sets them to 0 before measuring; with NA, the edges along
   the outside would not be counted and every perimeter would be too short.
