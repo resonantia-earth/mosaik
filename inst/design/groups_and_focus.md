@@ -102,7 +102,11 @@ same way (`cost.self`).
 Names (user, 2026-10-06): the names of the primitives are reserved, no layer
 may take them, and layer names contain no `.` or `_`; documenting this is
 enough. A name in an equation that matches a layer always means that layer;
-otherwise it means a stored value. No further rule is needed.
+otherwise it means a stored value. No further rule is needed. Weighted
+distances (`msr_distance` with a cost layer) are stored under a name the
+user chooses, not automatically under the cost layer's name as today.
+Candidate for a reserved name with a function: `x` and `y`, the cell
+coordinates (GYRATE, CIRCLE), instead of adding them by hand.
 
 ## Prototype test, 2026-10-06
 
