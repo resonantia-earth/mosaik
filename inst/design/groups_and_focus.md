@@ -73,18 +73,16 @@ class table; an equation with only `.all` runs once and is stored as one
 value for the layer. There is no third case (only `.all` evaluated per class
 would give every class the same value). The label is then just a name
 (`prox`, not `prox.class`), and the old ambiguity of storing by the number
-of values is gone. (The tables below still show the level; drop it when
-building.)
-
-| metric | equation | label |
-|---|---|---|
-| PARA | `perimeter.self / area.self` | `para.class` |
-| PLAND | `area.self / sum(area.all) * 100` | `pland.class` |
-| ENN | `min(distance.others)` | `enn.class` |
-| PROX | `sum(area.others / distance.others^2)` | `prox.class` |
-| LPI | `max(area.all) / sum(area.all) * 100` | `lpi.landscape` |
-| SHDI | `-sum(area.all / sum(area.all) * log(area.all / sum(area.all)))` | `shdi.landscape` |
-| mean canopy per patch | `mean(canopy.self)` | `canopy.class` |
+of values is gone.
+| metric | equation | label | result |
+|---|---|---|---|
+| PARA | `perimeter.self / area.self` | `para` | one per class |
+| PLAND | `area.self / sum(area.all) * 100` | `pland` | one per class |
+| ENN | `min(distance.others)` | `enn` | one per class |
+| PROX | `sum(area.others / distance.others^2)` | `prox` | one per class |
+| LPI | `max(area.all) / sum(area.all) * 100` | `lpi` | one for the layer |
+| SHDI | `-sum(area.all / sum(area.all) * log(area.all / sum(area.all)))` | `shdi` | one for the layer |
+| mean canopy per patch | `mean(canopy.self)` | `canopy` | one per class |
 
 No `[]`, no scale in the variable, every variable means the same in every
 equation.
