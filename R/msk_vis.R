@@ -639,6 +639,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #' @param scaleValues the scale values.
 #' @param colours the resolved colour vector for this layer.
 #' @param title [`character(1)`][character]\cr heading above the strip, or NULL.
+#' @param labels [`character(.)`][character]\cr the text for each scale value
+#'   (the class labels), or NULL to write the values themselves.
 #' @param prevX [`unit`][unit]\cr horizontal offset, so successive legends in one
 #'   panel sit side by side rather than on top of each other.
 #' @param theme the completed theme list.
@@ -648,7 +650,7 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #' @noRd
 
 .makeLegend <- function(scaleValues, colours = NULL, title = NULL,
-                        prevX = unit(0, "points"), theme){
+                        labels = NULL, prevX = unit(0, "points"), theme){
 
   legends <- list()
   allLabels <- scaleValues
@@ -673,13 +675,13 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
   # claim a colour the map never draws.
   thebins <- length(allLabels)
 
-  # determine the tick values and labels
-  if(thebins > theme$legend.bins){
+  # determine the tick values and labels; labelled classes are all listed
+  if(thebins > theme$legend.bins && is.null(labels)){
     tickPositions <- quantile(1:thebins, probs = seq(0, 1, length.out = theme$legend.bins + 1), type = 1, names = FALSE)
   } else {
     tickPositions <- 1:thebins
   }
-  legendLabels <- allLabels[tickPositions]
+  legendLabels <- if(is.null(labels)) allLabels[tickPositions] else labels[tickPositions]
 
   if(!theme$legend.ascending){
     tickPositions <- rev(tickPositions)
@@ -1127,9 +1129,16 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
         }
         if(!anyNA(theColours[key])) legendColours <- unname(theColours[key])
       }
+      # a class with a label is named by it; a value without one by itself
+      legendText <- NULL
+      if(!is.null(cats$gid) && !is.null(cats$val)){
+        legendText <- cats$val[match(scaleValues, cats$gid)]
+        if(anyNA(legendText)) legendText <- NULL
+      }
       thisLegend <- .makeLegend(scaleValues = scaleValues,
                                 colours = legendColours,
                                 title = theTitle,
+                                labels = legendText,
                                 prevX = prevX,
                                 theme = theme)
       if(length(thisLegend) > 0){
