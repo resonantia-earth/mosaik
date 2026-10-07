@@ -235,3 +235,20 @@ patches kept in. Decisions taken during the build (user-approved):
 - Known risk, untested at size: `msr_distance(cost =, routing = "straight")`
   compares every cell of one class with every cell of the other
   (`.straight_path`), which may exhaust memory on large land cover classes.
+
+## Decided 2026-10-07 (user)
+
+- **Map-border edges are counted nowhere.** FRAGSTATS counts them in PERIM,
+  LSI and PLADJ but not by default in TE; mosaik does not copy that
+  inconsistency. Edges to NA cells count (see As built), edges along the map
+  border never; `complete` flags the classes the border cuts.
+- **A rewrite drops the class table** (an operator writing new values into an
+  existing layer, e.g. `mdf_erode(layer = "forest")` without `add`); the
+  geometry operators (crop, pad, resize) keep the values and warn, so a user
+  can compare before and after on purpose.
+- **Classes without core** get 0 in TCA/CPLAND now (every class is
+  evaluated); the old difference to FRAGSTATS is gone.
+- **ENN of a patch without neighbour** is the equation's business, not the
+  package's: `min()` of nothing is `Inf` in R. The metric app writes
+  `if (length(distance.others)) min(distance.others) else NA`, because there
+  is no nearest neighbour, not an infinitely far one.
