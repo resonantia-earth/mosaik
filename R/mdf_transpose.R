@@ -59,7 +59,6 @@ mdf_transpose <- function(obj = NULL,
                  extent = new_ext,
                  dims = new_dims,
                  layers = new_layers,
-                 patches = list(),
                  global = list(),
                  step = step)
 }

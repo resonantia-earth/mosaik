@@ -353,11 +353,10 @@ test_that("a categorical write starts a fresh category entry", {
 
 test_that("msr_* and msr() record into a recipe and replay with mdf()", {
   rec <- mdf_filter(expr = cover == 47, add = "forest") |>
-    msr_area(scale = "class", layer = "forest") |>
+    msr_area(layer = "forest") |>
     mdf_erode(layer = "forest", add = "core") |>
-    msr_area(scale = "class", layer = "core") |>
-    msr_area(scale = "landscape", layer = "core") |>
-    msr(equation = "area.class / area.landscape * 100", label = "pcore",
+    msr_area(layer = "core") |>
+    msr(equation = "area.self / sum(area.all) * 100", label = "pcore",
         layer = "core")
 
   # nothing was computed while recording
@@ -365,11 +364,10 @@ test_that("msr_* and msr() record into a recipe and replay with mdf()", {
 
   direct <- landscape |>
     mdf_filter(cover == 47, add = "forest") |>
-    msr_area(scale = "class", layer = "forest") |>
+    msr_area(layer = "forest") |>
     mdf_erode(layer = "forest", add = "core") |>
-    msr_area(scale = "class", layer = "core") |>
-    msr_area(scale = "landscape", layer = "core") |>
-    msr(equation = "area.class / area.landscape * 100", label = "pcore",
+    msr_area(layer = "core") |>
+    msr(equation = "area.self / sum(area.all) * 100", label = "pcore",
         layer = "core")
 
   replayed <- mdf(landscape, rec)

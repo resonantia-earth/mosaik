@@ -8,8 +8,7 @@ mdf_pad(
   obj = NULL,
   width = 1L,
   sides = c("left", "right", "top", "bottom"),
-  value = NA,
-  layer = NULL
+  value = NA
 )
 }
 \arguments{
@@ -24,12 +23,10 @@ to all four.}
 
 \item{value}{\code{\link[=numeric]{numeric(1)}}\cr fill value for added cells. Defaults
 to \code{NA}.}
-
-\item{layer}{\code{\link[=character]{character(1)}}\cr the layer to modify. If
-\code{NULL} (default), all layers are padded.}
 }
 \value{
-A mosaik with modified extent and dimensions.
+A mosaik with modified extent and dimensions. Every layer is padded,
+since all layers share one grid.
 }
 \description{
 Expand or shrink the grid by adding or removing rows and columns at the

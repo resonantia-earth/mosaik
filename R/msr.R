@@ -1,126 +1,130 @@
 #' Measure a metric from an equation
 #'
-#' Compute a landscape metric from an equation over values that have already
-#' been measured, and store the result with them. The values are primitives,
-#' measured by the other \code{msr_*} functions, or metrics stored by earlier
-#' \code{msr()} calls, so one metric can build on another.
+#' Compute a landscape metric from an equation over the classes of a layer,
+#' and store the result with them. The classes can be land cover classes or
+#' groups, such as the patches numbered by \code{\link{mdf_componentise}}: on a
+#' layer of patch numbers, each class is a patch. The values in the equation
+#' are primitives, measured by the other \code{msr_*} functions, metrics
+#' stored by earlier \code{msr()} calls, or layers, so one metric can build on
+#' another.
 #'
 #' @param obj [`mosaik`]\cr the mosaik with the values already measured.
 #' @param equation [`character(1)`][character]\cr the equation that computes
-#'   the metric. Each variable in it refers to a measured value and is named
-#'   \code{<metric>.<scale>}, for example \code{area.class} (the area of each
-#'   class) or \code{perimeter.patch} (the perimeter of each patch). The scale
-#'   is one of class, patch or landscape. A variable refers to the values of
-#'   \code{layer}; to use the values of another layer, add that layer's name
-#'   after an underscore: \code{area.landscape_cover} is the area of the layer
-#'   "cover". A variable with the scale cell names a layer instead:
-#'   \code{canopy.cell} holds the values of the layer "canopy" in every cell.
+#'   the metric. Each variable in it is named \code{<name>.<focus>}, for
+#'   example \code{area.self}, optionally followed by \code{_<layer>} to read
+#'   another layer than \code{layer}: \code{area.all_cover}. See Details.
 #' @param label [`character(1)`][character]\cr the name the result is stored
-#'   under, in the same notation as the variables, for example
-#'   \code{"pland.class"}, \code{"enn.patch"} or \code{"shdi.landscape"}. The
-#'   scale of the label names the group the result belongs to: each class of
-#'   \code{layer}, each patch, or the whole layer. The equation is evaluated
-#'   once for each group, and every variable in it holds the values of that
-#'   group. For example, \code{canopy.cell} then holds the canopy height of the
-#'   cells in that group. The equation must return one value for each group;
-#'   otherwise \code{msr()} stops with an error. A label without a scale
-#'   (\code{"pland"}) is stored according to the number of values the equation
-#'   returns. The label must not already exist at that scale of \code{layer}.
-#' @param layer [`character(1)`][character]\cr the layer whose values the
-#'   variables refer to by default, and with which the result is stored.
+#'   under. It must not contain \code{.} or \code{_}, because \code{msr()}
+#'   reads these as the start of the focus and of the layer when the label is
+#'   used as a variable later. It must not be a layer, a reserved name or a
+#'   value already stored with \code{layer}.
+#' @param layer [`character(1)`][character]\cr the layer whose classes the
+#'   equation is evaluated over, and with which the result is stored.
 #'   Defaults to the first layer.
-#' @return The mosaik with the result added to the results of \code{layer}.
+#' @return The mosaik with the result added to the class table of \code{layer}
+#'   (see \code{\link{msk_categories}}), or to its values for the whole layer
+#'   (see \code{\link{msk_global}}).
 #' @details
-#'   \strong{Variables.} An equation can use the primitives, which the other
-#'   \code{msr_*} functions measure (area, perimeter, number, adjacency, cost
-#'   and dissimilarity), and any metric that an earlier \code{msr()} call has
-#'   stored. In this way, a metric can be built from other metrics. Each
-#'   metric is computed once, when \code{msr()} is called; if one of its
+#'   \strong{Focus.} The equation is evaluated with one class of \code{layer}
+#'   in focus at a time. The focus of a variable says which classes it reads:
+#'   \tabular{ll}{
+#'     \code{.self}   \tab the class in focus \cr
+#'     \code{.others} \tab every other class of the layer \cr
+#'     \code{.all}    \tab all classes of the layer
+#'   }
+#'   With the areas A 10, B 20 and C 5 and A in focus, \code{area.self} is 10,
+#'   \code{area.others} is 20, 5 and \code{area.all} is 10, 20, 5. An equation
+#'   with \code{.self} or \code{.others} is evaluated once for each class, and
+#'   the results go to the class table. This holds also when it contains
+#'   \code{.all}: \code{area.self / sum(area.all)} runs once per class, and
+#'   \code{sum(area.all)} is the same total in every run. An equation with only
+#'   \code{.all} is evaluated once, and the result is stored for the whole
+#'   layer: \code{max(area.all) / sum(area.all)}.
+#'
+#'   Each run gives the value of one class, or of the whole layer, so it must
+#'   come to one number. \code{area.self} is one number,
+#'   but \code{area.others} and \code{area.all} hold one number per class, so
+#'   a function such as \code{sum()} or \code{max()} has to reduce them. An
+#'   equation without that reduction, such as \code{area.all * 2}, has no
+#'   single result, and \code{msr()} reports it as an error.
+#'
+#'   \strong{Names.} A name that is a layer reads cells: \code{canopy.self}
+#'   holds the values of the layer "canopy" in the cells of the class in focus,
+#'   \code{canopy.all} those in all cells of \code{layer}. Any other name reads
+#'   a stored value: a primitive (\code{area}, \code{perimeter},
+#'   \code{adjacency}, \code{distance}, \code{dissimilarity}), a column of the
+#'   class table, or a metric stored by \code{msr()}. A metric
+#'   stored for the whole layer is read with \code{.all}. Some names need no
+#'   measurement:
+#'   \tabular{ll}{
+#'     \code{gid}      \tab the code of each class \cr
+#'     \code{complete} \tab \code{TRUE} if a class has no cell on the map
+#'       border \cr
+#'     \code{x}, \code{y} \tab the coordinates of the cell centres, in map
+#'       units
+#'   }
+#'   These, the primitives and \code{val} and \code{colour} of the class table
+#'   are reserved: no layer may take them. A layer that is read by its name,
+#'   as in \code{canopy.self}, must not contain \code{.} or \code{_} in that
+#'   name, because the \code{.} starts the focus and the \code{_} the layer. Names R knows as constants,
+#'   such as \code{pi}, are constants.
+#'
+#'   \strong{Matrices.} A class by class matrix, such as \code{distance}, is
+#'   read along the row of the class in focus: \code{distance.self} is the
+#'   entry on the diagonal, the distance of the class to itself (\code{Inf});
+#'   \code{distance.others} is the rest of the row, its distances to every
+#'   other class, so \code{min(distance.others)} is the distance to the nearest
+#'   one; \code{distance.all} is the whole row. With only \code{.all}, the
+#'   variable is the whole matrix.
+#'
+#'   \strong{Other layers.} With \code{_<layer>}, a variable reads another
+#'   layer. With \code{.all}, it reads all classes of that layer:
+#'   \code{sum(area.all_cover)} is the area of the map. With \code{.self} or
+#'   \code{.others}, it reads that layer through the cells of the classes in
+#'   focus. After \code{msr_area(layer = "cover")}, on a layer of patches,
+#'   \code{area.self_cover} holds, for every cell of the patch in focus, the
+#'   area of the cover class that cell belongs to.
+#'
+#'   \strong{The map border.} A class that touches the map border may extend
+#'   beyond it, so its values describe only the part on the map. It still
+#'   counts, as a neighbour and in every count. To leave such classes out of
+#'   a result, filter with \code{complete}: \code{max(area.all[complete.all])}
+#'   is the area of the largest patch that lies wholly on the map.
+#'
+#'   Each metric is computed once, when \code{msr()} is called; if one of its
 #'   primitives is measured again later, the metric is not updated. An
-#'   equation can also contain constants such as \code{pi} and any R function,
-#'   including functions you have written yourself.
-#'
-#'   \strong{Combining layers.} Landscape values of different layers can
-#'   always be combined, because each layer has exactly one. Class values of
-#'   two layers can only be combined if both layers have the same classes, as
-#'   two binary layers do. Patch values of two layers can only be combined if
-#'   both layers were numbered into the same patches. If they were not, for
-#'   example the forest patches and the core areas within them, use the other
-#'   layer as a cell variable: \code{mean(core.cell)} with the label
-#'   \code{"coreshare.patch"} gives the share of core in each forest patch, if
-#'   the layer "core" is 1 for core and 0 for every other cell.
-#'
-#'   \strong{Patches.} Patch values require that the patches of \code{layer}
-#'   have been numbered with \code{\link{mdf_componentise}}. Patch metrics often
-#'   concern only some of the classes, for example those that make up a
-#'   habitat. In that case, combine these classes into one binary layer with
-#'   \code{\link{mdf_binarise}}, number the patches of that layer and compute
-#'   the metric on it. A patch that touches the map border has \code{NA} for
-#'   all its values, because the map shows only part of it. To leave such
-#'   patches out of a sum or a maximum, use \code{na.rm = TRUE}.
-#'
-#'   \strong{Cell values.} Every layer can be used as a cell variable: land
-#'   cover, canopy height, or a layer made by an \code{mdf_*} function, such as
-#'   the distance of every cell to the edge of its patch from
-#'   \code{\link{mdf_distance}}. The layer name must be a valid R name, so it
-#'   must not contain a dot or start with an underscore. A label without a
-#'   scale groups an equation with cell variables by patch.
-#'
-#'   \strong{Distances between patches.} \code{\link{msr_distance}} stores the
-#'   distances between the patches of each class as a matrix. Within a patch,
-#'   \code{distance.patch} holds the distances from this patch to all other
-#'   patches of the same class. Thus \code{min(distance.patch)} is the
-#'   distance to the nearest patch. The distance of a patch to itself is
-#'   \code{Inf}, so it does not count. A label without a scale groups an
-#'   equation with \code{distance.patch} by patch. The matrix is called
-#'   \code{distance}, unless \code{msr_distance()} was given a layer with the
-#'   cost of crossing each cell (its argument \code{cost}). Then the matrix
-#'   takes the name of that layer: after \code{msr_distance(cost = "friction")},
-#'   the variable is \code{friction.patch}.
+#'   equation can contain any R function, including functions you have written
+#'   yourself.
 #' @family measure
 #' @examples
-#' m <- landscape |>
-#'   msr_area(scale = "class", layer = "cover") |>
-#'   msr_area(scale = "landscape", layer = "cover")
+#' m <- msr_area(landscape, layer = "cover")
 #'
 #' # the share of the landscape in each class
-#' m <- msr(m, equation = "area.class / area.landscape * 100",
-#'          label = "pland.class", layer = "cover")
+#' m <- msr(m, equation = "area.self / sum(area.all) * 100", label = "pland",
+#'          layer = "cover")
 #' msk_categories(m, layer = "cover")$pland
 #'
-#' # a metric built from another metric: Shannon diversity
-#' m <- msr(m, equation = "-sum(pland.class / 100 * log(pland.class / 100))",
-#'          label = "shdi.landscape", layer = "cover")
+#' # a metric built from another metric: Shannon diversity, for the layer
+#' m <- msr(m, equation = "-sum(pland.all / 100 * log(pland.all / 100))",
+#'          label = "shdi", layer = "cover")
 #' msk_global(m, layer = "cover")$shdi
 #'
-#' # combining two layers: the share of the forest that is core, from the
-#' # forest class (1) of both layers
-#' f <- mdf_filter(landscape, cover == 47, add = "forest") |>
-#'   mdf_erode(layer = "forest", add = "core") |>
-#'   msr_area(scale = "class", layer = "forest") |>
-#'   msr_area(scale = "class", layer = "core") |>
-#'   msr(equation = "area.class_core[gid.class == 1] / area.class[gid.class == 1]",
-#'       label = "core_share.landscape", layer = "forest")
-#' msk_global(f, layer = "forest")$core_share
-#'
-#' # per patch: the distance of each forest patch to its nearest neighbour;
-#' # patches the map border cuts are NA
-#' f <- f |>
+#' # the forest patches: the distance of each to its nearest neighbour, and
+#' # the share of the map in the largest patch
+#' f <- mdf_filter(m, cover == 47, add = "forest") |>
 #'   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
-#'   msr_distance(layer = "forest") |>
-#'   msr(equation = "min(distance.patch)", label = "enn.patch",
-#'       layer = "forest")
-#' msk_patches(f, layer = "forest")$enn
+#'   msr_area(layer = "patch") |>
+#'   msr_distance(layer = "patch") |>
+#'   msr(equation = "min(distance.others)", label = "enn", layer = "patch") |>
+#'   msr(equation = "max(area.all) / sum(area.all_cover) * 100", label = "lpi",
+#'       layer = "patch")
+#' msk_categories(f, layer = "patch")$enn
+#' msk_global(f, layer = "patch")$lpi
 #'
-#' # a layer as cell variable: the mean canopy height of each forest patch,
-#' # and of each land cover class
-#' f <- msr(f, equation = "mean(canopy.cell)", label = "height.patch",
-#'          layer = "forest")
-#' msk_patches(f, layer = "forest")$height
-#' f <- msr(f, equation = "mean(canopy.cell)", label = "height.class",
-#'          layer = "cover")
-#' msk_categories(f, layer = "cover")$height
-#' @importFrom checkmate assertCharacter assertClass
+#' # a layer read through cells: the mean canopy height of each forest patch
+#' f <- msr(f, equation = "mean(canopy.self)", label = "height", layer = "patch")
+#' msk_categories(f, layer = "patch")$height
+#' @importFrom checkmate assertClass assertCharacter
 #' @export
 
 msr <- function(obj = NULL, equation, label, layer = NULL) {
@@ -134,40 +138,36 @@ msr <- function(obj = NULL, equation, label, layer = NULL) {
   assertCharacter(x = layer, null.ok = TRUE)
 
   if (is.null(layer)) layer <- names(obj@layers)[1]
-
-  # the label is a name, optionally followed by the level the result is
-  # stored at, in the notation of the variables
-  label_notation <- "^([^.]+)(\\.(class|patch|landscape))?$"
-  if (!grepl(label_notation, label)) {
-    stop(sprintf(paste0(
-      "'label' must be a name without '.', optionally followed by .class, ",
-      ".patch or .landscape (e.g. 'pland.class'), not '%s'."), label),
-      call. = FALSE)
+  if (!layer %in% names(obj@layers)) {
+    stop("layer '", layer, "' not found in 'obj'.", call. = FALSE)
   }
-  label_scale <- sub(label_notation, "\\3", label)
-  label <- sub(label_notation, "\\1", label)
 
-  # the results of one layer at each level
-  tables_of <- function(l) {
-    list(class     = obj@categories[[l]],
-         patch     = obj@patches[[l]],
-         landscape = obj@global[[l]])
+  # the label is only a name; it must stay reachable, so it may not be a
+  # layer or a reserved name, and it must not replace a stored value
+  if (!grepl("^[^._]+$", label)) {
+    stop(sprintf("'label' must be a name without '.' or '_', not '%s'.", label),
+         call. = FALSE)
   }
-  scale_map <- tables_of(layer)
+  if (label %in% c(names(obj@layers), .reserved_names)) {
+    stop(sprintf("'label' is '%s', which is a %s; choose another.", label,
+                 if (label %in% names(obj@layers)) "layer" else "reserved name"),
+         call. = FALSE)
+  }
+  if (label %in% c(names(obj@categories[[layer]]), names(obj@global[[layer]]))) {
+    stop(sprintf("'%s' is already stored with layer '%s'; choose another 'label'.",
+                 label, layer), call. = FALSE)
+  }
 
-  # parse equation variables
   eq_parsed <- parse(text = equation)
-  eq_vars <- all.vars(eq_parsed)
+  lv <- msk_pull(obj, layer)
+  classes <- .classes_of(obj, layer)
+  inside <- which(!is.na(lv))
 
-  # resolve each variable via metric.scale notation, optionally followed by
-  # _layer: the metric has no '.', the scale no '_', so the split is unique
-  env <- list()
-  var_scale <- character(0)
-  matrix_patch_vars <- character(0)
-  cell_vars <- character(0)
-  notation <- "^([^.]+)\\.(class|patch|landscape|cell)(_(.+))?$"
-
-  for (v in eq_vars) {
+  # each variable becomes one of three kinds: values per cell, values per
+  # class of 'layer', or a value that does not depend on the focus
+  notation <- "^([^._]+)\\.(self|others|all)(_(.+))?$"
+  vars <- list()
+  for (v in all.vars(eq_parsed)) {
 
     # a value R always knows, such as pi, is a constant
     if (exists(v, envir = baseenv(), inherits = FALSE) &&
@@ -175,159 +175,93 @@ msr <- function(obj = NULL, equation, label, layer = NULL) {
 
     if (!grepl(notation, v)) {
       stop(sprintf(paste0(
-        "Variable '%s' must use metric.scale notation, optionally followed by ",
-        "_layer (e.g. 'area.class', 'area.class_forest'), or name a layer as ",
-        "<layer>.cell (e.g. 'canopy.cell')."), v),
-        call. = FALSE)
+        "Variable '%s' must be named <name>.<focus>, with the focus self, ",
+        "others or all, optionally followed by _<layer> (e.g. 'area.self', ",
+        "'area.all_cover')."), v), call. = FALSE)
     }
-
-    metric  <- sub(notation, "\\1", v)
-    v_scale <- sub(notation, "\\2", v)
-    v_layer <- sub(notation, "\\4", v)
-    if (!nzchar(v_layer)) v_layer <- layer
-    if (!v_layer %in% names(obj@layers)) {
+    nm    <- sub(notation, "\\1", v)
+    focus <- sub(notation, "\\2", v)
+    vl    <- sub(notation, "\\4", v)
+    if (!nzchar(vl)) vl <- layer
+    if (!vl %in% names(obj@layers)) {
       stop(sprintf("Variable '%s' refers to layer '%s', which is not in 'obj'.",
-                   v, v_layer), call. = FALSE)
+                   v, vl), call. = FALSE)
     }
-    var_scale[v] <- v_scale
 
-    if (v_scale == "cell") {
-      # a cell variable names a layer: its values in every cell
-      if (sub(notation, "\\4", v) != "") {
+    # a name that is a layer reads cells
+    if (nm %in% c(names(obj@layers), "x", "y")) {
+      if (vl != layer) {
         stop(sprintf(paste0(
-          "'%s': a cell variable names a layer itself and takes no _layer ",
-          "suffix."), v), call. = FALSE)
+          "'%s': '%s' is read through the cells of '%s'; a layer takes no ",
+          "_layer suffix."), v, nm, layer), call. = FALSE)
       }
-      if (!(metric %in% names(obj@layers))) {
-        stop(sprintf("Variable '%s' refers to layer '%s', which is not in 'obj'.",
-                     v, metric), call. = FALSE)
-      }
-      env[[v]] <- msk_pull(obj, metric)
-      cell_vars <- c(cell_vars, v)
+      vars[[v]] <- list(kind = "cell", focus = focus,
+                        value = .cell_values(obj, nm))
       next
     }
 
-    # patches of two layers only correspond if both were numbered into the
-    # same patches, in the same order
-    same_patches <- function(a, b) {
-      pa <- obj@patches[[a]]
-      pb <- obj@patches[[b]]
-      !is.null(pa$ids) && !is.null(pb$ids) &&
-        all(c(pa$ids, pb$ids) %in% names(obj@layers)) &&
-        identical(msk_pull(obj, pa$ids), msk_pull(obj, pb$ids)) &&
-        identical(pa$patch, pb$patch)
-    }
-    if (v_scale == "patch" && v_layer != layer && !same_patches(v_layer, layer)) {
+    # otherwise a stored value: per class of its layer, or one for the layer
+    val <- .class_value(obj, vl, nm)
+    if (is.null(val)) {
+      glob <- obj@global[[vl]][[nm]]
+      if (is.null(glob)) {
+        stop(sprintf("'%s': no value '%s' is stored with layer '%s'.",
+                     v, nm, vl), call. = FALSE)
+      }
+      if (focus != "all") {
+        stop(sprintf(paste0(
+          "'%s': '%s' is one value for layer '%s'; read it as '%s.all'."),
+          v, nm, vl, nm), call. = FALSE)
+      }
+      vars[[v]] <- list(kind = "fixed", value = glob)
+    } else if (vl == layer) {
+      vars[[v]] <- list(kind = "class", focus = focus, value = val)
+    } else if (focus == "all") {
+      vars[[v]] <- list(kind = "fixed", value = val)
+    } else if (is.matrix(val)) {
       stop(sprintf(paste0(
-        "'%s' is a patch value of layer '%s', whose patches differ from those ",
-        "of '%s'. To relate patches of different layers, summarise one within ",
-        "the other with mdf_summarise()."), v, v_layer, layer), call. = FALSE)
-    }
-
-    tbl <- tables_of(v_layer)[[v_scale]]
-    if (is.null(tbl) || is.null(tbl[[metric]])) {
-      stop(sprintf("Metric '%s' not found at %s level for layer '%s'.",
-                   metric, v_scale, v_layer), call. = FALSE)
-    }
-
-    # class values are combined position by position, so both layers must
-    # list the same classes in the same order
-    if (v_scale == "class" && v_layer != layer &&
-        !identical(as.numeric(tbl$gid), as.numeric(scale_map$class$gid))) {
-      stop(sprintf(paste0(
-        "'%s' is a class value of layer '%s', whose classes (%s) differ from ",
-        "those of '%s' (%s)."), v, v_layer, paste(tbl$gid, collapse = ", "),
-        layer, paste(scale_map$class$gid, collapse = ", ")), call. = FALSE)
-    }
-    val <- tbl[[metric]]
-
-    # detect matrix-valued patch data (e.g. distance stored as list of matrices)
-    if (v_scale == "patch" && is.list(val) && !is.data.frame(val)) {
-      matrix_patch_vars <- c(matrix_patch_vars, v)
-    }
-
-    env[[v]] <- val
-  }
-
-  has_cell <- length(cell_vars) > 0
-  n_patch <- length(scale_map$patch$patch)
-
-  # the group the result belongs to: as the label says; a label without one
-  # groups by patch if the equation reads cells or distances, otherwise not
-  group <- if (nzchar(label_scale)) {
-    label_scale
-  } else if (has_cell || length(matrix_patch_vars) > 0) {
-    "patch"
-  } else {
-    ""
-  }
-
-  if (group == "patch" && n_patch == 0) {
-    stop("'label' stores the result with the patches, but layer '", layer,
-         "' has no patches. Number them first with mdf_componentise(layer = \"",
-         layer, "\", ...).", call. = FALSE)
-  }
-
-  # the classes of the layer, from its class table or else from its values
-  classes <- scale_map$class$gid
-  if (group == "class" && is.null(classes)) {
-    v <- msk_pull(obj, layer)
-    classes <- sort(unique(v[!is.na(v)]))
-  }
-
-  if (nzchar(group)) {
-    result <- .derive_grouped(obj, layer, env, eq_parsed, var_scale, cell_vars,
-                              matrix_patch_vars, group, classes)
-    store_scale <- group
-  } else {
-    result <- eval(eq_parsed, envir = env)
-  }
-
-  # without a level in the label, the result's length decides
-  if (!nzchar(group)) {
-    n_class <- length(scale_map$class$gid)
-    if (length(result) == n_class && n_class > 0) {
-      store_scale <- "class"
-    } else if (length(result) == n_patch && n_patch > 0) {
-      store_scale <- "patch"
-    } else if (length(result) == 1) {
-      store_scale <- "landscape"
-    } else if (n_patch == 0 && any(var_scale == "patch")) {
-      # the equation asks for patch scale but the layer has no patches yet, so
-      # there is no table to store the result in. This is a missing step
-      # rather than a malformed equation, so say which step.
-      stop("'equation' uses a .patch variable, but layer '", layer, "' has no ",
-           "patches. Number them first with mdf_componentise(layer = \"", layer,
-           "\", ...).", call. = FALSE)
+        "'%s': '%s' is a class by class matrix of layer '%s', which can only ",
+        "be read as a whole, with .all."), v, nm, vl), call. = FALSE)
     } else {
-      stop(sprintf(
-        "Result length (%d) does not match class (%d), patch (%d), or landscape (1) table.",
-        length(result), n_class, n_patch))
+      # another layer through the cells of the classes in focus
+      vals_vl <- msk_pull(obj, vl)
+      vars[[v]] <- list(kind = "cell", focus = focus,
+                        value = val[match(vals_vl, .classes_of(obj, vl))])
     }
   }
 
-  # a class result on a layer without class table starts one
-  if (store_scale == "class" && is.null(scale_map$class$gid)) {
-    obj@categories[[layer]]$gid <- classes
-  }
+  per_class <- any(vapply(vars, function(x) !is.null(x$focus) &&
+                            x$focus != "all", logical(1)))
 
-  # a label must not replace a stored value: that would silently overwrite a
-  # primitive, an earlier metric or the identifiers the table is keyed by
-  if (label %in% names(scale_map[[store_scale]])) {
-    stop(sprintf("'%s' already exists at %s level for layer '%s'; choose another 'label'.",
-                 label, store_scale, layer), call. = FALSE)
+  if (per_class) {
+    members <- lapply(classes, function(k) inside[lv[inside] == k])
+    result <- vapply(seq_along(classes), function(i) {
+      env <- lapply(vars, .focus_value, i = i, members = members,
+                    inside = inside)
+      res <- eval(eq_parsed, envir = env)
+      if (length(res) != 1) {
+        stop(sprintf(paste0(
+          "The equation gives %d values for class %s, where one is stored. ",
+          "Reduce the values of .others or .all with a function such as ",
+          "sum() or max()."), length(res), classes[i]), call. = FALSE)
+      }
+      as.numeric(res)
+    }, numeric(1))
+    obj <- .store_class(obj, layer, label, classes, result)
+  } else {
+    env <- lapply(vars, .focus_value, i = NULL, members = NULL, inside = inside)
+    result <- eval(eq_parsed, envir = env)
+    if (length(result) != 1) {
+      stop(sprintf(paste0(
+        "The equation gives %d values for the layer, where one is stored. ",
+        "Reduce the values of .all with a function such as sum() or max()."),
+        length(result)), call. = FALSE)
+    }
+    glob <- obj@global
+    if (is.null(glob[[layer]])) glob[[layer]] <- list()
+    glob[[layer]][[label]] <- result
+    obj@global <- glob
   }
-  slot_name <- c(class = "categories", patch = "patches",
-                 landscape = "global")[[store_scale]]
-  if (is.null(methods::slot(obj, slot_name)[[layer]])) {
-    tbl <- methods::slot(obj, slot_name)
-    tbl[[layer]] <- list()
-    methods::slot(obj, slot_name) <- tbl
-  }
-  switch(store_scale,
-         class     = obj@categories[[layer]][[label]] <- result,
-         patch     = obj@patches[[layer]][[label]] <- result,
-         landscape = obj@global[[layer]][[label]] <- result)
 
   # provenance
   obj <- .update_mosaik(obj, step = step)
@@ -336,98 +270,85 @@ msr <- function(obj = NULL, equation, label, layer = NULL) {
 }
 
 
-#' Evaluate an equation once for every group
+# names no layer and no label may take
+.reserved_names <- c("area", "perimeter", "adjacency", "distance",
+                     "dissimilarity", "gid", "complete", "val", "colour",
+                     "x", "y")
+
+
+#' The classes of a layer
 #'
-#' The group is the scale of the label: each patch, each class of the layer,
-#' or the whole layer. In every group, each variable holds the values of that
-#' group: a cell variable the values of the group's cells, a patch or class
-#' variable the value of the group (for a patch, also the value of its class;
-#' for a class, the values of its patches), a distance matrix the patch's own
-#' row. Landscape values are the same in every group.
-#'
-#' @param obj the mosaik.
-#' @param layer the layer the result is stored with.
-#' @param env named list of resolved variables.
-#' @param eq_parsed parsed equation.
-#' @param var_scale named character, the scale of each variable.
-#' @param cell_vars names of the cell variables.
-#' @param matrix_vars names of the variables holding distance matrices.
-#' @param group \code{"patch"}, \code{"class"} or \code{"landscape"}.
-#' @param classes the classes of \code{layer}.
-#' @return one value per group, in the order of the patch record or the
-#'   classes.
+#' From its class table, or else from its values.
 #' @noRd
-.derive_grouped <- function(obj, layer, env, eq_parsed, var_scale, cell_vars,
-                            matrix_vars, group, classes) {
+.classes_of <- function(obj, layer) {
+  gid <- obj@categories[[layer]]$gid
+  if (!is.null(gid)) return(gid)
+  v <- msk_pull(obj, layer)
+  as.integer(sort(unique(v[!is.na(v)])))
+}
 
-  if (group == "landscape") {
-    # every cell of the layer, every value as it is
-    if (length(cell_vars)) {
-      cells <- which(!is.na(msk_pull(obj, layer)))
-      for (v in cell_vars) env[[v]] <- env[[v]][cells]
-    }
-    res <- eval(eq_parsed, envir = env)
-    if (length(res) != 1) {
-      stop(sprintf("'.landscape' takes one value, but the equation gives %d.",
-                   length(res)), call. = FALSE)
-    }
-    return(res)
+
+#' A value per class of a layer, in the order of its classes
+#'
+#' A column of the class table, or one of the values that need no
+#' measurement: \code{gid} and \code{complete}. \code{NULL} if there is none.
+#' @noRd
+.class_value <- function(obj, layer, name) {
+
+  classes <- .classes_of(obj, layer)
+  if (name == "gid") return(classes)
+  if (name == "complete") {
+    grid <- matrix(msk_pull(obj, layer), nrow = obj@dims[2],
+                   ncol = obj@dims[1], byrow = TRUE)
+    border <- c(grid[1, ], grid[nrow(grid), ], grid[, 1], grid[, ncol(grid)])
+    return(!classes %in% border)
   }
+  obj@categories[[layer]][[name]]
+}
 
-  rec <- obj@patches[[layer]]
-  patch_class <- rec$class
-  linked <- !is.null(rec$ids) && rec$ids %in% names(obj@layers)
-  patches <- if (linked) .patches_of(obj, layer) else NULL
 
-  # the cells of every group
-  if (length(cell_vars)) {
-    if (group == "patch") {
-      if (!linked) .patches_of(obj, layer)   # stops with the reason
-      ids <- patches$ids
-      members <- lapply(rec$patch, function(p) which(!is.na(ids) & ids == p))
-    } else {
-      vals <- msk_pull(obj, layer)
-      members <- lapply(classes, function(k) which(!is.na(vals) & vals == k))
-    }
+#' The values of a layer in every cell
+#'
+#' A layer, or the coordinates of the cell centres (\code{x}, \code{y}), in
+#' map units; cells are numbered row by row from the top-left corner.
+#' @noRd
+.cell_values <- function(obj, name) {
+
+  if (!name %in% c("x", "y")) return(msk_pull(obj, name))
+  ext <- obj@extent
+  res <- msk_res(obj)
+  d <- obj@dims
+  if (name == "x") {
+    rep(ext[1] + (seq_len(d[1]) - 0.5) * res[1], times = d[2])
+  } else {
+    rep(ext[4] - (seq_len(d[2]) - 0.5) * res[2], each = d[1])
   }
+}
 
-  n <- if (group == "patch") length(rec$patch) else length(classes)
-  result <- rep(NA_real_, n)
 
-  for (i in seq_len(n)) {
+#' A variable's value with class i in focus
+#'
+#' @param var list: \code{kind} (cell, class or fixed), \code{focus} and
+#'   \code{value}.
+#' @param i the position of the class in focus, \code{NULL} when the equation
+#'   is evaluated once for the layer.
+#' @param members the cells of each class.
+#' @param inside the cells of the layer that are not \code{NA}.
+#' @noRd
+.focus_value <- function(var, i, members, inside) {
 
-    k <- if (group == "patch") patch_class[i] else classes[i]
-    g_env <- list()
-
-    for (v in names(env)) {
-      val <- env[[v]]
-      g_env[[v]] <- if (v %in% cell_vars) {
-        val[members[[i]]]
-      } else if (v %in% matrix_vars) {
-        # a patch's own distances: its row in the matrix of its class
-        mat <- val[[as.character(k)]]
-        if (group == "patch") mat[as.character(rec$patch[i]), ] else mat
-      } else if (var_scale[[v]] == "patch") {
-        if (group == "patch") val[i] else val[patch_class == k]
-      } else if (var_scale[[v]] == "class") {
-        val[match(k, classes)]
-      } else {
-        val
-      }
-    }
-
-    res <- eval(eq_parsed, envir = g_env)
-    if (length(res) != 1) {
-      stop(sprintf(paste0(
-        "The equation must give one value for each %s, but gives %d for %s %s."),
-        group, length(res), group, if (group == "patch") rec$patch[i] else k),
-        call. = FALSE)
-    }
-    result[i] <- res
-  }
-
-  # a patch the map border cuts has NA for all its values
-  if (group == "patch" && linked) result[patches$clipped] <- NA
-
-  result
+  val <- var$value
+  switch(var$kind,
+    fixed = val,
+    cell = if (is.null(i)) val[inside] else switch(var$focus,
+      self   = val[members[[i]]],
+      others = val[setdiff(inside, members[[i]])],
+      all    = val[inside]),
+    class = if (is.null(i)) val else if (is.matrix(val)) switch(var$focus,
+      self   = val[i, i],
+      others = val[i, -i],
+      all    = val[i, ]) else switch(var$focus,
+      self   = val[i],
+      others = val[-i],
+      all    = val))
 }

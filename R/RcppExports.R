@@ -263,33 +263,6 @@ morphCpp <- function(vals, valRows, valCols, kernel, value, blend, merge, rotate
     .Call(`_mosaik_morphCpp`, vals, valRows, valCols, kernel, value, blend, merge, rotateKernel, strictKernel)
 }
 
-#' Patch-adjacency and contact regions on a labelled grid (c++)
-#'
-#' Given a grid of patch labels (e.g. from \code{componentsCpp}), count for
-#' every ordered pair of distinct patches (i) how many adjacent cell pairs
-#' connect them (contact length) and (ii) in how many spatially distinct
-#' places they touch (contact regions). The second is the loop-vs-branch
-#' discriminator for MSPA and is not derivable from the first.
-#'
-#' @param labels [integer(.)][integer]\cr flat vector of patch labels
-#'   (row-major). NA cells are ignored.
-#' @param nrow [integer(1)][integer]\cr number of rows.
-#' @param ncol [integer(1)][integer]\cr number of columns.
-#' @param eightconn [logical(1)][logical]\cr 8-connectivity (queen) if TRUE,
-#'   4-connectivity (rook) if FALSE, for what counts as contact between two
-#'   patches.
-#' @return A list with \code{ids} (sorted unique patch labels, the row/column
-#'   order of both matrices), \code{adjacency} (double-counted cell-pair
-#'   contacts), and \code{regions} (distinct contact regions per pair).
-#' @details Contact-cell linkage for the region count is always 8-connected:
-#'   two contact cells belonging to the same patch pair are the same region if
-#'   they are queen-adjacent. This is independent of \code{eightconn}, which
-#'   only governs whether two patches are considered in contact at all.
-#' @noRd
-patchAdjacencyCpp <- function(labels, nrow, ncol, eightconn) {
-    .Call(`_mosaik_patchAdjacencyCpp`, labels, nrow, ncol, eightconn)
-}
-
 #' Binary percolation grid (c++)
 #'
 #' Generate a binary grid where each cell is independently set to 1 with

@@ -209,20 +209,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// patchAdjacencyCpp
-List patchAdjacencyCpp(IntegerVector& labels, int nrow, int ncol, bool eightconn);
-RcppExport SEXP _mosaik_patchAdjacencyCpp(SEXP labelsSEXP, SEXP nrowSEXP, SEXP ncolSEXP, SEXP eightconnSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< IntegerVector& >::type labels(labelsSEXP);
-    Rcpp::traits::input_parameter< int >::type nrow(nrowSEXP);
-    Rcpp::traits::input_parameter< int >::type ncol(ncolSEXP);
-    Rcpp::traits::input_parameter< bool >::type eightconn(eightconnSEXP);
-    rcpp_result_gen = Rcpp::wrap(patchAdjacencyCpp(labels, nrow, ncol, eightconn));
-    return rcpp_result_gen;
-END_RCPP
-}
 // percolationCpp
 IntegerVector percolationCpp(int ncol, int nrow, double p);
 RcppExport SEXP _mosaik_percolationCpp(SEXP ncolSEXP, SEXP nrowSEXP, SEXP pSEXP) {
@@ -371,7 +357,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mosaik_reduceCpp", (DL_FUNC) &_mosaik_reduceCpp, 2},
     {"_mosaik_scaleMatrixCpp", (DL_FUNC) &_mosaik_scaleMatrixCpp, 2},
     {"_mosaik_morphCpp", (DL_FUNC) &_mosaik_morphCpp, 9},
-    {"_mosaik_patchAdjacencyCpp", (DL_FUNC) &_mosaik_patchAdjacencyCpp, 4},
     {"_mosaik_percolationCpp", (DL_FUNC) &_mosaik_percolationCpp, 3},
     {"_mosaik_perlinCpp", (DL_FUNC) &_mosaik_perlinCpp, 5},
     {"_mosaik_pointInPolyCpp", (DL_FUNC) &_mosaik_pointInPolyCpp, 3},

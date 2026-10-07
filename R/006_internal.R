@@ -121,67 +121,75 @@
   rev(path)  # return source-to-target order
 }
 
-# --- Patches ---------------------------------------------------------------
+# --- Class tables ------------------------------------------------------------
 
-#' The patches of a layer, as numbered by mdf_componentise
+#' Store a measured value in the class table of a layer
 #'
-#' Patches are never found by a measure: \code{\link{mdf_componentise}} numbers
-#' them, with a connectivity the user states, and records under
-#' \code{@patches[[layer]]} the layer holding the numbers (\code{ids}) and the
-#' class and number of each patch. The patch-level
-#' measures read that record here, and stop with a pointer to
-#' \code{mdf_componentise} if there is none.
+#' The class table lists the classes of a layer under \code{gid}; a value is
+#' stored in that order. A layer without class table starts one with the
+#' measured classes. A class of the table that was not measured gets
+#' \code{NA}; a matrix (one row and column per class) is reordered on both
+#' sides.
 #'
 #' @param obj a mosaik
-#' @param layer character(1) the layer whose patches are measured
-#' @return list: \code{ids} (patch number per cell), \code{class} and
-#'   \code{patch} (one entry per patch, in record order).
+#' @param layer character(1) the layer
+#' @param name character(1) the name of the value
+#' @param gid the measured classes
+#' @param value one value per class, or a class by class matrix
+#' @return the mosaik
 #' @noRd
 
-.patches_of <- function(obj, layer) {
+.store_class <- function(obj, layer, name, gid, value) {
 
-  rec <- obj@patches[[layer]]
-  if (is.null(rec$ids)) {
-    stop(sprintf(paste0(
-      "Layer '%s' has no patches. Number them first with ",
-      "mdf_componentise(layer = \"%s\", ...), which sets how cells connect ",
-      "into patches."), layer, layer), call. = FALSE)
+  tbl <- obj@categories[[layer]]
+  if (is.null(tbl$gid)) tbl <- c(list(gid = gid), tbl)
+  idx <- match(tbl$gid, gid)
+
+  if (is.matrix(value)) {
+    value <- value[idx, idx, drop = FALSE]
+    dimnames(value) <- list(tbl$gid, tbl$gid)
+  } else {
+    value <- value[idx]
   }
-  if (!rec$ids %in% names(obj@layers)) {
-    stop(sprintf(paste0(
-      "The patches of layer '%s' were numbered in layer '%s', which is no ",
-      "longer in 'obj'. Number them again with mdf_componentise()."),
-      layer, rec$ids), call. = FALSE)
-  }
-  ids <- msk_pull(obj, rec$ids)
-
-  # patches the map border cuts: their full extent is unknown
-  grid <- matrix(ids, nrow = obj@dims[2], ncol = obj@dims[1], byrow = TRUE)
-  border <- c(grid[1, ], grid[nrow(grid), ], grid[, 1], grid[, ncol(grid)])
-
-  list(ids = ids, class = rec$class, patch = rec$patch,
-       clipped = rec$patch %in% border)
+  tbl[[name]] <- value
+  obj@categories[[layer]] <- tbl
+  obj
 }
 
 
-#' Unlink patch records from layers that are no longer present
+#' The names of the values measured on a layer
 #'
-#' After layers are selected or removed, a patch record whose number layer
-#' went with them keeps its measured values but loses the link, so a further
-#' patch-level measure asks for \code{mdf_componentise} again.
-#'
-#' @param patches the \code{@patches} slot, already subset to the kept layers.
-#' @param layers the names of the layers that remain.
-#' @return the patches slot.
+#' Everything in a class table except the class codes, labels and colours,
+#' which describe the classes. A table without classes holds fields another
+#' package attached, so nothing in it counts.
+#' @param entry the class table of one layer.
+#' @return character
 #' @noRd
 
-.unlink_patches <- function(patches, layers) {
-  for (nm in names(patches)) {
-    if (!is.null(patches[[nm]]$ids) && !patches[[nm]]$ids %in% layers) {
-      patches[[nm]]$ids <- NULL
-    }
-  }
-  patches
+.measured_names <- function(entry) {
+  if (is.null(entry$gid)) return(character())
+  setdiff(names(entry), c("gid", "val", "colour"))
+}
+
+
+#' Warn that a change of the grid leaves measured values behind
+#'
+#' The values are kept, so they can be compared, but they still describe the
+#' map before the change, and a later msr() would read them as current.
+#' @param obj the mosaik before the change.
+#' @param fn the name of the function.
+#' @noRd
+
+.warn_measured <- function(obj, fn) {
+  m <- lapply(obj@categories, .measured_names)
+  for (nm in names(obj@global)) m[[nm]] <- c(m[[nm]], names(obj@global[[nm]]))
+  m <- m[lengths(m) > 0]
+  if (!length(m)) return(invisible())
+  what <- paste0(names(m), " (", vapply(m, paste, character(1), collapse = ", "),
+                 ")", collapse = "; ")
+  warning(fn, "() keeps the values measured before it: ", what,
+          ". They describe the map before the change; measure again to update ",
+          "them.", call. = FALSE)
 }
 
 

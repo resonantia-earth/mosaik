@@ -92,7 +92,8 @@
   if (is.null(from) && has_layers && reads_layer) {
     from <- if ("layers" %in% names(args)) names(obj@layers) else names(obj@layers)[1]
   }
-  to <- if ("name" %in% names(args)) {
+  # a measure's 'name' names the value it stores, not a layer
+  to <- if ("name" %in% names(args) && !startsWith(fn, "msr")) {
     args$name
   } else if ("add" %in% names(formals(fun))) {
     if (is.null(args$add)) from[1] else args$add
@@ -102,7 +103,7 @@
   # those a predicate refers to. Without layers (a recipe) they cannot be
   # checked, so every name is kept except the keywords of mdf_distance
   other <- character()
-  for (a in intersect(c("by", "source", "origin", "anchor"), names(args))) {
+  for (a in intersect(c("by", "source", "origin", "anchor", "cost"), names(args))) {
     if (is.character(args[[a]])) other <- c(other, args[[a]])
   }
   for (a in quoted) other <- c(other, all.vars(args[[a]]))
@@ -128,7 +129,7 @@
 #'
 #' @param obj the mosaik to change; \code{NULL} starts a recipe.
 #' @param ... slots to replace, by name (\code{layers}, \code{categories},
-#'   \code{patches}, \code{global}, \code{extent}, \code{dims}, \code{crs}).
+#'   \code{global}, \code{extent}, \code{dims}, \code{crs}).
 #' @param values cell values of the output layer \code{step$to}.
 #' @param gid,val for a categorical output layer: its group IDs and labels.
 #'   Only those that occur in \code{values} are registered.
@@ -155,21 +156,15 @@
   if (!is.null(values)) {
     layer <- step$to
     prior <- obj@categories[[layer]]
-    extra <- if (keep && is.null(gid) && !is.null(prior)) {
+    # a class table describes the old values, so only the fields of a layer
+    # without classes (attached by another package) survive the rewrite
+    extra <- if (keep && is.null(gid) && !is.null(prior) && is.null(prior$gid)) {
       prior[setdiff(names(prior), c("gid", "val"))]
     } else list()
 
     obj@layers[[layer]] <- values
     obj@categories[[layer]] <- NULL
-    # what was measured on the old values no longer describes the layer, and
-    # patches numbered in it are gone. A caller that passes 'patches' has
-    # already decided which patches hold (mdf_componentise).
-    if (!"patches" %in% names(slots)) {
-      obj@patches[[layer]] <- NULL
-      numbered_here <- vapply(obj@patches, function(p) identical(p$ids, layer),
-                              logical(1))
-      obj@patches <- obj@patches[!numbered_here]
-    }
+    # what was measured on the old values no longer describes the layer
     obj@global[[layer]] <- NULL
     if (!is.null(gid)) {
       present <- gid %in% unique(values[!is.na(values)])

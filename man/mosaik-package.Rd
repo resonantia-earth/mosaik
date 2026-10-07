@@ -6,10 +6,11 @@
 \title{mosaik: Draw, Modify and Measure Landscape Patterns}
 \description{
 mosaik follows the Unix principle for spatial analysis: \strong{each
-operator does one thing, all of them take and return a mosaik, and an
-analysis is a combination of them} rather than a function of its own. New
-questions need new combinations, not new code, and every combination can be
-checked part by part and rerun from its record.
+operator does only one thing, but that as well as possible.} Each function
+takes and returns a mosaik, and an analysis is a combination of operators
+rather than a function of its own. New questions need new combinations, not
+new code, and every combination can be checked part by part and rerun from
+its record.
 }
 \details{
 The operators draw fields, modify layers and measure them. Landscape tools
@@ -23,17 +24,15 @@ over the perimeter and the area of a patch needs both to refer to the same
 patch, a step that measures, modifies and measures again needs the earlier
 results to still be there, and a reported number needs to be traceable
 through every step that made it. The \code{\link{mosaik}} class therefore
-holds the layers, the patches, the classes, the results and the history of
-operations, and every operation keeps them consistent.
+holds the layers, the classes, the results and the history of operations,
+and every operation keeps them consistent.
 
 A mosaik can be a grid of stacked layers, categorical (land cover, soil,
 tenure) or continuous (biomass, canopy height). Cell values of a categorical
-layer are the class identifiers themselves. Results are written into the
-object with the layer they were measured on, at the level they describe:
-patch-level in \code{@patches}, class-level in \code{@categories},
-landscape-level in \code{@global}, each a list with one entry per layer.
-Patches are numbered once, by \code{\link{mdf_componentise}} with a stated
-connectivity, and every patch-level measure uses those patches.
+layer are the class identifiers themselves. Measures work on the classes of
+a layer, and a grouping is a layer too: patches numbered by
+\code{\link{mdf_componentise}} with a stated connectivity, zones from
+\code{\link{msk_rasterise}}, or any other of your zones.
 
 The MSPA vignette shows how far combining reaches: a published segmentation
 algorithm rebuilt from existing operators, matching the original cell for
@@ -53,9 +52,9 @@ serves forest, water or roads alike (e.g. \code{\link{mdf_morph}},
 \code{\link{mdf_scale}}). A recorded sequence of them is a recipe,
 replayable on any raster with \code{\link{mdf}}.}
 \item{\code{msr_*} and \code{\link{msr}}}{measure: \code{msr_*} for the
-primitives (area, number, perimeter, adjacency, dissimilarity and cost,
-each at patch, class or landscape level), \code{\link{msr}} for a metric
-derived from an equation over them in \code{metric.scale} notation.}
+primitives (area, perimeter, adjacency, distance and dissimilarity, per
+class of a layer), \code{\link{msr}} for a metric derived from an
+equation over them in \code{name.focus} notation.}
 \item{\code{msk_*}}{accessors and utilities (\code{\link{msk_vis}},
 \code{\link{msk_categories}}, \code{\link{msk_terra}}, ...).}
 }

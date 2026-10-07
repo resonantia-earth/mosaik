@@ -9,17 +9,20 @@
 #' @param connectivity [`integer(1)`][integer]\cr neighbourhood connectivity;
 #'   \code{4} for rook/diamond (default) or \code{8} for queen/box.
 #' @param background [`integerish(1)`][integer]\cr the value of every cell that
-#'   is not in a patch, i.e. cells with the value 0 or \code{NA}.
+#'   is not in a patch, i.e. cells with the value 0 or \code{NA}. Keep the
+#'   default \code{NA} to measure the patches: any other value is a class of
+#'   the layer and is measured as one more group.
 #' @param layer [`character(1)`][character]\cr the layer in \code{obj} to use.
 #'   Defaults to the first layer.
 #' @param add [`character(1)`][character]\cr if \code{NULL} (default), overwrite
 #'   \code{layer}; if a string, write to a new layer with that name.
 #' @return A mosaik in which each cell carries the number of its patch.
-#' @details The patches are also recorded with \code{layer}: which layer holds
-#'   their numbers and the class of each patch (see
-#'   \code{\link{msk_patches}}). The patch-level measures
-#'   (\code{msr_*(scale = "patch")}) measure these patches, so how cells connect
-#'   into patches is always set here and never decided by a measure.
+#' @details The layer of patch numbers is a grouping: each of its classes is a
+#'   patch, so the \code{msr_*} functions and \code{\link{msr}} measure the
+#'   patches when given this layer. How cells connect into patches is set here
+#'   and never decided by a measure. Which class a patch came from is read
+#'   from the source layer through the patch's cells, for example
+#'   \code{msr(m, "mean(cover.self == 47)", label = "forest", layer = "patch")}.
 #' @examples
 #' # the forest patches with rook (4) and queen (8) neighbours; drawn in shuffled
 #' # colours, since neighbouring patch numbers would otherwise get similar ones
@@ -34,11 +37,11 @@
 #' msk_vis(f, .layer("forest"),
 #'         .layer("rook", colours = shuffled(f, "rook"), legend = FALSE),
 #'         .layer("queen", colours = shuffled(f, "queen"), legend = FALSE))
-#' msk_patches(f, layer = "forest")$class
 #'
-#' # the patches of every land-cover class
-#' m <- mdf_componentise(landscape, layer = "cover", add = "patch")
-#' table(msk_patches(m, layer = "cover")$class)
+#' # the patches of every land-cover class, and the class of each patch
+#' m <- mdf_componentise(landscape, layer = "cover", add = "patch") |>
+#'   msr(equation = "cover.self[1]", label = "source", layer = "patch")
+#' table(msk_categories(m, layer = "patch")$source)
 #' msk_vis(m, .layer("cover"),
 #'         .layer("patch", colours = shuffled(m, "patch"), legend = FALSE))
 #' @family operators to determine objects
@@ -73,23 +76,9 @@ mdf_componentise <- function(obj = NULL,
   fg[!is.na(fg) & fg == 0] <- NA
   temp <- componentsCpp(vals = fg, nrow = dims[2], ncol = dims[1],
                         connectivity = connectivity)
-  ids <- sort(unique(temp[!is.na(temp)]))
-
-  # the record the patch-level measures read: where the numbers are and the
-  # class of each patch; the connectivity is in the provenance
-  record <- list(ids = step$to, class = vals[match(ids, temp)], patch = ids)
   temp[is.na(temp)] <- background
-
-  # results measured on the old patches of 'layer', or on the layer that is
-  # now overwritten, no longer describe anything
-  patches <- obj@patches
-  stale <- vapply(patches, function(p) identical(p$ids, step$to), logical(1))
-  patches <- patches[!stale]
-  patches[[step$to]] <- NULL
-  patches[[layer]] <- record
 
   # build output ----
   # componentising changes the layer's kind (-> patch IDs); drop any prior role
-  .update_mosaik(obj, patches = patches, values = temp, keep = FALSE,
-                 step = step)
+  .update_mosaik(obj, values = temp, keep = FALSE, step = step)
 }

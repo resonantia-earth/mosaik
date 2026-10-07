@@ -1,8 +1,8 @@
 # Groups and focus: the next shape of msr()
 
-Discussed 2026-10-06, nothing built. Work on this happens on the branch
-`groups`. Read this before touching `msr()`, the `msr_*` primitives or the
-metric app.
+Discussed and built 2026-10-06 on the branch `groups`; see "As built" at the
+end for what the build decided. Read this before touching `msr()`, the `msr_*`
+primitives or the metric app.
 
 ## Why
 
@@ -126,8 +126,9 @@ group layer `patch`, one value per patch.
 
 ## Prototype test, 2026-10-06
 
-`inst/design/groups_prototype.R` (run from the package root) implements the
-design outside the package: class values per layer (area, perimeter,
+`inst/design/archive/groups_prototype/groups_prototype.R` (archived; it ran
+against the old API and no longer runs) implemented the design outside the
+package: class values per layer (area, perimeter,
 adjacency table, distance table between classes, border flag), an
 evaluator for `<name>.<self|others|all>[_layer]` with the label's level as
 focus, and all 42 metrics of the app rewritten in the new notation
@@ -184,3 +185,53 @@ built.
   `area.patch[!self]` (superseded by `.others`).
 - `area.patch` meaning "the class's other patches" next to `distance.patch`
   (the old code; a meaning that depends on context).
+
+## As built (2026-10-06)
+
+The new `msr()` reproduces the prototype's 42 metrics exactly, with cut
+patches kept in. Decisions taken during the build (user-approved):
+
+- **Primitives.** `msr_area`, `msr_perimeter`, `msr_adjacency`,
+  `msr_distance`, `msr_dissimilarity` measure per class of `layer` only and
+  store in `@categories[[layer]]` (helper `.store_class`, in the order of the
+  class table). `msr_number` is deleted (`length(area.all)`).
+- **`msr_adjacency`** lost `type` as well as `scale`: it always stores the full
+  `adjacency` matrix (both sides counted). `regions` (in how many separate
+  places two patches touch; built for MSPA's loops, which was then solved
+  without it) and `patchAdjacencyCpp` were REMOVED 2026-10-07: nothing used
+  them. They are in the git history if a recipe needs loops (network
+  redundancy). `like` = `adjacency.self`;
+  the per-class total is `adjacency.self + sum(adjacency.others)`, NOT
+  `sum(adjacency.all)`, because an equation with only `.all` runs once for the
+  layer and then reads the whole matrix.
+- **`msr_perimeter`** counts the edge to an `NA` cell (an NA cell is not of
+  the class); edges along the map border are still not counted. This is what
+  gives a patch layer (outside = NA) its full outlines without any function
+  knowing the layer is a grouping.
+- **`msr_distance`** measures between the nearest cells of every two classes,
+  one matrix, `Inf` on the diagonal; `name =` (default `distance`) is the
+  user-chosen name, refused if it is a layer name.
+- **`complete`, `gid`, `x`, `y`** are worked out by `msr()` from the layer,
+  not stored by a primitive: nothing has to run first.
+- **Other layers.** With `.all`, `_<layer>` reads that layer's classes
+  (`sum(area.all_cover)`); with `.self`/`.others` it reads that layer's class
+  values through the cells of the classes in focus (`mean(cost.self_cover)`).
+  The old rule (class values of two layers combine only with identical
+  classes) is gone. A layer name takes no `_layer` suffix; a matrix of another
+  layer is read only as a whole.
+- **No patch record.** `mdf_componentise` writes only the layer of patch
+  numbers; the `@patches` slot, `msk_patches`, `.patches_of` and
+  `.unlink_patches` are gone. The source class of a patch is read through its
+  cells (`msr(m, "cover.self[1]", "source", layer = "patch")`), and a patch can
+  hold several classes. With `background` other than `NA`, the background is
+  one more class.
+- **Rewriting a layer drops its class table.** `.update_mosaik` used to keep
+  every non-`gid` field on a rewrite, so `mdf_erode` left the old `area` and
+  `msr()` read it as current. Now only the fields of a layer without classes
+  (attached by mundus) survive.
+- Labels: no `.` or `_`, not a layer, not reserved, not already stored.
+  Reserved: `area perimeter adjacency distance dissimilarity gid
+  complete val colour x y`.
+- Known risk, untested at size: `msr_distance(cost =, routing = "straight")`
+  compares every cell of one class with every cell of the other
+  (`.straight_path`), which may exhaust memory on large land cover classes.

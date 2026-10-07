@@ -10,130 +10,134 @@ msr(obj = NULL, equation, label, layer = NULL)
 \item{obj}{\code{\link{mosaik}}\cr the mosaik with the values already measured.}
 
 \item{equation}{\code{\link[=character]{character(1)}}\cr the equation that computes
-the metric. Each variable in it refers to a measured value and is named
-\code{<metric>.<scale>}, for example \code{area.class} (the area of each
-class) or \code{perimeter.patch} (the perimeter of each patch). The scale
-is one of class, patch or landscape. A variable refers to the values of
-\code{layer}; to use the values of another layer, add that layer's name
-after an underscore: \code{area.landscape_cover} is the area of the layer
-"cover". A variable with the scale cell names a layer instead:
-\code{canopy.cell} holds the values of the layer "canopy" in every cell.}
+the metric. Each variable in it is named \code{<name>.<focus>}, for
+example \code{area.self}, optionally followed by \code{_<layer>} to read
+another layer than \code{layer}: \code{area.all_cover}. See Details.}
 
 \item{label}{\code{\link[=character]{character(1)}}\cr the name the result is stored
-under, in the same notation as the variables, for example
-\code{"pland.class"}, \code{"enn.patch"} or \code{"shdi.landscape"}. The
-scale of the label names the group the result belongs to: each class of
-\code{layer}, each patch, or the whole layer. The equation is evaluated
-once for each group, and every variable in it holds the values of that
-group. For example, \code{canopy.cell} then holds the canopy height of the
-cells in that group. The equation must return one value for each group;
-otherwise \code{msr()} stops with an error. A label without a scale
-(\code{"pland"}) is stored according to the number of values the equation
-returns. The label must not already exist at that scale of \code{layer}.}
+under. It must not contain \code{.} or \code{_}, because \code{msr()}
+reads these as the start of the focus and of the layer when the label is
+used as a variable later. It must not be a layer, a reserved name or a
+value already stored with \code{layer}.}
 
-\item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose values the
-variables refer to by default, and with which the result is stored.
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose classes the
+equation is evaluated over, and with which the result is stored.
 Defaults to the first layer.}
 }
 \value{
-The mosaik with the result added to the results of \code{layer}.
+The mosaik with the result added to the class table of \code{layer}
+(see \code{\link{msk_categories}}), or to its values for the whole layer
+(see \code{\link{msk_global}}).
 }
 \description{
-Compute a landscape metric from an equation over values that have already
-been measured, and store the result with them. The values are primitives,
-measured by the other \code{msr_*} functions, or metrics stored by earlier
-\code{msr()} calls, so one metric can build on another.
+Compute a landscape metric from an equation over the classes of a layer,
+and store the result with them. The classes can be land cover classes or
+groups, such as the patches numbered by \code{\link{mdf_componentise}}: on a
+layer of patch numbers, each class is a patch. The values in the equation
+are primitives, measured by the other \code{msr_*} functions, metrics
+stored by earlier \code{msr()} calls, or layers, so one metric can build on
+another.
 }
 \details{
-\strong{Variables.} An equation can use the primitives, which the other
-\code{msr_*} functions measure (area, perimeter, number, adjacency, cost
-and dissimilarity), and any metric that an earlier \code{msr()} call has
-stored. In this way, a metric can be built from other metrics. Each
-metric is computed once, when \code{msr()} is called; if one of its
+\strong{Focus.} The equation is evaluated with one class of \code{layer}
+in focus at a time. The focus of a variable says which classes it reads:
+\tabular{ll}{
+\code{.self}   \tab the class in focus \cr
+\code{.others} \tab every other class of the layer \cr
+\code{.all}    \tab all classes of the layer
+}
+With the areas A 10, B 20 and C 5 and A in focus, \code{area.self} is 10,
+\code{area.others} is 20, 5 and \code{area.all} is 10, 20, 5. An equation
+with \code{.self} or \code{.others} is evaluated once for each class, and
+the results go to the class table. This holds also when it contains
+\code{.all}: \code{area.self / sum(area.all)} runs once per class, and
+\code{sum(area.all)} is the same total in every run. An equation with only
+\code{.all} is evaluated once, and the result is stored for the whole
+layer: \code{max(area.all) / sum(area.all)}.
+
+Each run gives the value of one class, or of the whole layer, so it must
+come to one number. \code{area.self} is one number,
+but \code{area.others} and \code{area.all} hold one number per class, so
+a function such as \code{sum()} or \code{max()} has to reduce them. An
+equation without that reduction, such as \code{area.all * 2}, has no
+single result, and \code{msr()} reports it as an error.
+
+\strong{Names.} A name that is a layer reads cells: \code{canopy.self}
+holds the values of the layer "canopy" in the cells of the class in focus,
+\code{canopy.all} those in all cells of \code{layer}. Any other name reads
+a stored value: a primitive (\code{area}, \code{perimeter},
+\code{adjacency}, \code{distance}, \code{dissimilarity}), a column of the
+class table, or a metric stored by \code{msr()}. A metric
+stored for the whole layer is read with \code{.all}. Some names need no
+measurement:
+\tabular{ll}{
+\code{gid}      \tab the code of each class \cr
+\code{complete} \tab \code{TRUE} if a class has no cell on the map
+border \cr
+\code{x}, \code{y} \tab the coordinates of the cell centres, in map
+units
+}
+These, the primitives and \code{val} and \code{colour} of the class table
+are reserved: no layer may take them. A layer that is read by its name,
+as in \code{canopy.self}, must not contain \code{.} or \code{_} in that
+name, because the \code{.} starts the focus and the \code{_} the layer. Names R knows as constants,
+such as \code{pi}, are constants.
+
+\strong{Matrices.} A class by class matrix, such as \code{distance}, is
+read along the row of the class in focus: \code{distance.self} is the
+entry on the diagonal, the distance of the class to itself (\code{Inf});
+\code{distance.others} is the rest of the row, its distances to every
+other class, so \code{min(distance.others)} is the distance to the nearest
+one; \code{distance.all} is the whole row. With only \code{.all}, the
+variable is the whole matrix.
+
+\strong{Other layers.} With \code{_<layer>}, a variable reads another
+layer. With \code{.all}, it reads all classes of that layer:
+\code{sum(area.all_cover)} is the area of the map. With \code{.self} or
+\code{.others}, it reads that layer through the cells of the classes in
+focus. After \code{msr_area(layer = "cover")}, on a layer of patches,
+\code{area.self_cover} holds, for every cell of the patch in focus, the
+area of the cover class that cell belongs to.
+
+\strong{The map border.} A class that touches the map border may extend
+beyond it, so its values describe only the part on the map. It still
+counts, as a neighbour and in every count. To leave such classes out of
+a result, filter with \code{complete}: \code{max(area.all[complete.all])}
+is the area of the largest patch that lies wholly on the map.
+
+Each metric is computed once, when \code{msr()} is called; if one of its
 primitives is measured again later, the metric is not updated. An
-equation can also contain constants such as \code{pi} and any R function,
-including functions you have written yourself.
-
-\strong{Combining layers.} Landscape values of different layers can
-always be combined, because each layer has exactly one. Class values of
-two layers can only be combined if both layers have the same classes, as
-two binary layers do. Patch values of two layers can only be combined if
-both layers were numbered into the same patches. If they were not, for
-example the forest patches and the core areas within them, use the other
-layer as a cell variable: \code{mean(core.cell)} with the label
-\code{"coreshare.patch"} gives the share of core in each forest patch, if
-the layer "core" is 1 for core and 0 for every other cell.
-
-\strong{Patches.} Patch values require that the patches of \code{layer}
-have been numbered with \code{\link{mdf_componentise}}. Patch metrics often
-concern only some of the classes, for example those that make up a
-habitat. In that case, combine these classes into one binary layer with
-\code{\link{mdf_binarise}}, number the patches of that layer and compute
-the metric on it. A patch that touches the map border has \code{NA} for
-all its values, because the map shows only part of it. To leave such
-patches out of a sum or a maximum, use \code{na.rm = TRUE}.
-
-\strong{Cell values.} Every layer can be used as a cell variable: land
-cover, canopy height, or a layer made by an \code{mdf_*} function, such as
-the distance of every cell to the edge of its patch from
-\code{\link{mdf_distance}}. The layer name must be a valid R name, so it
-must not contain a dot or start with an underscore. A label without a
-scale groups an equation with cell variables by patch.
-
-\strong{Distances between patches.} \code{\link{msr_distance}} stores the
-distances between the patches of each class as a matrix. Within a patch,
-\code{distance.patch} holds the distances from this patch to all other
-patches of the same class. Thus \code{min(distance.patch)} is the
-distance to the nearest patch. The distance of a patch to itself is
-\code{Inf}, so it does not count. A label without a scale groups an
-equation with \code{distance.patch} by patch. The matrix is called
-\code{distance}, unless \code{msr_distance()} was given a layer with the
-cost of crossing each cell (its argument \code{cost}). Then the matrix
-takes the name of that layer: after \code{msr_distance(cost = "friction")},
-the variable is \code{friction.patch}.
+equation can contain any R function, including functions you have written
+yourself.
 }
 \examples{
-m <- landscape |>
-  msr_area(scale = "class", layer = "cover") |>
-  msr_area(scale = "landscape", layer = "cover")
+m <- msr_area(landscape, layer = "cover")
 
 # the share of the landscape in each class
-m <- msr(m, equation = "area.class / area.landscape * 100",
-         label = "pland.class", layer = "cover")
+m <- msr(m, equation = "area.self / sum(area.all) * 100", label = "pland",
+         layer = "cover")
 msk_categories(m, layer = "cover")$pland
 
-# a metric built from another metric: Shannon diversity
-m <- msr(m, equation = "-sum(pland.class / 100 * log(pland.class / 100))",
-         label = "shdi.landscape", layer = "cover")
+# a metric built from another metric: Shannon diversity, for the layer
+m <- msr(m, equation = "-sum(pland.all / 100 * log(pland.all / 100))",
+         label = "shdi", layer = "cover")
 msk_global(m, layer = "cover")$shdi
 
-# combining two layers: the share of the forest that is core, from the
-# forest class (1) of both layers
-f <- mdf_filter(landscape, cover == 47, add = "forest") |>
-  mdf_erode(layer = "forest", add = "core") |>
-  msr_area(scale = "class", layer = "forest") |>
-  msr_area(scale = "class", layer = "core") |>
-  msr(equation = "area.class_core[gid.class == 1] / area.class[gid.class == 1]",
-      label = "core_share.landscape", layer = "forest")
-msk_global(f, layer = "forest")$core_share
-
-# per patch: the distance of each forest patch to its nearest neighbour;
-# patches the map border cuts are NA
-f <- f |>
+# the forest patches: the distance of each to its nearest neighbour, and
+# the share of the map in the largest patch
+f <- mdf_filter(m, cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
-  msr_distance(layer = "forest") |>
-  msr(equation = "min(distance.patch)", label = "enn.patch",
-      layer = "forest")
-msk_patches(f, layer = "forest")$enn
+  msr_area(layer = "patch") |>
+  msr_distance(layer = "patch") |>
+  msr(equation = "min(distance.others)", label = "enn", layer = "patch") |>
+  msr(equation = "max(area.all) / sum(area.all_cover) * 100", label = "lpi",
+      layer = "patch")
+msk_categories(f, layer = "patch")$enn
+msk_global(f, layer = "patch")$lpi
 
-# a layer as cell variable: the mean canopy height of each forest patch,
-# and of each land cover class
-f <- msr(f, equation = "mean(canopy.cell)", label = "height.patch",
-         layer = "forest")
-msk_patches(f, layer = "forest")$height
-f <- msr(f, equation = "mean(canopy.cell)", label = "height.class",
-         layer = "cover")
-msk_categories(f, layer = "cover")$height
+# a layer read through cells: the mean canopy height of each forest patch
+f <- msr(f, equation = "mean(canopy.self)", label = "height", layer = "patch")
+msk_categories(f, layer = "patch")$height
 }
 \seealso{
 Other measure: 
@@ -141,7 +145,6 @@ Other measure:
 \code{\link{msr_area}()},
 \code{\link{msr_dissimilarity}()},
 \code{\link{msr_distance}()},
-\code{\link{msr_number}()},
 \code{\link{msr_perimeter}()}
 }
 \concept{measure}

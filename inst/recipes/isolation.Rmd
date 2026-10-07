@@ -19,10 +19,10 @@ library(mosaik)
 isolation <- landscape |>
   mdf_filter(cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
-  msr_area(scale = "patch", layer = "forest") |>
-  msr_distance(routing = "straight", layer = "forest") |>
-  msr(equation = "min(distance.patch)", label = "nearest.patch", layer = "forest")
-p <- msk_patches(isolation, layer = "forest")
+  msr_area(layer = "patch") |>
+  msr_distance(routing = "straight", layer = "patch") |>
+  msr(equation = "min(distance.others)", label = "nearest", layer = "patch")
+p <- msk_categories(isolation, layer = "patch")
 ```
 
 The result is a table with one row per patch. Replacing each patch number in
@@ -30,7 +30,7 @@ the layer `patch` by the patch's distance draws it as a map:
 
 ```{r}
 isolation <- isolation |>
-  mdf_replace(old = p$patch, new = p$nearest, layer = "patch",
+  mdf_replace(old = p$gid, new = p$nearest, layer = "patch",
               add = "nearest") |>
   mdf_offset(fun = "-", value = 1, layer = "nearest", add = "gap")
 ```
@@ -45,14 +45,15 @@ msk_vis(isolation, .layer("forest"), .layer("gap"))
 
 **Check.** The patch at the southern edge of the map lies furthest from any
 other forest, and the three large patches 3, 4 and 5 lie closest together,
-only a road or a river apart. The map border cuts the southern patch, so its
-own distance is NA: forest beyond the map could lie closer. The way to it
-from every other patch is measured, though, and is the longest of all:
+only a road or a river apart. The map border cuts the southern patch, so
+forest beyond the map could lie closer to it than any on the map; `complete`
+is `FALSE` for it. The way to it from every other patch is the longest of
+all:
 
 ```{r}
-nearest <- data.frame(patch = p$patch, area = p$area, nearest = p$nearest)
+nearest <- data.frame(patch = p$gid, area = p$area, nearest = p$nearest)
 print(nearest[nearest$patch %in% 3:5, ], row.names = FALSE)
-toward <- apply(p$distance[["1"]], 2, min, na.rm = TRUE)
+toward <- apply(p$distance, 2, min, na.rm = TRUE)
 far <- as.numeric(names(which.max(toward)))
 toward[as.character(far)]
 ```

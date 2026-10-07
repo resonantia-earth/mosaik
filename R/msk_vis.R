@@ -328,6 +328,9 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
   # map needs the map cropped to it first, snapped outward to whole cells
   if(!is.null(window)){
     assertNumeric(x = window, len = 4)
+    # only the cells are drawn, so the measured values go before cropping
+    obj@categories <- lapply(obj@categories, function(e) e[setdiff(names(e), .measured_names(e))])
+    obj@global <- list()
     obj <- mdf_crop(obj, extent = window)
   }
   ext <- obj@extent

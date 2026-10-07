@@ -12,9 +12,10 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6,
                       fig.height = 5)
 ```
 
-mosaik follows the Unix principle for spatial analysis: each operator does one
-thing, all of them take and return a mosaik, and an analysis is a combination
-of them rather than a function of its own. New questions need new
+mosaik follows the Unix principle for spatial analysis: each operator does
+only one thing, but that as well as possible. Each function takes and returns
+a mosaik, and an analysis is a combination of operators rather than a
+function of its own. New questions need new
 combinations, not new code, and every combination can be checked part by part
 and rerun from its record.
 
@@ -80,84 +81,89 @@ replayed on any map with `mdf()`; `vignette("techniques")` shows how.
 
 ## Measuring the primitives
 
-A `msr_*` function measures one primitive and writes the result into the
-object at the level it describes. Here the area and perimeter of every class
-of the cover map, and the area of the whole grid:
+A `msr_*` function measures one primitive for every class of a layer and
+writes the result into the class table of that layer. Here the area and
+perimeter of every class of the cover map:
 
 ```{r}
 m <- landscape |>
-  msr_area(scale = "class", layer = "cover") |>
-  msr_area(scale = "landscape", layer = "cover") |>
-  msr_perimeter(scale = "class", layer = "cover")
+  msr_area(layer = "cover") |>
+  msr_perimeter(layer = "cover")
 ```
 
 Every result is stored with the layer it was measured on. `msk_categories()`
-returns the class-level results of a layer, `msk_global()` its landscape-level
-results:
+returns the class table of a layer:
 
 ```{r}
 msk_categories(m, layer = "cover")
-msk_global(m, layer = "cover")
 ```
 
 The same functions measure single patches, once the patches are numbered.
 Which cells form a patch depends on whether cells that touch only at a corner
 count as connected, so that is a step of its own: `mdf_componentise()`, with
-four or eight neighbours. It keeps the patches in the object, so every
-patch-level measurement refers to the same patches. On the forest layer, the
-patches are those of the forest (1); the non-forest land (0) forms none:
+four or eight neighbours. It writes a layer in which every cell carries the
+number of its patch. Each class of that layer is a patch, so measuring the
+layer measures the patches. On the forest layer, the patches are those of the
+forest (1); the non-forest land (0) forms none:
 
 ```{r}
 f <- f |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
-  msr_area(scale = "patch", layer = "forest") |>
-  msr_perimeter(scale = "patch", layer = "forest")
+  msr_area(layer = "patch") |>
+  msr_perimeter(layer = "patch")
 
-p <- msk_patches(f, layer = "forest")
-data.frame(patch = p$patch, area = p$area, perimeter = p$perimeter)
+p <- msk_categories(f, layer = "patch")
+data.frame(patch = p$gid, area = p$area, perimeter = p$perimeter)
 ```
 
-The primitives are area, number, perimeter, adjacency, dissimilarity and cost.
+The primitives are area, perimeter, adjacency, distance and dissimilarity.
 
 ## Composing a metric
 
 `msr()` computes a metric from an equation over values already in the object.
-A value is named as `metric.scale`, so `area.class` is the area of each class
-and `area.landscape` the area of the whole grid. The share of the grid each
-class covers, and its edge density:
+The equation is evaluated with one class in focus at a time, and a value is
+named as `name.focus`: `area.self` is the area of the class in focus,
+`area.others` the areas of all other classes, `area.all` the areas of all
+classes. The share of the grid each class covers, and its edge density:
 
 ```{r}
 m <- m |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
+  msr(equation = "area.self / sum(area.all) * 100", label = "pland",
       layer = "cover") |>
-  msr(equation = "perimeter.class / area.landscape", label = "edge_density.class",
+  msr(equation = "perimeter.self / sum(area.all)", label = "density",
       layer = "cover")
 
-data.frame(msk_categories(m, layer = "cover")[c("val", "pland", "edge_density")])
+data.frame(msk_categories(m, layer = "cover")[c("val", "pland", "density")])
 ```
 
-The label is written like a variable: `pland.class` stores the result with the
-classes, under the name `pland`, and `msr()` stops if the equation does not give
-one value per class.
-
-Shannon diversity sums over the classes into one value for the landscape:
+With `.self` or `.others`, the equation is evaluated once for each class and
+the results go to the class table; with only `.all`, it is evaluated once for
+the whole layer. An equation that mixes them is evaluated once for each class:
+`pland` above has `area.self`, so it runs once per class, and `sum(area.all)`
+is the same total in every run. Each run gives the value of one class, or of
+the whole layer, so it must come to one number. `area.self` is one
+number, but `area.others` and `area.all` hold one number per class, so a
+function such as `sum()` or `max()` has to reduce them. An equation without
+that reduction, such as `area.all * 2`, has no single result, and `msr()`
+reports it as an error. Shannon diversity reduces the shares of all classes to
+one value:
 
 ```{r}
-m <- msr(m, layer = "cover", label = "shannon.landscape",
-         equation = "-sum(area.class / area.landscape *
-                          log(area.class / area.landscape))")
+m <- msr(m, layer = "cover", label = "shannon",
+         equation = "-sum(area.all / sum(area.all) *
+                          log(area.all / sum(area.all)))")
 msk_global(m, layer = "cover")$shannon
 ```
 
 A metric computed this way can itself be used in the next equation;
 `vignette("techniques")` shows how.
 
-Patch-level primitives compose the same way. The shape index of every forest
-patch:
+Patch-level metrics are the same equations on the layer of patches. The shape
+index of every forest patch:
 
 ```{r}
-f <- msr(f, equation = "perimeter.patch / sqrt(area.patch)",
-         label = "shape_index.patch", layer = "forest")
+f <- msr(f, equation = "perimeter.self / sqrt(area.self)", label = "shape",
+         layer = "patch")
 ```
 
 No function was written for any of these metrics. A metric that no catalogue

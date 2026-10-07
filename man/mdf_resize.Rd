@@ -4,19 +4,17 @@
 \alias{mdf_resize}
 \title{Change the size of a mosaik}
 \usage{
-mdf_resize(obj = NULL, factor = NULL, layer = NULL)
+mdf_resize(obj = NULL, factor = NULL)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to modify.}
 
 \item{factor}{\code{\link[=numeric]{numeric(1)}}\cr an integer larger than 1 for
 up-scaling and a fraction for down-scaling (see Details).}
-
-\item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
-Defaults to the first layer.}
 }
 \value{
-A mosaik with rescaled dimensions.
+A mosaik with rescaled dimensions. Every layer is resized, since
+all layers share one grid, and the class labels are kept.
 }
 \description{
 Increase or decrease the size of a mosaik using nearest-neighbour

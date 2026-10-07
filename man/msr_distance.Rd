@@ -4,7 +4,13 @@
 \alias{msr_distance}
 \title{Measure distance}
 \usage{
-msr_distance(obj = NULL, cost = NULL, routing = "cheapest", layer = NULL)
+msr_distance(
+  obj = NULL,
+  cost = NULL,
+  routing = "cheapest",
+  name = "distance",
+  layer = NULL
+)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
@@ -13,60 +19,59 @@ msr_distance(obj = NULL, cost = NULL, routing = "cheapest", layer = NULL)
 of crossing each cell; \code{NA} marks a cell that cannot be crossed. If
 \code{NULL} (default), every cell costs the same.}
 
-\item{routing}{\code{\link[=character]{character(1)}}\cr which path between two patches
+\item{routing}{\code{\link[=character]{character(1)}}\cr which path between two classes
 is measured: \code{"straight"} is the direct line, \code{"cheapest"}
 (default) the path with the lowest total cost.}
 
-\item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose patches are
-measured. Its patches must have been numbered with
-\code{\link{mdf_componentise}} first. Defaults to the first layer.}
+\item{name}{\code{\link[=character]{character(1)}}\cr the name the distances are stored
+under, by default \code{"distance"}. Give distances over a cost layer a
+name of their own, so that both can be stored. The name must not be the
+name of a layer and must not contain \code{.} or \code{_}, because
+\code{\link{msr}} reads these as the start of the focus and of the layer.}
+
+\item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose classes are
+measured. Defaults to the first layer.}
 }
 \value{
-The input mosaik with the distances added to the patch results of
-\code{layer} (see \code{\link{msk_patches}}).
+The input mosaik with the distances added to the class table of
+\code{layer} (see \code{\link{msk_categories}}).
 }
 \description{
-Measure how far apart the patches of a layer are. Without a cost layer,
+Measure how far apart the classes of a layer are. Without a cost layer,
 every cell counts the same, and the distance is measured in cells. With a
 cost layer, every cell counts with the cost of crossing it, so the distance
-says how hard it is to get from one patch to another.
+says how hard it is to get from one class to another.
 }
 \details{
-The result is called \code{distance}, so that \code{\link{msr}}
-reads it as \code{distance.patch}. With a cost layer, it takes the name of
-that layer instead: after \code{cost = "friction"}, it is
-\code{friction.patch}.
+The result is a class by class matrix, in the order of the class
+table, and each value is the distance between the nearest cells of two
+classes. On a layer of patch numbers from \code{\link{mdf_componentise}},
+these are the distances between patches. The distance of a class to
+itself is \code{Inf}, so that \code{min(distance.others)} in
+\code{\link{msr}} gives the distance to the nearest other class.
 
 With a cost layer, the distance along a path is the sum of the costs of
 all cells on that path. To make paths avoid a class, give that class the
-cost \code{NA}, for example with \code{\link{mdf_replace}}. If two patches
+cost \code{NA}, for example with \code{\link{mdf_replace}}. If two classes
 cannot be reached from each other, their distance is \code{NA}, not 0.
-
-The result is one matrix for each class. It has one row and one column
-for each patch of that class, and each value is the distance between two
-of these patches. The distance of a patch to itself is \code{Inf}, so
-that \code{min(distance.patch)} in \code{\link{msr}} gives the distance to
-the nearest other patch. For a patch that touches the map border, all
-distances from that patch are \code{NA}, because another patch beyond the
-map could be closer to it. The distances from the other patches to this
-patch are still measured.
 
 The distance of every cell to something, such as the edge of its patch,
 is a layer; \code{\link{mdf_distance}} computes it.
 }
 \examples{
 # the forest patches, numbered first
-f <- mdf_filter(landscape, cover == 47, add = "forest")
-f <- mdf_componentise(f, connectivity = 8L, layer = "forest", add = "patch")
+f <- mdf_filter(landscape, cover == 47, add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch")
 
 # the distances between the forest patches
-m <- msr_distance(f, layer = "forest")
-msk_patches(m, layer = "forest")$distance[["1"]]
+m <- msr_distance(f, layer = "patch")
+msk_categories(m, layer = "patch")$distance
 
 # the distances over a cost layer built from the classes
-m <- mdf_replace(f, old = c(21, 24, 47), new = c(5, 2, 1),
-                 layer = "cover", add = "friction")
-m <- msr_distance(m, cost = "friction", layer = "forest")
+m <- mdf_replace(m, old = c(21, 24, 47), new = c(5, 2, 1),
+                 layer = "cover", add = "friction") |>
+  msr_distance(cost = "friction", name = "effort", layer = "patch")
+msk_categories(m, layer = "patch")$effort
 }
 \seealso{
 Other measure: 
@@ -74,7 +79,6 @@ Other measure:
 \code{\link{msr_adjacency}()},
 \code{\link{msr_area}()},
 \code{\link{msr_dissimilarity}()},
-\code{\link{msr_number}()},
 \code{\link{msr_perimeter}()}
 }
 \concept{measure}

@@ -17,8 +17,8 @@
 #' @return A mosaik in which the holes of \code{layer} are 1.
 #' @details
 #'   The layer must be binary: 1 is foreground, 0 and \code{NA} are background.
-#'   To fill the holes of one class of a categorical map, binarise it first
-#'   with \code{\link{mdf_binarise}}.
+#'   To fill the holes of one class of a categorical map, make it a mask
+#'   first with \code{\link{mdf_filter}}.
 #'
 #'   The background is split into connected areas, and an area is a hole when
 #'   none of its cells lie on the edge of the grid. Because the test is

@@ -42,10 +42,11 @@ result <- mdf(landscape, core)
 msk_names(result)
 ```
 
-The recipe only needs a layer called `cover`, so it runs on any map that has
-one. For lack of a second example map, here is the first one turned on its
-side. Turning a forest should not change how much of it is core, so both maps
-should have the same number of core cells:
+The recipe only needs a layer called `cover` (that has the class 47), so it runs on any map that has
+that. For lack of a second example map, the recipe runs on the same map
+rotated by 90 degrees. The rotation moves every cell, but each cell keeps its
+neighbours, so the erosion removes the same forest cells, and both maps have
+the same number of core cells:
 
 ```{r}
 rotated <- mdf(mdf_rotate(landscape, angle = 90), core)
@@ -55,10 +56,11 @@ c(original = sum(msk_pull(result, "core") == 1),
 
 ## Referring to any earlier layer
 
-In an ordinary R pipe, each step sees only the output of the step before it.
-In `x |> f() |> g() |> h()`, the function `h()` gets what `g()` returned and
-nothing else. To combine the result of `f()` with the result of `g()`, the pipe
-has to be broken up into temporary variables.
+An ordinary R pipe hands each step only what the step before it returned. In
+`x |> f() |> g() |> h()`, the function `h()` gets what `g()` returned; the
+result of `f()` is gone unless it was saved in a variable first. To combine the
+result of `f()` with the result of `g()`, the pipe has to be broken up into
+temporary variables.
 
 mosaik works differently on purpose. Every step writes its result as a layer
 under the name given in `add`, and that layer stays in the object. Any later
@@ -90,11 +92,10 @@ what share of the map the core takes up:
 
 ```{r}
 core_share <- mdf_filter(expr = cover == 47, add = "forest") |>
-  msr_area(scale = "class", layer = "forest") |>
+  msr_area(layer = "forest") |>
   mdf_erode(layer = "forest", add = "core") |>
-  msr_area(scale = "class", layer = "core") |>
-  msr_area(scale = "landscape", layer = "core") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pcore.class",
+  msr_area(layer = "core") |>
+  msr(equation = "area.self / sum(area.all) * 100", label = "pcore",
       layer = "core")
 
 r <- mdf(landscape, core_share)
@@ -114,23 +115,22 @@ everything else). Every number
 from the recipe is in the object, next to the layer it describes, and the
 recipe runs unchanged on the next map.
 
-An equation can also combine the results of several layers. A variable names
-its layer after an underscore: `area.class_forest` is the class area of the
-layer `forest`, while `area.class` without a suffix refers to the layer given
-in `layer`. The share of the forest that is core:
+An equation can also combine several layers. A name that is a layer reads
+the cells of the class in focus: on the layer `forest`, `core.self` holds the
+values of the layer `core` in the cells of the class in focus. Since `core` is
+1 for core and 0 elsewhere, their sum is the core area of that class. The
+share of the forest that is core:
 
 ```{r}
-r <- msr(r, equation = "area.class_core / area.class_forest * 100",
-         label = "core_of_forest.class", layer = "core")
-msk_categories(r, layer = "core")$core_of_forest
+r <- msr(r, equation = "sum(core.self) / area.self * 100",
+         label = "corepart", layer = "forest")
+msk_categories(r, layer = "forest")$corepart
 ```
 
-Just under half the forest is core (class 1). This works because both layers
-have the same classes, 0 and 1. Patches are different: eroding a forest patch
-can leave several pieces of core or none, so the patches of `core` and of
-`forest` do not correspond, and `msr()` refuses to combine them. The core
-share of each forest patch is found by summing the core within each forest
-patch with `mdf_summarise()`, described below.
+Just under half the forest is core (class 1). The same equation on a layer of
+forest patches gives the core share of each patch, although eroding a patch
+can leave several pieces of core or none: the cells of each patch are read,
+whatever the core is made of.
 
 ## Metrics built on metrics
 
@@ -142,14 +142,13 @@ from Shannon diversity and the number of classes:
 
 ```{r}
 m <- landscape |>
-  msr_area(scale = "class", layer = "cover") |>
-  msr_area(scale = "landscape", layer = "cover") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
+  msr_area(layer = "cover") |>
+  msr(equation = "area.self / sum(area.all) * 100", label = "pland",
       layer = "cover") |>
-  msr(equation = "-sum(pland.class / 100 * log(pland.class / 100))",
-      label = "shannon.landscape", layer = "cover") |>
-  msr(equation = "shannon.landscape / log(length(pland.class))",
-      label = "evenness.landscape", layer = "cover")
+  msr(equation = "-sum(pland.all / 100 * log(pland.all / 100))",
+      label = "shannon", layer = "cover") |>
+  msr(equation = "shannon.all / log(length(pland.all))",
+      label = "evenness", layer = "cover")
 
 msk_global(m, layer = "cover")
 ```
@@ -193,9 +192,9 @@ msk_vis(z, .layer("forest"), .layer("size"))
 
 `by` names the zones and `layer` the values that are reduced within them.
 Counting cells needs no values of its own, so here both are the patch layer.
-With a different `layer`, the same step answers the question left open above,
-how much of each forest patch is core: the core cells summed within each
-patch, divided by the patch size.
+With a different `layer`, the same step writes the core share of each forest
+patch onto its cells, as a map rather than a table: the core cells summed
+within each patch, divided by the patch size.
 
 ```{r}
 z <- z |>

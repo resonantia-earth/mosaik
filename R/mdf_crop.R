@@ -80,7 +80,7 @@ mdf_crop <- function(obj = NULL,
   }
 
   # build output ----
-
+  .warn_measured(obj, "mdf_crop")
   .update_mosaik(obj,
                  extent = new_ext,
                  dims = c(new_ncols, new_nrows),

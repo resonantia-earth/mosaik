@@ -10,9 +10,8 @@
 #'   to all four.
 #' @param value [`numeric(1)`][numeric]\cr fill value for added cells. Defaults
 #'   to \code{NA}.
-#' @param layer [`character(1)`][character]\cr the layer to modify. If
-#'   \code{NULL} (default), all layers are padded.
-#' @return A mosaik with modified extent and dimensions.
+#' @return A mosaik with modified extent and dimensions. Every layer is padded,
+#'   since all layers share one grid.
 #' @examples
 #' # five rows and columns of NA around the map
 #' m <- mdf_pad(landscape, width = 5)
@@ -26,14 +25,13 @@
 #' m <- mdf_pad(landscape, width = -3)
 #' msk_vis(m, .layer("cover"))
 #' @family operators to modify cell values
-#' @importFrom checkmate assertClass assertIntegerish assertSubset assertCharacter
+#' @importFrom checkmate assertClass assertIntegerish assertSubset
 #' @export
 
 mdf_pad <- function(obj = NULL,
                     width = 1L,
                     sides = c("left", "right", "top", "bottom"),
-                    value = NA,
-                    layer = NULL){
+                    value = NA){
 
   step <- .step()
   if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
@@ -42,7 +40,6 @@ mdf_pad <- function(obj = NULL,
   assertClass(x = obj, classes = "mosaik")
   assertIntegerish(x = width, len = 1, any.missing = FALSE)
   assertSubset(x = sides, choices = c("left", "right", "top", "bottom"))
-  assertCharacter(x = layer, null.ok = TRUE)
   width <- as.integer(width)
 
   dims    <- obj@dims   # c(ncols, nrows)
@@ -51,7 +48,7 @@ mdf_pad <- function(obj = NULL,
   ncols   <- dims[1]
   nrows   <- dims[2]
 
-  target_layers <- if(is.null(layer)) names(obj@layers) else layer
+  target_layers <- names(obj@layers)
 
   if(width > 0){
     # --- add cells ---
@@ -115,12 +112,10 @@ mdf_pad <- function(obj = NULL,
   }
 
   # build output ----
-
+  .warn_measured(obj, "mdf_pad")
   .update_mosaik(obj,
                  extent = new_ext,
                  dims = c(new_ncols, new_nrows),
                  layers = new_layers,
-                 patches = list(),
-                 global = list(),
                  step = step)
 }

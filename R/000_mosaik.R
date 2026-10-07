@@ -13,15 +13,11 @@
 #'   provides metadata for categorical layers. Each entry is a list keyed by
 #'   layer name, containing at least \code{gid} (the class IDs present in the
 #'   layer). Optional elements include \code{val} (human-readable labels such as
-#'   \code{"forest"} or \code{"water"}) and class-level metrics added by
-#'   functions such as \code{\link{msr_area}(scale = "class")}.
-#' @slot patches [`list`][list]\cr named list of per-layer patch tables. An entry
-#'   is created by \code{\link{mdf_componentise}}: the layer holding the patch
-#'   numbers (\code{ids}), and the \code{class} and
-#'   number (\code{patch}) of each patch. Patch-level measures such as
-#'   \code{\link{msr_area}(scale = "patch")} add their values to it.
-#' @slot global [`list`][list]\cr named list of per-layer landscape-level values,
-#'   from functions such as \code{\link{msr_area}(scale = "landscape")}.
+#'   \code{"forest"} or \code{"water"}) and the values measured per class by
+#'   the \code{msr_*} functions and \code{\link{msr}}. On a layer of patch
+#'   numbers, each class is a patch.
+#' @slot global [`list`][list]\cr named list of per-layer values for the whole
+#'   layer, stored by \code{\link{msr}} from an equation with only \code{.all}.
 #' @slot crs [`character(1)`][character]\cr coordinate reference system string or
 #'   \code{NA_character_}.
 #' @slot provenance [`list`][list]\cr processing history, i.e. every operation
@@ -32,7 +28,6 @@ setClass(Class = "mosaik",
          slots = c(extent     = "numeric",
                    dims       = "integer",
                    layers     = "list",
-                   patches    = "list",
                    categories = "list",
                    global     = "list",
                    crs        = "character",
@@ -83,18 +78,15 @@ setValidity("mosaik", function(object){
     }
   }
 
-  # patches and global: one list of results per layer, like categories
-  for (s in c("patches", "global")) {
-    tbl <- methods::slot(object, s)
-    if (!is.list(tbl)) {
-      errors <- c(errors, sprintf("'%s' must be a list.", s))
-      next
-    }
-    for (nm in names(tbl)) {
+  # global: one list of results per layer, like categories
+  if (!is.list(object@global)) {
+    errors <- c(errors, "'global' must be a list.")
+  } else {
+    for (nm in names(object@global)) {
       if (!nm %in% names(object@layers)) {
-        errors <- c(errors, sprintf("%s entry '%s' does not match any layer.", s, nm))
-      } else if (!is.list(tbl[[nm]]) || is.data.frame(tbl[[nm]])) {
-        errors <- c(errors, sprintf("%s entry '%s' must be a list.", s, nm))
+        errors <- c(errors, sprintf("global entry '%s' does not match any layer.", nm))
+      } else if (!is.list(object@global[[nm]]) || is.data.frame(object@global[[nm]])) {
+        errors <- c(errors, sprintf("global entry '%s' must be a list.", nm))
       }
     }
   }

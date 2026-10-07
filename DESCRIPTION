@@ -2,14 +2,15 @@ Package: mosaik
 Type: Package
 Title: Draw, Modify and Measure Landscape Patterns
 Description: Draw, modify and measure spatial patterns in gridded landscape
-    mosaics. Following the Unix principle, each operator does one thing and
-    all of them take and return a mosaik, so that an analysis, including a
-    new metric, is a combination of operators rather than a new function,
-    and can be checked part by part and rerun from its recorded
-    provenance. Draw operators produce abstract test fields of known
-    structure, modify operators transform categorical and continuous layers,
-    measure operators quantify the primitives (adjacency, area, perimeter,
-    distance, dissimilarity) at patch, class, and landscape scale, and
+    mosaics. Following the Unix principle, each operator does only one
+    thing, but that as well as possible. Each function takes and returns a
+    mosaik, so that an analysis, including a new metric, is a combination of
+    operators rather than a new function, and can be checked part by part
+    and rerun from its recorded provenance. Draw operators produce abstract
+    test fields of known structure, modify operators transform categorical
+    and continuous layers, measure operators quantify the primitives
+    (adjacency, area, perimeter, distance, dissimilarity) for every class of
+    a layer, where a class can also be a patch or a zone, and
     composite metrics are derived from equations over them. Cell values are
     group identifiers throughout, and provenance is recorded in the
     vocabulary of the W3C PROV ontology as operations are applied.

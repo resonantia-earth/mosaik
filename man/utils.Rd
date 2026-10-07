@@ -59,9 +59,7 @@ combine two mosaiks: operators such as \code{\link{mdf_blend}} work within
 a single object, so a layer computed elsewhere is brought in first and
 combined afterwards. The grid is checked here, which is why no operator
 needs to check it again. Whatever was measured on an added layer (its
-class, patch and landscape-level results) travels with it. Its patches
-stay measurable only if the layer holding their numbers (see
-\code{\link{mdf_componentise}}) is added as well.
+class table and its values for the whole layer) travels with it.
 }
 \examples{
 # keep one layer, dropping everything else

@@ -44,8 +44,6 @@ msk_select <- function(obj, ...){
   .update_mosaik(obj,
                  layers = obj@layers[keep],
                  categories = obj@categories[intersect(keep, names(obj@categories))],
-                 patches = .unlink_patches(obj@patches[intersect(keep, names(obj@patches))],
-                                           keep),
                  global = obj@global[intersect(keep, names(obj@global))],
                  step = step)
 }
@@ -80,8 +78,6 @@ msk_remove <- function(obj, ...){
   .update_mosaik(obj,
                  layers = obj@layers[keep],
                  categories = obj@categories[intersect(keep, names(obj@categories))],
-                 patches = .unlink_patches(obj@patches[intersect(keep, names(obj@patches))],
-                                           keep),
                  global = obj@global[intersect(keep, names(obj@global))],
                  step = step)
 }
@@ -102,9 +98,7 @@ msk_remove <- function(obj, ...){
 #'   a single object, so a layer computed elsewhere is brought in first and
 #'   combined afterwards. The grid is checked here, which is why no operator
 #'   needs to check it again. Whatever was measured on an added layer (its
-#'   class, patch and landscape-level results) travels with it. Its patches
-#'   stay measurable only if the layer holding their numbers (see
-#'   \code{\link{mdf_componentise}}) is added as well.
+#'   class table and its values for the whole layer) travels with it.
 #' @examples
 #' # a second mosaik on the same grid as 'landscape'
 #' other <- mosaik(extent = c(0, 60, 0, 56), res = 1,
@@ -142,7 +136,6 @@ msk_add <- function(obj, from = NULL, ..., rename = NULL){
 
   new_layers <- obj@layers
   new_categories <- obj@categories
-  new_patches <- obj@patches
   new_global <- obj@global
   provenance <- obj@provenance
 
@@ -182,16 +175,6 @@ msk_add <- function(obj, from = NULL, ..., rename = NULL){
       new_layers[[target[i]]] <- from@layers[[vars[i]]]
       cats <- from@categories[[vars[i]]]
       if(!is.null(cats)) new_categories[[target[i]]] <- cats
-      # the patch record keeps its link to the layer holding the patch numbers
-      # only if that layer comes along too, under its new name
-      rec <- from@patches[[vars[i]]]
-      if(!is.null(rec)){
-        if(!is.null(rec$ids)){
-          j <- match(rec$ids, vars)
-          if(is.na(j)) rec$ids <- NULL else rec$ids <- target[j]
-        }
-        new_patches[[target[i]]] <- rec
-      }
       if(!is.null(from@global[[vars[i]]])) new_global[[target[i]]] <- from@global[[vars[i]]]
     }
     provenance <- c(provenance, from@provenance)
@@ -224,7 +207,6 @@ msk_add <- function(obj, from = NULL, ..., rename = NULL){
   .update_mosaik(obj,
                  layers = new_layers,
                  categories = new_categories,
-                 patches = new_patches,
                  global = new_global,
                  provenance = provenance,
                  step = step)

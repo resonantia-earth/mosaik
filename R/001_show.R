@@ -18,47 +18,23 @@ setMethod(f = "show",
               myCrs <- object@crs
             }
 
-            myAttributes <- NULL
-
-            # show categories info per layer
-            if (length(object@categories) > 0) {
-              for (nm in names(object@categories)) {
-                entry <- object@categories[[nm]]
-                metricCols <- setdiff(names(entry), c("gid", "val"))
-                nCats <- length(entry$gid)
-                catStr <- paste0(nm, " (", nCats, " classes")
-                if (length(metricCols) > 0) {
-                  catStr <- paste0(catStr, "; ", paste0(metricCols, collapse = ", "))
-                }
-                catStr <- paste0(catStr, ")")
-                if (is.null(myAttributes)) {
-                  myAttributes <- c(myAttributes, paste0(" (categories) ", catStr, "\n"))
-                } else {
-                  myAttributes <- c(myAttributes, paste0("            (categories) ", catStr, "\n"))
-                }
-              }
+            # one line per layer with what is measured on it: per class, then
+            # for the whole layer
+            measured <- character()
+            for (nm in layerNames) {
+              perClass <- .measured_names(object@categories[[nm]])
+              whole <- names(object@global[[nm]])
+              parts <- c(if (length(perClass)) paste0("per class: ", paste0(perClass, collapse = ", ")),
+                         if (length(whole)) paste0("overall: ", paste0(whole, collapse = ", ")))
+              if (length(parts)) measured[nm] <- paste0(parts, collapse = "; ")
             }
 
-            # show patch and landscape results per layer
-            for (s in c("patches", "global")) {
-              for (nm in names(methods::slot(object, s))) {
-                entry <- methods::slot(object, s)[[nm]]
-                fields <- names(entry)
-                what <- nm
-                if (s == "patches") {
-                  fields <- setdiff(fields, c("class", "patch", "ids"))
-                  # how many patches, and where they are numbered
-                  what <- paste0(nm, ", ", length(entry$patch), " patches",
-                                 if (!is.null(entry$ids)) paste0(" in '", entry$ids, "'"))
-                }
-                prefix <- if (is.null(myAttributes)) " " else "            "
-                myAttributes <- c(myAttributes, paste0(prefix, "(", s, ") ", what,
-                                                       if (length(fields)) paste0(" (", paste0(fields, collapse = ", "), ")"),
-                                                       "\n"))
-              }
-            }
-
-            if (is.null(myAttributes)) {
+            if (length(measured)) {
+              width <- max(nchar(names(measured)))
+              lines <- paste0(formatC(names(measured), width = -width), "  ", measured)
+              myAttributes <- paste0(c(" ", rep("            ", length(lines) - 1)),
+                                     lines, "\n")
+            } else {
               myAttributes <- " --\n"
             }
 
@@ -72,7 +48,7 @@ setMethod(f = "show",
                 object@dims[1], "x", object@dims[2], ")\n", sep = "")
             cat(yellow("crs         "), myCrs, "\n", sep = "")
             cat(yellow("layers      "), paste0(layerNames, collapse = ", "), "\n", sep = "")
-            cat(yellow("data       "), myAttributes, sep = "")
+            cat(yellow("measured   "), myAttributes, sep = "")
             cat(yellow("resolution  "), theRes[1], " ", theRes[2], " (x, y)\n", sep = "")
             cat(yellow("extent     "), object@extent, "(xmin, xmax, ymin, ymax)", sep = " ")
 

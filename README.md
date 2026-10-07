@@ -4,9 +4,9 @@
 <!-- badges: end -->
 
 **mosaik** draws, modifies and measures landscape patterns. It follows the
-Unix principle for spatial analysis: each operator does one thing, all of them
-take and return a mosaik, and an analysis is a combination of them rather than
-a function of its own. New questions need new combinations, not new code, and
+Unix principle for spatial analysis: each operator does only one thing, but
+that as well as possible. Each function takes and returns a mosaik, and an
+analysis is a combination of operators rather than a function of its own. New questions need new combinations, not new code, and
 every combination can be checked part by part and rerun from its record.
 
 ## Why a new raster class
@@ -37,20 +37,21 @@ writes one.
 | Prefix | Purpose | Examples |
 |---|---|---|
 | `drw_*` | draw an abstract field to analyse | `drw_noise()`, `drw_texture()`, `drw_gradient()` |
-| `mdf_*` | modify layers with generic operators | `mdf_binarise()`, `mdf_dilate()`, `mdf_filter()` |
+| `mdf_*` | modify layers with generic operators | `mdf_filter()`, `mdf_dilate()`, `mdf_componentise()` |
 | `mdf()` | replay a recorded sequence of `mdf_*` steps on new data | `mdf(obj, recipe)` |
 | `msr_*` | measure a primitive | `msr_area()`, `msr_perimeter()`, `msr_adjacency()` |
-| `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.class / area.class", "edge_density.class")` |
+| `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.self / area.self", "para")` |
 | `msk_*` | accessors and utilities | `msk_vis()`, `msk_categories()`, `msk_terra()` |
 
-The primitives are area, number, perimeter, adjacency, dissimilarity and cost
-(distance is the cost measured in metres), each at patch, class or landscape
-level. Patches are numbered once, by `mdf_componentise()` with a stated
-connectivity, and every patch-level measure uses those patches. Results are
-written into the object with the layer they were measured
-on, at the level they describe, and read back with `msk_patches()`,
-`msk_categories()` and `msk_global()`. An equation can combine the results of
-several layers: `area.class_core / area.class_forest`.
+The primitives are area, perimeter, adjacency, distance and dissimilarity,
+measured for every class of a layer. A grouping is a layer too: patches
+numbered by `mdf_componentise()` with a stated connectivity, zones, or any
+layer of your own, so measuring that layer measures its groups. An equation
+looks at one class at a time: `area.self` is the class in focus,
+`area.others` every other class, `area.all` all of them, and a layer name
+reads cells (`mean(canopy.self)`). Results are written into the object with
+the layer they were measured on and read back with `msk_categories()` and
+`msk_global()`.
 
 ## Installation
 
@@ -66,12 +67,11 @@ library(mosaik)
 
 # the share of the grid each land-cover class covers, and its edge density
 m <- landscape |>
-  msr_area(scale = "class", layer = "cover") |>
-  msr_area(scale = "landscape", layer = "cover") |>
-  msr_perimeter(scale = "class", layer = "cover") |>
-  msr(equation = "area.class / area.landscape * 100", label = "pland.class",
+  msr_area(layer = "cover") |>
+  msr_perimeter(layer = "cover") |>
+  msr(equation = "area.self / sum(area.all) * 100", label = "pland",
       layer = "cover") |>
-  msr(equation = "perimeter.class / area.landscape", label = "edge_density.class",
+  msr(equation = "perimeter.self / sum(area.all)", label = "density",
       layer = "cover")
 
 msk_categories(m, layer = "cover")

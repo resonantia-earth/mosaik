@@ -85,55 +85,50 @@ test_that("msk_pull errors on missing layer", {
   expect_error(msk_pull(m, "nonexistent"), "not found")
 })
 
-test_that("derive computes class-level metric from mosaik", {
+test_that("msr computes a value per class from the class in focus", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = rep(c(1L, 2L, 3L, 1L, 2L), 20)))
-  m <- msr_area(m, scale = "class")
-  m <- msr_perimeter(m, scale = "class")
-  m <- msr(m, equation = "perimeter.class / area.class",
-              label = "edge_density")
-  expect_true("edge_density" %in% names(m@categories$cover))
-  expect_equal(length(m@categories$cover$edge_density),
+  m <- msr_area(m)
+  m <- msr_perimeter(m)
+  m <- msr(m, equation = "perimeter.self / area.self", label = "density")
+  expect_true("density" %in% names(m@categories$cover))
+  expect_equal(length(m@categories$cover$density),
                length(m@categories$cover$gid))
 })
 
-test_that("derive computes mixed-scale metric", {
+test_that("msr relates the class in focus to all classes", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = rep(c(1L, 2L, 3L, 1L, 2L), 20)))
-  m <- msr_area(m, scale = "class")
-  m <- msr_area(m, scale = "landscape")
-  m <- msr(m, equation = "area.class / area.landscape * 100",
-              label = "prop_area")
-  expect_true("prop_area" %in% names(m@categories$cover))
-  expect_equal(sum(m@categories$cover$prop_area), 100)
+  m <- msr_area(m)
+  m <- msr(m, equation = "area.self / sum(area.all) * 100", label = "share")
+  expect_equal(sum(m@categories$cover$share), 100)
 })
 
-test_that("derive errors on missing metric", {
+test_that("msr errors on a value that was not measured", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1,
               vals = list(cover = rep(1L, 25)))
-  expect_error(msr(m, equation = "area.class / area.landscape",
-                      label = "x"), "not found")
+  expect_error(msr(m, equation = "area.self / sum(area.all)", label = "z"),
+               "no value 'area'")
 })
 
-test_that("derive errors on bad variable format", {
+test_that("msr errors on bad variable format", {
   m <- mosaik(extent = c(0, 5, 0, 5), res = 1,
               vals = list(cover = rep(1L, 25)))
-  m <- msr_area(m, scale = "class")
-  expect_error(msr(m, equation = "area", label = "x"),
-               "metric.scale notation")
+  m <- msr_area(m)
+  expect_error(msr(m, equation = "area", label = "z"), "<name>.<focus>")
 })
 
-test_that("derive records provenance", {
+test_that("msr records provenance", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = rep(c(1L, 2L), 50)))
-  m <- msr_area(m, scale = "class")
-  m <- msr_perimeter(m, scale = "class")
-  m <- msr(m, equation = "perimeter.class / area.class",
-              label = "edge_density")
+  m <- msr_area(m)
+  m <- msr_perimeter(m)
+  m <- msr(m, equation = "perimeter.self / area.self", label = "density")
   last_prov <- m@provenance[[length(m@provenance)]]
   expect_equal(names(last_prov)[1], "msr")
-  expect_equal(last_prov[[1]]$wasGeneratedBy$withArguments$equation, "perimeter.class / area.class")
-  expect_equal(last_prov[[1]]$wasGeneratedBy$withArguments$label, "edge_density")
+  expect_equal(last_prov[[1]]$wasGeneratedBy$withArguments$equation,
+               "perimeter.self / area.self")
+  expect_equal(last_prov[[1]]$wasGeneratedBy$withArguments$label, "density")
 })
 
 test_that(".cell finds the cell a point lies in", {
@@ -147,46 +142,36 @@ test_that(".cell finds the cell a point lies in", {
   expect_true(is.na(.cell(m, x = 5, y = 1)))
 })
 
-test_that("derive with a cell variable computes GYRATE (mean centroid distance)", {
+test_that("a layer read through the cells of each patch gives GYRATE and CIRCLE", {
   # 10x10 grid, one 3x3 foreground patch
   vals <- rep(0L, 100)
   vals[c(23, 24, 25, 33, 34, 35, 43, 44, 45)] <- 1L
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
-  m <- mdf_componentise(m)
-  m <- mdf_centroid(m, add = "centroids")
-  m <- mdf_distance(m, source = "centroids", add = "dist")
-  m <- msr(m, equation = "mean(dist.cell)", label = "gyrate")
-  # result should be per-patch (only the foreground patch is numbered)
-  expect_true("gyrate" %in% names(msk_patches(m)))
-  expect_equal(length(msk_patches(m)$gyrate), 1)
-  # all values should be finite and non-negative
-  expect_true(all(msk_patches(m)$gyrate >= 0))
+  m <- mdf_componentise(m, add = "patch")
+  m <- mdf_centroid(m, layer = "patch", add = "centroids")
+  m <- mdf_distance(m, source = "centroids", layer = "patch", add = "dist")
+  m <- msr(m, equation = "mean(dist.self)", label = "gyrate", layer = "patch")
+  m <- msr(m, equation = "max(dist.self)", label = "circle", layer = "patch")
+  p <- msk_categories(m, "patch")
+  # only the foreground patch is numbered
+  expect_length(p$gyrate, 1)
+  expect_true(p$gyrate >= 0)
+  expect_true(p$circle >= p$gyrate)
+
+  # the same from the cell coordinates, without a distance layer
+  m <- msr(m, "mean(sqrt((x.self - mean(x.self))^2 + (y.self - mean(y.self))^2))",
+           label = "gyr", layer = "patch")
+  expect_gt(msk_categories(m, "patch")$gyr, 0)
 })
 
-test_that("derive with a cell variable computes max distance (CIRCLE)", {
-  vals <- rep(0L, 100)
-  vals[c(23, 24, 25, 33, 34, 35, 43, 44, 45)] <- 1L
-  m <- mosaik(extent = c(0, 10, 0, 10), res = 1, vals = list(cover = vals))
-  m <- mdf_componentise(m)
-  m <- mdf_centroid(m, add = "centroids")
-  m <- mdf_distance(m, source = "centroids", add = "dist")
-  m <- msr(m, equation = "max(dist.cell)", label = "circle")
-  expect_true("circle" %in% names(msk_patches(m)))
-  # max should be >= mean
-  m <- msr(m, equation = "mean(dist.cell)", label = "gyrate")
-  expect_true(all(msk_patches(m)$circle >= msk_patches(m)$gyrate))
-})
-
-test_that("a cell variable names a layer that must exist", {
+test_that("a name that is neither a layer nor a stored value stops", {
   m <- mosaik(extent = c(0, 10, 0, 10), res = 1,
               vals = list(cover = rep(1L, 100)))
-  expect_error(msr(m, equation = "mean(dist.cell)", label = "x"),
-               "layer 'dist', which is not in 'obj'")
-  expect_error(msr(m, equation = "mean(cover.cell_cover)", label = "x"),
-               "takes no _layer suffix")
+  expect_error(msr(m, equation = "mean(dist.self)", label = "z"),
+               "no value 'dist'")
 })
 
-test_that("the label's scale groups the cells", {
+test_that("the focus groups the cells", {
   #   1 1 2 2       canopy  10 20 30 30
   #   1 1 2 2               10 20 30 30
   v <- c(1, 1, 2, 2,
@@ -195,18 +180,18 @@ test_that("the label's scale groups the cells", {
          10, 20, 30, 30)
   m <- mosaik(extent = c(0, 4, 0, 2), res = 1,
               vals = list(cover = v, canopy = h))
-  m <- msr(m, equation = "mean(canopy.cell)", label = "height.class",
-           layer = "cover")
+  m <- msr(m, equation = "mean(canopy.self)", label = "height", layer = "cover")
   expect_equal(msk_categories(m, "cover")$height, c(15, 30))
-  m <- msr(m, equation = "mean(canopy.cell)", label = "height.landscape",
-           layer = "cover")
-  expect_equal(msk_global(m, "cover")$height, 22.5)
+  m <- msr(m, equation = "mean(canopy.all)", label = "mean", layer = "cover")
+  expect_equal(msk_global(m, "cover")$mean, 22.5)
+  m <- msr(m, equation = "mean(canopy.others)", label = "around", layer = "cover")
+  expect_equal(msk_categories(m, "cover")$around, c(30, 15))
 
-  # within a group, a class value is that class's own value
-  m <- msr_area(m, scale = "class", layer = "cover")
-  m <- msr(m, equation = "sum(canopy.cell) / area.class", label = "mean.class",
+  # a cell value and a class value of the class in focus
+  m <- msr_area(m, layer = "cover")
+  m <- msr(m, equation = "sum(canopy.self) / area.self", label = "avg",
            layer = "cover")
-  expect_equal(msk_categories(m, "cover")$mean, c(15, 30))
+  expect_equal(msk_categories(m, "cover")$avg, c(15, 30))
 })
 
 test_that("within a patch, a patch value is that patch's own value", {
@@ -221,10 +206,10 @@ test_that("within a patch, a patch value is that patch's own value", {
   m <- mosaik(extent = c(0, 6, 0, 4), res = 1,
               vals = list(forest = v, canopy = h))
   m <- mdf_componentise(m, layer = "forest", add = "patch") |>
-    msr_area(scale = "patch", layer = "forest") |>
-    msr(equation = "sum(canopy.cell) / area.patch", label = "height.patch",
-        layer = "forest")
-  expect_equal(msk_patches(m, "forest")$height, c(15, 40))
+    msr_area(layer = "patch") |>
+    msr(equation = "sum(canopy.self) / area.self", label = "height",
+        layer = "patch")
+  expect_equal(msk_categories(m, "patch")$height, c(15, 40))
 })
 
 test_that("msk_struct creates struct", {
@@ -353,4 +338,40 @@ test_that("msk_crop preserves multiple layers", {
   expect_equal(msk_names(cr), c("a", "b"))
   expect_equal(length(msk_pull(cr, "a")), msk_ncells(cr))
   expect_equal(length(msk_pull(cr, "b")), msk_ncells(cr))
+})
+
+test_that("msk_label writes labels and colours into the class table", {
+  f <- mdf_filter(landscape, cover == 47, add = "forest")
+  f <- msk_label(f, data.frame(id = 1, label = "forest"), layer = "forest")
+  cats <- msk_categories(f, "forest")
+  # a class without a label so far is labelled with its code
+  expect_equal(cats$val, c("0", "forest"))
+  expect_null(cats$colour)
+  f <- msk_label(f, data.frame(id = 0, label = "open", colour = "grey"),
+                 layer = "forest")
+  cats <- msk_categories(f, "forest")
+  expect_equal(cats$val, c("open", "forest"))
+  expect_equal(cats$colour, c("grey", NA))
+  # labels are not measured values
+  expect_length(.measured_names(cats), 0)
+  expect_error(msk_label(f, data.frame(id = 5, label = "x"), layer = "forest"),
+               "do not occur")
+  expect_error(msk_label(f, data.frame(id = 1), layer = "forest"))
+  expect_error(msk_label(f, data.frame(id = 1, label = "a", size = 2),
+                         layer = "forest"))
+  expect_equal(names(utils::tail(f@provenance, 1)[[1]]), "msk_label")
+})
+
+test_that("changing the grid warns about values measured before", {
+  m <- msr_area(landscape, layer = "cover") |>
+    msr("max(area.all)", "most", layer = "cover")
+  expect_warning(cr <- mdf_crop(m, c(0, 30, 0, 28)), "cover \\(area, most\\)")
+  # the values are kept, as they were
+  expect_equal(sum(msk_categories(cr, "cover")$area), 3360)
+  expect_equal(msk_global(cr, "cover")$most, msk_global(m, "cover")$most)
+  expect_warning(mdf_pad(m, width = 1L), "mdf_pad")
+  expect_warning(mdf_resize(m, factor = 2), "mdf_resize")
+  # labels alone are no reason to warn, and plotting a window does not warn
+  expect_silent(mdf_crop(landscape, c(0, 30, 0, 28)))
+  expect_silent(msk_vis(m, .layer("cover"), window = c(0, 30, 0, 28)))
 })

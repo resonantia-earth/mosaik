@@ -2,15 +2,12 @@
 % Please edit documentation in R/msr_area.R
 \name{msr_area}
 \alias{msr_area}
-\title{Area of objects}
+\title{Area of classes}
 \usage{
-msr_area(obj = NULL, scale = "patch", unit = "cells", layer = NULL)
+msr_area(obj = NULL, unit = "cells", layer = NULL)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
-
-\item{scale}{\code{\link[=character]{character(1)}}\cr scale at which to calculate;
-\code{"patch"}, \code{"class"} or \code{"landscape"}.}
 
 \item{unit}{\code{\link[=character]{character(1)}}\cr \code{"cells"} (default, number of
 cells) or \code{"map"} (in map units).}
@@ -19,36 +16,29 @@ cells) or \code{"map"} (in map units).}
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with \code{area} added to the results of
-\code{layer}, in its patches, classes or landscape values (see
-\code{\link{msk_patches}}, \code{\link{msk_categories}},
-\code{\link{msk_global}}).
+The input mosaik with \code{area} added to the class table of
+\code{layer} (see \code{\link{msk_categories}}).
 }
 \description{
-Calculate the area of objects in a mosaik and attach the result to the
-attribute table.
+Calculate the area of each class of a layer and store it in the class table
+of that layer.
 }
 \details{
-At \code{scale = "patch"}, the patches are those numbered by
-\code{\link{mdf_componentise}} on \code{layer}, which must run first.
+The classes of a layer can be land cover classes or groups, such
+as the patches numbered by \code{\link{mdf_componentise}}: on a layer of
+patch numbers, each class is a patch. The area of the whole layer is the
+sum over its classes, \code{sum(area.all)} in \code{\link{msr}}.
 }
 \examples{
-# the area of the whole layer
-m <- msr_area(landscape, scale = "landscape")
-msk_global(m)$area
+# the area of each land cover class
+m <- msr_area(landscape, layer = "cover")
+msk_categories(m, layer = "cover")$area
 
-# the area of each class
-m <- msr_area(landscape, scale = "class")
-msk_categories(m)$area
-
-# to calculate patch-level metrics, number the patches first; scale =
-# "patch" looks for the table mdf_componentise writes
-m <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
-                      add = "patch")
-m <- msr_area(m, scale = "patch")
-msk_patches(m)$area
-msk_patches(m)$class   # which class each patch belongs to
-msk_patches(m)$patch   # the patch number, as in the layer 'patch'
+# the area of each forest patch
+m <- mdf_filter(landscape, cover == 47, add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  msr_area(layer = "patch")
+msk_categories(m, layer = "patch")$area
 }
 \seealso{
 Other measure: 
@@ -56,7 +46,6 @@ Other measure:
 \code{\link{msr_adjacency}()},
 \code{\link{msr_dissimilarity}()},
 \code{\link{msr_distance}()},
-\code{\link{msr_number}()},
 \code{\link{msr_perimeter}()}
 }
 \concept{measure}

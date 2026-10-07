@@ -4,13 +4,10 @@
 \alias{msr_perimeter}
 \title{Perimeter length}
 \usage{
-msr_perimeter(obj = NULL, scale = "patch", unit = "cells", layer = NULL)
+msr_perimeter(obj = NULL, unit = "cells", layer = NULL)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
-
-\item{scale}{\code{\link[=character]{character(1)}}\cr scale at which to calculate;
-\code{"patch"}, \code{"class"} or \code{"landscape"}.}
 
 \item{unit}{\code{\link[=character]{character(1)}}\cr \code{"cells"} (default) or
 \code{"map"} (in map units).}
@@ -19,36 +16,32 @@ msr_perimeter(obj = NULL, scale = "patch", unit = "cells", layer = NULL)
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with \code{perimeter} added to the results of
-\code{layer}, in its patches, classes or landscape values (see
-\code{\link{msk_patches}}, \code{\link{msk_categories}},
-\code{\link{msk_global}}).
+The input mosaik with \code{perimeter} added to the class table of
+\code{layer} (see \code{\link{msk_categories}}).
 }
 \description{
-Calculate the length of boundaries between objects in a mosaik and attach
-the result to the attribute table.
+Calculate the length of the boundary of each class of a layer and store it
+in the class table of that layer.
 }
 \details{
-At \code{scale = "patch"}, the patches are those numbered by
-\code{\link{mdf_componentise}} on \code{layer}, which must run first.
-A patch that touches the map border has perimeter \code{NA}: the map
-ends there, the patch may not, so its outline is unknown.
+The boundary of a class runs between its cells and every
+neighbouring cell that is not of the class, including cells that are
+\code{NA}. On a layer of patch numbers from \code{\link{mdf_componentise}},
+the cells outside every patch are \code{NA}, so each patch has its full
+outline. Edges along the map border are not counted: the map ends there,
+the class may not. The perimeter of the whole layer is
+\code{sum(perimeter.all)} in \code{\link{msr}}.
 }
 \examples{
-# the perimeter of the whole layer
-m <- msr_perimeter(landscape, scale = "landscape")
-msk_global(m)$perimeter
+# the perimeter of each land cover class
+m <- msr_perimeter(landscape, layer = "cover")
+msk_categories(m, layer = "cover")$perimeter
 
-# the perimeter of each class
-m <- msr_perimeter(landscape, scale = "class")
-msk_categories(m)$perimeter
-
-# to calculate patch-level metrics, number the patches first; scale =
-# "patch" looks for the table mdf_componentise writes
-p <- mdf_componentise(landscape, connectivity = 8L, layer = "cover",
-                      add = "patch")
-m <- msr_perimeter(p, scale = "patch")
-msk_patches(m)$perimeter
+# the perimeter of each forest patch
+m <- mdf_filter(landscape, cover == 47, add = "forest") |>
+  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
+  msr_perimeter(layer = "patch")
+msk_categories(m, layer = "patch")$perimeter
 }
 \seealso{
 Other measure: 
@@ -56,7 +49,6 @@ Other measure:
 \code{\link{msr_adjacency}()},
 \code{\link{msr_area}()},
 \code{\link{msr_dissimilarity}()},
-\code{\link{msr_distance}()},
-\code{\link{msr_number}()}
+\code{\link{msr_distance}()}
 }
 \concept{measure}

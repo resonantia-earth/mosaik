@@ -24,17 +24,12 @@ raw cell values. Each layer is a flat vector in row-major order
 provides metadata for categorical layers. Each entry is a list keyed by
 layer name, containing at least \code{gid} (the class IDs present in the
 layer). Optional elements include \code{val} (human-readable labels such as
-\code{"forest"} or \code{"water"}) and class-level metrics added by
-functions such as \code{\link{msr_area}(scale = "class")}.}
+\code{"forest"} or \code{"water"}) and the values measured per class by
+the \code{msr_*} functions and \code{\link{msr}}. On a layer of patch
+numbers, each class is a patch.}
 
-\item{\code{patches}}{\code{\link{list}}\cr named list of per-layer patch tables. An entry
-is created by \code{\link{mdf_componentise}}: the layer holding the patch
-numbers (\code{ids}), and the \code{class} and
-number (\code{patch}) of each patch. Patch-level measures such as
-\code{\link{msr_area}(scale = "patch")} add their values to it.}
-
-\item{\code{global}}{\code{\link{list}}\cr named list of per-layer landscape-level values,
-from functions such as \code{\link{msr_area}(scale = "landscape")}.}
+\item{\code{global}}{\code{\link{list}}\cr named list of per-layer values for the whole
+layer, stored by \code{\link{msr}} from an equation with only \code{.all}.}
 
 \item{\code{crs}}{\code{\link[=character]{character(1)}}\cr coordinate reference system string or
 \code{NA_character_}.}

@@ -2,82 +2,49 @@
 % Please edit documentation in R/msr_adjacency.R
 \name{msr_adjacency}
 \alias{msr_adjacency}
-\title{Adjacency of cells}
+\title{Adjacency of classes}
 \usage{
-msr_adjacency(
-  obj = NULL,
-  scale = "class",
-  type = "like",
-  connect = 4,
-  layer = NULL
-)
+msr_adjacency(obj = NULL, connect = 4, layer = NULL)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{scale}{\code{\link[=character]{character(1)}}\cr \code{"class"} (default) counts
-the adjacencies between classes; \code{"patch"} those between the patches
-of \code{layer}, which must have been numbered with
-\code{\link{mdf_componentise}} first.}
-
-\item{type}{\code{\link[=character]{character(1)}}\cr at class scale, which adjacencies
-to count: \code{"like"} (how often a class borders itself, a measure of
-clumping), \code{"paired"} (how often each class borders each other class)
-or \code{"pairedSum"} (how often a class borders anything). Ignored at
-patch scale.}
-
 \item{connect}{\code{\link[=integer]{integerish(1)}}\cr which cells border each other:
 \code{4} (default) the orthogonal neighbours, \code{8} also the diagonal
-ones. At patch scale this decides only which patches touch; which cells
-form a patch was set by \code{\link{mdf_componentise}}.}
+ones.}
 
 \item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}
 }
 \value{
-The input mosaik with the adjacencies added to the results of
-\code{layer}, as \code{likeAdj}, \code{pairedSum} or \code{adjacency} in
-its classes (see \code{\link{msk_categories}}), or as \code{adjacency}
-and \code{regions} in its patches (see \code{\link{msk_patches}}).
+The input mosaik with the class by class matrix \code{adjacency}
+added to the class table of \code{layer} (see
+\code{\link{msk_categories}}).
 }
 \description{
-Count how often the cells of each class border cells of the same or another
-class, or how the patches of a layer touch each other.
+Count how often the cells of each class of a layer border cells of the same
+or another class.
 }
 \details{
-Each pair of bordering cells is counted from both sides, as in
-FRAGSTATS: two forest cells side by side add 2 to the like adjacencies of
-forest, a forest cell beside a meadow cell adds 1 to forest-meadow and 1
-to meadow-forest. The \code{"paired"} result is therefore a symmetric
-class by class matrix, its diagonal is \code{"like"} and its row sums are
-\code{"pairedSum"}.
-
-At patch scale there are two patch by patch matrices, with the patch
-numbers as row and column names: \code{adjacency}, how many pairs of
-cells two patches share along their border, and \code{regions}, in how
-many separate places they touch. \code{regions[a, b]} counts the places
-from the side of patch \code{a}, so it need not equal \code{regions[b,
-  a]}; a patch that touches another in two places forms a loop with it.
+\code{adjacency} counts the pairs of bordering cells. Each pair is
+counted from both sides, as in FRAGSTATS: two forest cells side by side
+add 2 to forest-forest, a forest cell beside a meadow cell adds 1 to
+forest-meadow and 1 to meadow-forest. The matrix is therefore symmetric,
+and its diagonal holds how often a class borders itself. In
+\code{\link{msr}}, with a class in focus, \code{adjacency.self} is that
+class's own adjacencies and \code{adjacency.self + sum(adjacency.others)}
+all adjacencies of the class.
 }
 \examples{
-# how often each class borders itself
-m <- msr_adjacency(landscape, type = "like")
-msk_categories(m)$likeAdj
+# how often each land cover class borders each other class
+m <- msr_adjacency(landscape, layer = "cover")
+msk_categories(m, layer = "cover")$adjacency
 
-# how often each class borders each other class
-m <- msr_adjacency(landscape, type = "paired")
-msk_categories(m)$adjacency
-
-# how often each class borders anything
-m <- msr_adjacency(landscape, type = "pairedSum")
-msk_categories(m)$pairedSum
-
-# to calculate patch-level metrics, number the patches first; scale =
-# "patch" looks for the table mdf_componentise writes
+# where the forest patches touch each other, with diagonal neighbours
 f <- mdf_filter(landscape, cover == 47, add = "forest") |>
-  mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
-  msr_adjacency(scale = "patch", connect = 8, layer = "forest")
-msk_patches(f, layer = "forest")$adjacency
+  mdf_componentise(connectivity = 4L, layer = "forest", add = "patch") |>
+  msr_adjacency(connect = 8, layer = "patch")
+msk_categories(f, layer = "patch")$adjacency
 }
 \seealso{
 Other measure: 
@@ -85,7 +52,6 @@ Other measure:
 \code{\link{msr_area}()},
 \code{\link{msr_dissimilarity}()},
 \code{\link{msr_distance}()},
-\code{\link{msr_number}()},
 \code{\link{msr_perimeter}()}
 }
 \concept{measure}

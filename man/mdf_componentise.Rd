@@ -19,7 +19,9 @@ mdf_componentise(
 \code{4} for rook/diamond (default) or \code{8} for queen/box.}
 
 \item{background}{\code{\link[=integer]{integerish(1)}}\cr the value of every cell that
-is not in a patch, i.e. cells with the value 0 or \code{NA}.}
+is not in a patch, i.e. cells with the value 0 or \code{NA}. Keep the
+default \code{NA} to measure the patches: any other value is a class of
+the layer and is measured as one more group.}
 
 \item{layer}{\code{\link[=character]{character(1)}}\cr the layer in \code{obj} to use.
 Defaults to the first layer.}
@@ -38,11 +40,12 @@ foreground (1); on a categorical layer, such as land cover, those of every
 class.
 }
 \details{
-The patches are also recorded with \code{layer}: which layer holds
-their numbers and the class of each patch (see
-\code{\link{msk_patches}}). The patch-level measures
-(\code{msr_*(scale = "patch")}) measure these patches, so how cells connect
-into patches is always set here and never decided by a measure.
+The layer of patch numbers is a grouping: each of its classes is a
+patch, so the \code{msr_*} functions and \code{\link{msr}} measure the
+patches when given this layer. How cells connect into patches is set here
+and never decided by a measure. Which class a patch came from is read
+from the source layer through the patch's cells, for example
+\code{msr(m, "mean(cover.self == 47)", label = "forest", layer = "patch")}.
 }
 \examples{
 # the forest patches with rook (4) and queen (8) neighbours; drawn in shuffled
@@ -58,11 +61,11 @@ f <- landscape |>
 msk_vis(f, .layer("forest"),
         .layer("rook", colours = shuffled(f, "rook"), legend = FALSE),
         .layer("queen", colours = shuffled(f, "queen"), legend = FALSE))
-msk_patches(f, layer = "forest")$class
 
-# the patches of every land-cover class
-m <- mdf_componentise(landscape, layer = "cover", add = "patch")
-table(msk_patches(m, layer = "cover")$class)
+# the patches of every land-cover class, and the class of each patch
+m <- mdf_componentise(landscape, layer = "cover", add = "patch") |>
+  msr(equation = "cover.self[1]", label = "source", layer = "patch")
+table(msk_categories(m, layer = "patch")$source)
 msk_vis(m, .layer("cover"),
         .layer("patch", colours = shuffled(m, "patch"), legend = FALSE))
 }

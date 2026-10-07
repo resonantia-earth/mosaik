@@ -3,12 +3,12 @@
 #' Simple functions to access properties of a \code{\link{mosaik}} object.
 #'
 #' @param x a \code{\link{mosaik}} object.
-#' @param layer [`character(1)`][character]\cr for \code{msk_categories},
-#'   \code{msk_patches} and \code{msk_global}: the layer whose results to
-#'   return. Defaults to the first layer.
-#' @return For \code{msk_categories}, \code{msk_patches} and
-#'   \code{msk_global}: the class, patch or landscape-level results of
-#'   \code{layer}, as a list, or \code{NULL} if none have been measured.
+#' @param layer [`character(1)`][character]\cr for \code{msk_categories} and
+#'   \code{msk_global}: the layer whose results to return. Defaults to the
+#'   first layer.
+#' @return For \code{msk_categories} and \code{msk_global}: the class table of
+#'   \code{layer} or its values for the whole layer, as a list, or \code{NULL}
+#'   if there are none.
 #' @name accessors
 #' @examples
 #' msk <- mosaik(extent = c(0, 10, 0, 10), res = 1,
@@ -20,7 +20,7 @@
 #' msk_crs(msk)
 #' msk_names(msk)
 #'
-#' msk <- msr_area(msk, scale = "class", layer = "cover")
+#' msk <- msr_area(msk, layer = "cover")
 #' msk_categories(msk, layer = "cover")
 NULL
 
@@ -58,10 +58,6 @@ msk_names <- function(x) names(x@layers)
 #' @rdname accessors
 #' @export
 msk_categories <- function(x, layer = NULL) .layer_entry(x, "categories", layer)
-
-#' @rdname accessors
-#' @export
-msk_patches <- function(x, layer = NULL) .layer_entry(x, "patches", layer)
 
 #' @rdname accessors
 #' @export

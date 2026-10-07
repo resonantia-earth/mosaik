@@ -266,7 +266,7 @@ landscape <- mosaik(extent = c(0, nx, 0, ny), res = 1,
 
 # preview and the counts the cookbooks rely on
 check <- landscape |>
-  mdf_binarise(match = 47, layer = "cover", add = "forest") |>
+  mdf_filter(cover == 47, add = "forest") |>
   mdf_fill(layer = "forest", add = "filled")
 cols <- c("1" = "#2b6cb0", "11" = "#f3e9c6", "21" = "#e3d39a", "24" = "#cdbb7a",
           "27" = "#c8a27a", "31" = "#9a8f86", "35" = "#3a3a3a", "41" = "#9ac27c",
