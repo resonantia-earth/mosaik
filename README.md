@@ -41,7 +41,7 @@ writes one.
 | `mdf()` | replay a recorded sequence of `mdf_*` steps on new data | `mdf(obj, recipe)` |
 | `msr_*` | measure a primitive | `msr_area()`, `msr_perimeter()`, `msr_adjacency()` |
 | `msr()` | compose a metric from an equation over the primitives | `msr(obj, "perimeter.self / area.self", "para")` |
-| `msk_*` | accessors and utilities | `msk_vis()`, `msk_categories()`, `msk_terra()` |
+| `msk_*` | accessors and utilities | `msk_vis()`, `msk_table()`, `msk_terra()` |
 
 The primitives are area, perimeter, adjacency, distance and dissimilarity,
 measured for every class of a layer. A grouping is a layer too: patches
@@ -50,8 +50,7 @@ layer of your own, so measuring that layer measures its groups. An equation
 looks at one class at a time: `area.self` is the class in focus,
 `area.others` every other class, `area.all` all of them, and a layer name
 reads cells (`mean(canopy.self)`). Results are written into the object with
-the layer they were measured on and read back with `msk_categories()` and
-`msk_global()`.
+the layer they were measured on and read back with `msk_table()`.
 
 ## Installation
 
@@ -74,7 +73,7 @@ m <- landscape |>
   msr(equation = "perimeter.self / sum(area.all)", label = "density",
       layer = "cover")
 
-msk_categories(m, layer = "cover")
+msk_table(m, layer = "cover")
 ```
 
 ## Learn more

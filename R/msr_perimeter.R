@@ -8,7 +8,7 @@
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
 #' @return The input mosaik with \code{perimeter} added to the class table of
-#'   \code{layer} (see \code{\link{msk_categories}}).
+#'   \code{layer} (see \code{\link{msk_table}}).
 #' @details The boundary of a class runs between its cells and every
 #'   neighbouring cell that is not of the class, including cells that are
 #'   \code{NA}. On a layer of patch numbers from \code{\link{mdf_componentise}},
@@ -19,13 +19,13 @@
 #' @examples
 #' # the perimeter of each land cover class
 #' m <- msr_perimeter(landscape, layer = "cover")
-#' msk_categories(m, layer = "cover")$perimeter
+#' msk_table(m, layer = "cover")$perimeter
 #'
 #' # the perimeter of each forest patch
 #' m <- mdf_filter(landscape, cover == 47, add = "forest") |>
 #'   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
 #'   msr_perimeter(layer = "patch")
-#' msk_categories(m, layer = "patch")$perimeter
+#' msk_table(m, layer = "patch")$perimeter
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export

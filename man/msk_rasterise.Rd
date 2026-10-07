@@ -82,6 +82,7 @@ msk_vis(m, .layer("polygons"), .layer("lines"), .layer("points"))
 \seealso{
 Other utilities: 
 \code{\link{mdf_crop}()},
-\code{\link{msk_label}()}
+\code{\link{msk_label}()},
+\code{\link{msk_table}()}
 }
 \concept{utilities}

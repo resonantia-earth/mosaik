@@ -152,7 +152,7 @@ test_that("a layer read through the cells of each patch gives GYRATE and CIRCLE"
   m <- mdf_distance(m, source = "centroids", layer = "patch", add = "dist")
   m <- msr(m, equation = "mean(dist.self)", label = "gyrate", layer = "patch")
   m <- msr(m, equation = "max(dist.self)", label = "circle", layer = "patch")
-  p <- msk_categories(m, "patch")
+  p <- msk_table(m, "patch")
   # only the foreground patch is numbered
   expect_length(p$gyrate, 1)
   expect_true(p$gyrate >= 0)
@@ -161,7 +161,7 @@ test_that("a layer read through the cells of each patch gives GYRATE and CIRCLE"
   # the same from the cell coordinates, without a distance layer
   m <- msr(m, "mean(sqrt((x.self - mean(x.self))^2 + (y.self - mean(y.self))^2))",
            label = "gyr", layer = "patch")
-  expect_gt(msk_categories(m, "patch")$gyr, 0)
+  expect_gt(msk_table(m, "patch")$gyr, 0)
 })
 
 test_that("a name that is neither a layer nor a stored value stops", {
@@ -181,17 +181,17 @@ test_that("the focus groups the cells", {
   m <- mosaik(extent = c(0, 4, 0, 2), res = 1,
               vals = list(cover = v, canopy = h))
   m <- msr(m, equation = "mean(canopy.self)", label = "height", layer = "cover")
-  expect_equal(msk_categories(m, "cover")$height, c(15, 30))
+  expect_equal(msk_table(m, "cover")$height, c(15, 30))
   m <- msr(m, equation = "mean(canopy.all)", label = "mean", layer = "cover")
-  expect_equal(msk_global(m, "cover")$mean, 22.5)
+  expect_equal(msk_table(m, "cover")$mean, 22.5)
   m <- msr(m, equation = "mean(canopy.others)", label = "around", layer = "cover")
-  expect_equal(msk_categories(m, "cover")$around, c(30, 15))
+  expect_equal(msk_table(m, "cover")$around, c(30, 15))
 
   # a cell value and a class value of the class in focus
   m <- msr_area(m, layer = "cover")
   m <- msr(m, equation = "sum(canopy.self) / area.self", label = "avg",
            layer = "cover")
-  expect_equal(msk_categories(m, "cover")$avg, c(15, 30))
+  expect_equal(msk_table(m, "cover")$avg, c(15, 30))
 })
 
 test_that("within a patch, a patch value is that patch's own value", {
@@ -209,7 +209,7 @@ test_that("within a patch, a patch value is that patch's own value", {
     msr_area(layer = "patch") |>
     msr(equation = "sum(canopy.self) / area.self", label = "height",
         layer = "patch")
-  expect_equal(msk_categories(m, "patch")$height, c(15, 40))
+  expect_equal(msk_table(m, "patch")$height, c(15, 40))
 })
 
 test_that("msk_struct creates struct", {
@@ -343,13 +343,13 @@ test_that("msk_crop preserves multiple layers", {
 test_that("msk_label writes labels and colours into the class table", {
   f <- mdf_filter(landscape, cover == 47, add = "forest")
   f <- msk_label(f, data.frame(id = 1, label = "forest"), layer = "forest")
-  cats <- msk_categories(f, "forest")
+  cats <- msk_table(f, "forest")
   # a class without a label so far is labelled with its code
   expect_equal(cats$val, c("0", "forest"))
   expect_null(cats$colour)
   f <- msk_label(f, data.frame(id = 0, label = "open", colour = "grey"),
                  layer = "forest")
-  cats <- msk_categories(f, "forest")
+  cats <- msk_table(f, "forest")
   expect_equal(cats$val, c("open", "forest"))
   expect_equal(cats$colour, c("grey", NA))
   # labels are not measured values
@@ -367,11 +367,38 @@ test_that("changing the grid warns about values measured before", {
     msr("max(area.all)", "most", layer = "cover")
   expect_warning(cr <- mdf_crop(m, c(0, 30, 0, 28)), "cover \\(area, most\\)")
   # the values are kept, as they were
-  expect_equal(sum(msk_categories(cr, "cover")$area), 3360)
-  expect_equal(msk_global(cr, "cover")$most, msk_global(m, "cover")$most)
+  expect_equal(sum(msk_table(cr, "cover")$area), 3360)
+  expect_equal(msk_table(cr, "cover")$most, msk_table(m, "cover")$most)
   expect_warning(mdf_pad(m, width = 1L), "mdf_pad")
   expect_warning(mdf_resize(m, factor = 2), "mdf_resize")
   # labels alone are no reason to warn, and plotting a window does not warn
   expect_silent(mdf_crop(landscape, c(0, 30, 0, 28)))
   expect_silent(msk_vis(m, .layer("cover"), window = c(0, 30, 0, 28)))
+})
+
+test_that("msk_table is a list of the per-class and overall values by name", {
+  m <- msr_area(landscape, layer = "cover") |>
+    msr_distance(routing = "straight", layer = "cover") |>
+    msr("max(area.all)", "most", layer = "cover")
+  t <- msk_table(m, "cover")
+  expect_s3_class(t, "msk_table")
+  expect_true(is.list(t))
+  expect_equal(t$area, m@categories$cover$area)
+  expect_equal(t$most, max(t$area))
+  out <- capture.output(print(t))
+  expect_true(any(grepl("distance: 10 x 10 class by class matrix", out)))
+  expect_true(any(grepl("overall: most = 831", out)))
+  expect_true(any(grepl("forest and hedgerows", out)))
+  expect_output(print(msk_table(landscape, "canopy")), "--")
+  expect_error(msk_table(m, "nothere"), "not found")
+})
+
+test_that("legend labels can be switched off", {
+  f <- msk_label(mdf_filter(landscape, cover == 47, add = "forest"),
+                 data.frame(id = c(0, 1), label = c("open", "forest")),
+                 layer = "forest")
+  expect_true(.layer("forest")$labels)
+  expect_false(.layer("forest", labels = FALSE)$labels)
+  expect_silent(msk_vis(f, .layer("forest", labels = FALSE)))
+  expect_error(.layer("forest", labels = NA))
 })

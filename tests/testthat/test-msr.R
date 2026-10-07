@@ -13,9 +13,9 @@ test_that("on a layer of patch numbers, each class is a patch", {
               vals = list(cover = sample(1:5, 100, replace = TRUE)))
   m <- mdf_componentise(m, add = "patch")
   a <- msr_area(m, layer = "patch")
-  expect_equal(msk_categories(a, "patch")$gid,
+  expect_equal(msk_table(a, "patch")$gid,
                sort(unique(msk_pull(m, "patch"))))
-  expect_equal(sum(msk_categories(a, "patch")$area), 100)
+  expect_equal(sum(msk_table(a, "patch")$area), 100)
 })
 
 test_that("classes the map border cuts are measured and flagged by complete", {
@@ -32,7 +32,7 @@ test_that("classes the map border cuts are measured and flagged by complete", {
     msr_area(layer = "patch") |>
     msr_perimeter(layer = "patch") |>
     msr_distance(routing = "straight", layer = "patch")
-  pt <- msk_categories(m, "patch")
+  pt <- msk_table(m, "patch")
   # no NA: the cut patch's values describe the part on the map
   expect_equal(pt$area, c(1, 2))
   expect_equal(pt$perimeter, c(2, 6))
@@ -41,8 +41,8 @@ test_that("classes the map border cuts are measured and flagged by complete", {
 
   m <- msr(m, "complete.self", "whole", layer = "patch") |>
     msr("max(area.all[complete.all])", "largest", layer = "patch")
-  expect_equal(msk_categories(m, "patch")$whole, c(0, 1))
-  expect_equal(msk_global(m, "patch")$largest, 2)
+  expect_equal(msk_table(m, "patch")$whole, c(0, 1))
+  expect_equal(msk_table(m, "patch")$largest, 2)
 })
 
 test_that("mdf_componentise numbers the patches of every class, 0 forms none", {
@@ -55,7 +55,7 @@ test_that("mdf_componentise numbers the patches of every class, 0 forms none", {
   expect_length(unique(na.omit(msk_pull(m, "patch"))), 3)
   # which class a patch came from is read through its cells
   m <- msr(m, "cover.self[1]", "source", layer = "patch")
-  expect_equal(msk_categories(m, "patch")$source, c(1, 2, 3))
+  expect_equal(msk_table(m, "patch")$source, c(1, 2, 3))
 })
 
 test_that("msr_perimeter counts the edges to NA cells, not along the map border", {
@@ -64,10 +64,10 @@ test_that("msr_perimeter counts the edges to NA cells, not along the map border"
   #   . . .
   m <- mosaik(extent = c(0, 3, 0, 3), res = 1,
               vals = list(cover = c(NA, NA, NA, NA, 1, NA, NA, NA, NA)))
-  expect_equal(msk_categories(msr_perimeter(m))$perimeter, 4)
+  expect_equal(msk_table(msr_perimeter(m))$perimeter, 4)
   # the same cell at the border
   b <- mosaik(extent = c(0, 3, 0, 1), res = 1, vals = list(cover = c(1, 2, 2)))
-  expect_equal(msk_categories(msr_perimeter(b))$perimeter, c(1, 1))
+  expect_equal(msk_table(msr_perimeter(b))$perimeter, c(1, 1))
 })
 
 test_that("msr_adjacency is correct on a non-square grid", {
@@ -79,7 +79,7 @@ test_that("msr_adjacency is correct on a non-square grid", {
   vals <- c(1, 1, 2, 2,
             1, 1, 2, 2)
   m <- mosaik(extent = c(0, 4, 0, 2), res = 1, vals = list(cover = vals))
-  adj <- msk_categories(msr_adjacency(obj = m))$adjacency
+  adj <- msk_table(msr_adjacency(obj = m))$adjacency
 
   # rook adjacencies, each pair counted from both sides:
   #   1-1: 4 undirected pairs -> 8;  2-2: 8 by symmetry
@@ -94,7 +94,7 @@ test_that("the focus reads the adjacency matrix along the row of the class", {
   m <- landscape |> msr_adjacency(layer = "cover") |>
     msr("adjacency.self", "like", layer = "cover") |>
     msr("adjacency.self + sum(adjacency.others)", "paired", layer = "cover")
-  cats <- msk_categories(m, "cover")
+  cats <- msk_table(m, "cover")
   expect_equal(rownames(cats$adjacency), as.character(cats$gid))
   expect_equal(cats$like, unname(diag(cats$adjacency)))
   expect_equal(cats$paired, unname(rowSums(cats$adjacency)))
@@ -111,7 +111,7 @@ test_that("msr_adjacency counts the contacts between patches", {
   m <- mosaik(extent = c(0, 4, 0, 3), res = 1, vals = list(cover = v))
   m <- mdf_componentise(m, add = "patch") |>
     msr_adjacency(connect = 4, layer = "patch")
-  adj <- msk_categories(m, "patch")$adjacency
+  adj <- msk_table(m, "patch")$adjacency
 
   expect_equal(dim(adj), c(3, 3))
   expect_equal(adj, t(adj))
@@ -132,7 +132,7 @@ test_that("msr_distance measures between the classes of a layer", {
     mdf_replace(old = 0, new = NA, layer = "corner") |>
     mdf_componentise(layer = "corner", add = "patch") |>
     msr_distance(routing = "straight", layer = "patch")
-  dmat <- msk_categories(m, "patch")$distance
+  dmat <- msk_table(m, "patch")$distance
   expect_equal(dim(dmat), c(4, 4))
   expect_true(all(diag(dmat) == Inf))
   expect_equal(dmat, t(dmat))
@@ -141,12 +141,12 @@ test_that("msr_distance measures between the classes of a layer", {
 
   # nearest neighbour of each corner: 4 cells away
   m <- msr(m, "min(distance.others)", "enn", layer = "patch")
-  expect_equal(msk_categories(m, "patch")$enn, rep(4, 4))
+  expect_equal(msk_table(m, "patch")$enn, rep(4, 4))
 
   # between land cover classes, in the order of the class table
   c2 <- msr_distance(m, routing = "straight", layer = "cover")
-  expect_equal(rownames(msk_categories(c2, "cover")$distance), c("1", "2"))
-  expect_equal(msk_categories(c2, "cover")$distance["1", "2"], 1)
+  expect_equal(rownames(msk_table(c2, "cover")$distance), c("1", "2"))
+  expect_equal(msk_table(c2, "cover")$distance["1", "2"], 1)
 })
 
 test_that("msr_distance with a cost surface sums the costs along the path", {
@@ -166,8 +166,8 @@ test_that("msr_distance with a cost surface sums the costs along the path", {
   # the cheapest route crosses one cost-10 barrier cell plus cheap cells
   rs <- msr_distance(m, cost = "fric", routing = "cheapest", name = "effort",
                      layer = "patch")
-  expect_equal(msk_categories(rs, "patch")$effort[1, 2], 11)
-  expect_null(msk_categories(rs, "patch")$distance)
+  expect_equal(msk_table(rs, "patch")$effort[1, 2], 11)
+  expect_null(msk_table(rs, "patch")$distance)
 
   # the name of a layer is not a free name
   expect_error(msr_distance(m, cost = "fric", name = "fric", layer = "patch"),
@@ -186,7 +186,7 @@ test_that("msr_distance returns NA across an impassable barrier", {
   m <- mdf_componentise(m, layer = "cover", add = "patch")
 
   r <- msr_distance(m, cost = "fric", routing = "cheapest", layer = "patch")
-  mat <- msk_categories(r, "patch")$distance
+  mat <- msk_table(r, "patch")$distance
   expect_true(is.na(mat["1", "3"]))          # unreachable, distinct from a cost of 0
   expect_true(all(is.infinite(diag(mat))))  # self stays Inf
 })
@@ -225,7 +225,7 @@ test_that("msr_dissimilarity weights each class's adjacencies", {
   expect_true(all(d >= 0))
   # the total weighted edge length of the layer
   m <- msr(m, "sum(dissimilarity.all) / 2", "total")
-  expect_equal(msk_global(m)$total, sum(d) / 2)
+  expect_equal(msk_table(m)$total, sum(d) / 2)
 })
 
 test_that("msr builds a metric from an earlier metric", {
@@ -237,10 +237,10 @@ test_that("msr builds a metric from an earlier metric", {
         label = "shannon", layer = "cover")
   a <- m@categories$cover$area
   p <- a / sum(a)
-  expect_equal(msk_global(m, "cover")$shannon, -sum(p * log(p)))
+  expect_equal(msk_table(m, "cover")$shannon, -sum(p * log(p)))
   # a value stored for the layer is read with .all
   m <- msr(m, "shannon.all * 2", "double", layer = "cover")
-  expect_equal(msk_global(m, "cover")$double, 2 * msk_global(m, "cover")$shannon)
+  expect_equal(msk_table(m, "cover")$double, 2 * msk_table(m, "cover")$shannon)
   expect_error(msr(m, "shannon.self", "z", layer = "cover"), "shannon.all")
 })
 
@@ -248,11 +248,11 @@ test_that("the focus words decide where the result is stored", {
   m <- msr_area(landscape, layer = "cover")
   m <- msr(m, "area.self * 2", "twice", layer = "cover") |>
     msr("max(area.all)", "most", layer = "cover")
-  expect_equal(msk_categories(m, "cover")$twice, 2 * msk_categories(m, "cover")$area)
-  expect_equal(msk_global(m, "cover")$most, max(msk_categories(m, "cover")$area))
+  expect_equal(msk_table(m, "cover")$twice, 2 * msk_table(m, "cover")$area)
+  expect_equal(msk_table(m, "cover")$most, max(msk_table(m, "cover")$area))
   # .others leaves the class in focus out
   m <- msr(m, "sum(area.others)", "rest", layer = "cover")
-  cats <- msk_categories(m, "cover")
+  cats <- msk_table(m, "cover")
   expect_equal(cats$rest, sum(cats$area) - cats$area)
 
   # a result that does not fit stops instead of being recycled
@@ -280,14 +280,14 @@ test_that("a layer name reads the cells of the classes in focus", {
     mdf_filter(cover == 47, add = "forest") |>
     msr(equation = "mean(canopy.self)", label = "height", layer = "cover")
   cv <- msk_pull(m, "canopy"); lv <- msk_pull(m, "cover")
-  cats <- msk_categories(m, "cover")
+  cats <- msk_table(m, "cover")
   expect_equal(cats$height, vapply(cats$gid, function(k) mean(cv[lv == k]),
                                    numeric(1)))
   # a layer is read before a stored value of the same name
   m <- msr_area(m, layer = "forest")
   m@categories$forest$canopy <- c(-1, -1)
   m <- msr(m, "mean(canopy.self)", "h", layer = "forest")
-  expect_false(any(msk_categories(m, "forest")$h < 0))
+  expect_false(any(msk_table(m, "forest")$h < 0))
 })
 
 test_that("x and y are the coordinates of the cell centres", {
@@ -298,9 +298,9 @@ test_that("x and y are the coordinates of the cell centres", {
                                     2, 2, 2)))
   m <- msr(m, "mean(x.self)", "cx", layer = "cover") |>
     msr("mean(y.self)", "cy", layer = "cover")
-  expect_equal(msk_categories(m)$cx, c(11, mean(c(12.5, 12.5, 10.5, 11.5, 12.5,
+  expect_equal(msk_table(m)$cx, c(11, mean(c(12.5, 12.5, 10.5, 11.5, 12.5,
                                                    10.5, 11.5, 12.5))))
-  expect_equal(msk_categories(m)$cy[1], 3)
+  expect_equal(msk_table(m)$cy[1], 3)
 })
 
 test_that("another layer is read by its classes with .all, by cells otherwise", {
@@ -311,14 +311,14 @@ test_that("another layer is read by its classes with .all, by cells otherwise", 
     msr_area(layer = "patch") |>
     msr_area(layer = "cover")
   m <- msr(m, "max(area.all) / sum(area.all_cover)", "lpi", layer = "patch")
-  expect_equal(msk_global(m, "patch")$lpi,
-               max(msk_categories(m, "patch")$area) / msk_ncells(m))
+  expect_equal(msk_table(m, "patch")$lpi,
+               max(msk_table(m, "patch")$area) / msk_ncells(m))
 
   # a class value of cover, through the cells of each patch
   m@categories$cover$cost <- seq_along(m@categories$cover$gid)
   m <- msr(m, "mean(cost.self_cover)", "cost", layer = "patch")
   forest <- m@categories$cover$cost[m@categories$cover$gid == 47]
-  expect_equal(unique(msk_categories(m, "patch")$cost), forest)
+  expect_equal(unique(msk_table(m, "patch")$cost), forest)
 
   m <- msr_distance(m, routing = "straight", layer = "cover")
   expect_error(msr(m, "min(distance.self_cover)", "z", layer = "patch"),
@@ -333,14 +333,14 @@ test_that("a layer name with underscores is read whole", {
     msr_area(layer = "forest_2020") |>
     msr(equation = "sum(area.all_forest_2020) * 2", label = "double",
         layer = "cover")
-  expect_equal(msk_global(m, "cover")$double, 6720)
+  expect_equal(msk_table(m, "cover")$double, 6720)
 })
 
 test_that("msr reads pi and other base constants as constants", {
   m <- msr_area(landscape, layer = "cover") |>
     msr(equation = "2 * sqrt(area.self / pi)", label = "diameter",
         layer = "cover")
-  p <- msk_categories(m, "cover")
+  p <- msk_table(m, "cover")
   expect_equal(p$diameter, 2 * sqrt(p$area / pi))
 })
 
@@ -351,11 +351,11 @@ test_that("results are stored per layer and dropped when the layer is rewritten"
     msr_perimeter(layer = "forest") |>
     msr("sum(perimeter.all)", "total", layer = "cover") |>
     msr("sum(perimeter.all)", "total", layer = "forest")
-  expect_false(msk_global(m, "cover")$total == msk_global(m, "forest")$total)
+  expect_false(msk_table(m, "cover")$total == msk_table(m, "forest")$total)
 
   e <- mdf_erode(m, layer = "forest")
-  expect_null(msk_global(e, "forest"))
-  expect_null(msk_categories(e, "forest")$perimeter)
+  expect_length(msk_table(e, "forest"), 0)
+  expect_null(msk_table(e, "forest")$perimeter)
   expect_error(msr(e, "perimeter.self", "z", layer = "forest"), "no value")
 })
 
@@ -366,12 +366,12 @@ test_that("msr_perimeter and msr_dissimilarity read a non-square grid the right 
   m <- mosaik(extent = c(0, 4, 0, 2), res = 1,
               vals = list(cover = c(1, 1, 2, 2, 1, 1, 2, 2)))
   # the two classes share a seam of two edges
-  expect_equal(msk_categories(msr_perimeter(m))$perimeter, c(2, 2))
+  expect_equal(msk_table(msr_perimeter(m))$perimeter, c(2, 2))
   cmat <- matrix(c(0, 0.5, 0.5, 0), 2, dimnames = list(c("1", "2"), c("1", "2")))
-  expect_equal(msk_categories(msr_dissimilarity(m, contrast = cmat))$dissimilarity,
+  expect_equal(msk_table(msr_dissimilarity(m, contrast = cmat))$dissimilarity,
                c(1, 1))
   # an edge between left and right neighbours is as long as a cell is high
   r <- mosaik(extent = c(0, 4, 0, 6), res = c(1, 3),
               vals = list(cover = c(1, 1, 2, 2, 1, 1, 2, 2)))
-  expect_equal(msk_categories(msr_perimeter(r, unit = "map"))$perimeter, c(6, 6))
+  expect_equal(msk_table(msr_perimeter(r, unit = "map"))$perimeter, c(6, 6))
 })

@@ -17,7 +17,7 @@ Defaults to the first layer.}
 }
 \value{
 The input mosaik with \code{area} added to the class table of
-\code{layer} (see \code{\link{msk_categories}}).
+\code{layer} (see \code{\link{msk_table}}).
 }
 \description{
 Calculate the area of each class of a layer and store it in the class table
@@ -32,13 +32,13 @@ sum over its classes, \code{sum(area.all)} in \code{\link{msr}}.
 \examples{
 # the area of each land cover class
 m <- msr_area(landscape, layer = "cover")
-msk_categories(m, layer = "cover")$area
+msk_table(m, layer = "cover")$area
 
 # the area of each forest patch
 m <- mdf_filter(landscape, cover == 47, add = "forest") |>
   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
   msr_area(layer = "patch")
-msk_categories(m, layer = "patch")$area
+msk_table(m, layer = "patch")$area
 }
 \seealso{
 Other measure: 

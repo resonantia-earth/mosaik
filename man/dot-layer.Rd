@@ -12,6 +12,7 @@
   bins = NULL,
   hillshade = NULL,
   legend = TRUE,
+  labels = TRUE,
   title = NULL
 )
 }
@@ -60,6 +61,11 @@ the elevation before the gradient is taken, default 1.
 (\code{TRUE}, default). Set \code{FALSE} for a layer that needs no scale of
 its own, such as a hillshade base.}
 
+\item{labels}{\code{\link[=logical]{logical(1)}}\cr name the classes in the legend by
+their labels (\code{TRUE}, default), where the layer has labels (see
+\code{\link{msk_label}}). \code{FALSE} writes the class codes instead,
+for a more compact legend.}
+
 \item{title}{\code{\link[=character]{character(1)}}\cr heading for this layer's legend.
 \code{NULL} uses the layer name.}
 }
@@ -80,6 +86,9 @@ and each keeps its own colour scale and its own legend.
 \examples{
 # the plainest form: just a layer name
 msk_vis(landscape, .layer("cover"))
+
+# a compact legend: the class codes instead of their labels
+msk_vis(landscape, .layer("cover", labels = FALSE))
 
 # a palette, and a scale fixed so the figure is comparable across calls
 msk_vis(landscape, .layer("cover", colours = "viridis", limits = c(0, 60)))

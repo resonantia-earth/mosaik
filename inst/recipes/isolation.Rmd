@@ -22,7 +22,7 @@ isolation <- landscape |>
   msr_area(layer = "patch") |>
   msr_distance(routing = "straight", layer = "patch") |>
   msr(equation = "min(distance.others)", label = "nearest", layer = "patch")
-p <- msk_categories(isolation, layer = "patch")
+p <- msk_table(isolation, layer = "patch")
 ```
 
 The result is a table with one row per patch. Replacing each patch number in

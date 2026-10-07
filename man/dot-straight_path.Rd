@@ -2,14 +2,15 @@
 % Please edit documentation in R/msr_distance.R
 \name{.straight_path}
 \alias{.straight_path}
-\title{Sum the costs along the direct line between two patches}
+\title{Sum the costs along the direct line between two classes}
 \usage{
-.straight_path(fromCells, toCells, cellCost, dims)
+.straight_path(fromCells, toCell, cellCost, dims)
 }
 \arguments{
-\item{fromCells}{\code{\link[=integer]{integer(.)}}\cr cell indices of the source patch.}
+\item{fromCells}{\code{\link[=integer]{integer(.)}}\cr cell indices of the source class.}
 
-\item{toCells}{\code{\link[=integer]{integer(.)}}\cr cell indices of the target patch.}
+\item{toCell}{\code{\link[=integer]{integer(1)}}\cr the target class's cell nearest to
+the source class.}
 
 \item{cellCost}{\code{\link[=numeric]{numeric(.)}}\cr the cost of each cell.}
 
@@ -20,8 +21,10 @@ A single numeric value, \code{NA} when the line crosses a cell that
 cannot be crossed.
 }
 \description{
-Walks the straight line between the closest pair of cells of two patches and
-sums the costs of the cells it crosses, whether or not a cheaper detour
-exists.
+Walks the straight line from the cell of the source class nearest to the
+target cell, which is the target class's cell nearest to the source class,
+and sums the costs of the cells it crosses, whether or not a cheaper detour
+exists. Only one target cell is compared with the source cells, so memory
+grows with the size of the classes, not with their product.
 }
 \keyword{internal}

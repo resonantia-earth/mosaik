@@ -65,7 +65,7 @@ msk_vis(f, .layer("forest"),
 # the patches of every land-cover class, and the class of each patch
 m <- mdf_componentise(landscape, layer = "cover", add = "patch") |>
   msr(equation = "cover.self[1]", label = "source", layer = "patch")
-table(msk_categories(m, layer = "patch")$source)
+table(msk_table(m, layer = "patch")$source)
 msk_vis(m, .layer("cover"),
         .layer("patch", colours = shuffled(m, "patch"), legend = FALSE))
 }

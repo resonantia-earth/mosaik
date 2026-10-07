@@ -46,6 +46,10 @@
 #' @param legend [`logical(1)`][logical]\cr give this layer its own legend
 #'   (\code{TRUE}, default). Set \code{FALSE} for a layer that needs no scale of
 #'   its own, such as a hillshade base.
+#' @param labels [`logical(1)`][logical]\cr name the classes in the legend by
+#'   their labels (\code{TRUE}, default), where the layer has labels (see
+#'   \code{\link{msk_label}}). \code{FALSE} writes the class codes instead,
+#'   for a more compact legend.
 #' @param title [`character(1)`][character]\cr heading for this layer's legend.
 #'   \code{NULL} uses the layer name.
 #' @return a list of class \code{mskLayer}.
@@ -54,6 +58,9 @@
 #' @examples
 #' # the plainest form: just a layer name
 #' msk_vis(landscape, .layer("cover"))
+#'
+#' # a compact legend: the class codes instead of their labels
+#' msk_vis(landscape, .layer("cover", labels = FALSE))
 #'
 #' # a palette, and a scale fixed so the figure is comparable across calls
 #' msk_vis(landscape, .layer("cover", colours = "viridis", limits = c(0, 60)))
@@ -81,7 +88,7 @@
 
 .layer <- function(layer, panel = NULL, colours = NULL, limits = NULL,
                    bins = NULL, hillshade = NULL, legend = TRUE,
-                   title = NULL){
+                   labels = TRUE, title = NULL){
 
   assertCharacter(x = layer, len = 1, any.missing = FALSE)
   assertCharacter(x = colours, min.len = 1, any.missing = FALSE, null.ok = TRUE)
@@ -89,6 +96,7 @@
                 finite = TRUE, null.ok = TRUE)
   assertNumber(x = bins, lower = 1, null.ok = TRUE)
   assertLogical(x = legend, len = 1, any.missing = FALSE)
+  assertLogical(x = labels, len = 1, any.missing = FALSE)
   assertCharacter(x = title, len = 1, any.missing = FALSE, null.ok = TRUE)
   assertCharacter(x = panel, len = 1, any.missing = FALSE, null.ok = TRUE)
   if(!is.null(hillshade)){
@@ -108,7 +116,7 @@
 
   structure(list(layer = layer, panel = panel, colours = colours,
                  limits = limits, bins = bins, hillshade = hillshade,
-                 legend = legend, title = title),
+                 legend = legend, labels = labels, title = title),
             class = c("mskLayer", "list"))
 }
 
@@ -1131,7 +1139,7 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
       }
       # a class with a label is named by it; a value without one by itself
       legendText <- NULL
-      if(!is.null(cats$gid) && !is.null(cats$val)){
+      if(isTRUE(s$labels) && !is.null(cats$gid) && !is.null(cats$val)){
         legendText <- cats$val[match(scaleValues, cats$gid)]
         if(anyNA(legendText)) legendText <- NULL
       }

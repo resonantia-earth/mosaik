@@ -91,11 +91,12 @@ m <- landscape |>
   msr_perimeter(layer = "cover")
 ```
 
-Every result is stored with the layer it was measured on. `msk_categories()`
-returns the class table of a layer:
+Every result is stored with the layer it was measured on. `msk_table()`
+returns what is measured on a layer. It prints as a table, but it is a list,
+so `msk_table(m, layer = "cover")$area` is the area of each class:
 
 ```{r}
-msk_categories(m, layer = "cover")
+msk_table(m, layer = "cover")
 ```
 
 The same functions measure single patches, once the patches are numbered.
@@ -112,7 +113,7 @@ f <- f |>
   msr_area(layer = "patch") |>
   msr_perimeter(layer = "patch")
 
-p <- msk_categories(f, layer = "patch")
+p <- msk_table(f, layer = "patch")
 data.frame(patch = p$gid, area = p$area, perimeter = p$perimeter)
 ```
 
@@ -133,7 +134,7 @@ m <- m |>
   msr(equation = "perimeter.self / sum(area.all)", label = "density",
       layer = "cover")
 
-data.frame(msk_categories(m, layer = "cover")[c("val", "pland", "density")])
+data.frame(msk_table(m, layer = "cover")[c("val", "pland", "density")])
 ```
 
 With `.self` or `.others`, the equation is evaluated once for each class and
@@ -152,7 +153,7 @@ one value:
 m <- msr(m, layer = "cover", label = "shannon",
          equation = "-sum(area.all / sum(area.all) *
                           log(area.all / sum(area.all)))")
-msk_global(m, layer = "cover")$shannon
+msk_table(m, layer = "cover")$shannon
 ```
 
 A metric computed this way can itself be used in the next equation;

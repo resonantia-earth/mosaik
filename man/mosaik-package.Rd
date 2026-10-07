@@ -56,7 +56,7 @@ primitives (area, perimeter, adjacency, distance and dissimilarity, per
 class of a layer), \code{\link{msr}} for a metric derived from an
 equation over them in \code{name.focus} notation.}
 \item{\code{msk_*}}{accessors and utilities (\code{\link{msk_vis}},
-\code{\link{msk_categories}}, \code{\link{msk_terra}}, ...).}
+\code{\link{msk_table}}, \code{\link{msk_terra}}, ...).}
 }
 }
 \seealso{

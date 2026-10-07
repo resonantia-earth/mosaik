@@ -26,8 +26,8 @@ Read "Common mistakes" first.
 5. **`msk_vis()` takes layer specifications, not a `layer` argument.** Write
    `msk_vis(m, .layer("cover"))`, not `msk_vis(m, layer = "cover")`.
 6. **`msr_*` results are not returned as tables.** Every function returns the
-   mosaik with results attached. Read them with `msk_categories()` or
-   `msk_global()`.
+   mosaik with results attached. Read them with `msk_table(m, layer)`: a
+   list with a print method, so `msk_table(m, "cover")$area`.
 7. **A recipe is built by calling functions without an object.** Called
    without one, an `mdf_*` or `msr_*` function (and `msr()`) records itself
    instead of running. Chain such calls, then apply the recipe with `mdf()`.
@@ -91,7 +91,7 @@ Every function takes a mosaik and returns a mosaik, so everything chains with
 - `msk_select(obj, ...)`, `msk_remove(obj, ...)`: keep or drop layers, named
   unquoted.
 - Accessors: `msk_extent`, `msk_dims`, `msk_res`, `msk_ncells`, `msk_crs`,
-  `msk_names`, `msk_categories`, `msk_global`, `msk_provenance`.
+  `msk_names`, `msk_provenance`; what is measured on a layer: `msk_table(obj, layer)`, a list (per class and overall values by name) with a print method.
 
 ## drw_*: draw a field
 
@@ -195,7 +195,7 @@ result <- mdf(landscape, core)
 ## msr_*: measure the primitives
 
 Every primitive is measured for each class of `layer` and stored in its class
-table, `@categories[[layer]]`; read it with `msk_categories(m, layer)`. On a
+table, `@categories[[layer]]`; read it with `msk_table(m, layer)`. On a
 layer of patch numbers (from `mdf_componentise()`), each class is a patch, so
 the same call measures the patches. Rewriting a layer drops what was measured
 on it. Values describe the part of a class on the map, also for a class the
@@ -269,7 +269,7 @@ m <- landscape |>
   msr("sum(area.others / distance.others^2 * (distance.others <= 10))", "prox",
       layer = "patch") |>
   msr("max(area.all[complete.all])", "largest", layer = "patch")
-msk_categories(m, layer = "patch")$enn
+msk_table(m, layer = "patch")$enn
 
 m <- landscape |>
   msr_area(layer = "cover") |>
@@ -277,7 +277,7 @@ m <- landscape |>
       layer = "cover") |>
   msr(equation = "-sum(area.all / sum(area.all) * log(area.all / sum(area.all)))",
       label = "shannon", layer = "cover")
-msk_global(m, layer = "cover")$shannon
+msk_table(m, layer = "cover")$shannon
 ```
 
 A distance for every cell is a layer: `mdf_distance()`, with `cost` for a cost

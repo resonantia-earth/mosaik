@@ -34,7 +34,7 @@ connectivity <- landscape |>
   msr_distance(cost = "friction", name = "effort", layer = "patch") |>
   msr(equation = "min(distance.others)", label = "straight", layer = "patch") |>
   msr(equation = "min(effort.others)", label = "through", layer = "patch")
-p <- msk_categories(connectivity, layer = "patch")
+p <- msk_table(connectivity, layer = "patch")
 ```
 
 For each patch, `straight` is the straight distance to the nearest other

@@ -8,7 +8,7 @@
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
 #' @return The input mosaik with \code{area} added to the class table of
-#'   \code{layer} (see \code{\link{msk_categories}}).
+#'   \code{layer} (see \code{\link{msk_table}}).
 #' @details The classes of a layer can be land cover classes or groups, such
 #'   as the patches numbered by \code{\link{mdf_componentise}}: on a layer of
 #'   patch numbers, each class is a patch. The area of the whole layer is the
@@ -16,13 +16,13 @@
 #' @examples
 #' # the area of each land cover class
 #' m <- msr_area(landscape, layer = "cover")
-#' msk_categories(m, layer = "cover")$area
+#' msk_table(m, layer = "cover")$area
 #'
 #' # the area of each forest patch
 #' m <- mdf_filter(landscape, cover == 47, add = "forest") |>
 #'   mdf_componentise(connectivity = 8L, layer = "forest", add = "patch") |>
 #'   msr_area(layer = "patch")
-#' msk_categories(m, layer = "patch")$area
+#' msk_table(m, layer = "patch")$area
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export

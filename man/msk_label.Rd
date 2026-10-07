@@ -18,7 +18,7 @@ labelled. Defaults to the first layer.}
 }
 \value{
 The mosaik with the labels (and colours) in the class table of
-\code{layer} (see \code{\link{msk_categories}}).
+\code{layer} (see \code{\link{msk_table}}).
 }
 \description{
 Give the classes of a layer a label and, optionally, a colour. Legends of
@@ -37,12 +37,13 @@ f <- msk_label(f, labels = data.frame(id = c(0, 1),
                                       label = c("open land", "forest"),
                                       colour = c("#e3d39a", "#1f5f2e")),
                layer = "forest")
-msk_categories(f, layer = "forest")
+msk_table(f, layer = "forest")
 msk_vis(f, .layer("forest"))
 }
 \seealso{
 Other utilities: 
 \code{\link{mdf_crop}()},
-\code{\link{msk_rasterise}()}
+\code{\link{msk_rasterise}()},
+\code{\link{msk_table}()}
 }
 \concept{utilities}

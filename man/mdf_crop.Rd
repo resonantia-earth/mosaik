@@ -34,6 +34,7 @@ msk_vis(corner, .layer("cover"))
 \seealso{
 Other utilities: 
 \code{\link{msk_label}()},
-\code{\link{msk_rasterise}()}
+\code{\link{msk_rasterise}()},
+\code{\link{msk_table}()}
 }
 \concept{utilities}

@@ -20,7 +20,7 @@
 #' @param layer [`character(1)`][character]\cr the layer whose classes are
 #'   measured. Defaults to the first layer.
 #' @return The input mosaik with the distances added to the class table of
-#'   \code{layer} (see \code{\link{msk_categories}}).
+#'   \code{layer} (see \code{\link{msk_table}}).
 #' @details The result is a class by class matrix, in the order of the class
 #'   table, and each value is the distance between the nearest cells of two
 #'   classes. On a layer of patch numbers from \code{\link{mdf_componentise}},
@@ -42,13 +42,13 @@
 #'
 #' # the distances between the forest patches
 #' m <- msr_distance(f, layer = "patch")
-#' msk_categories(m, layer = "patch")$distance
+#' msk_table(m, layer = "patch")$distance
 #'
 #' # the distances over a cost layer built from the classes
 #' m <- mdf_replace(m, old = c(21, 24, 47), new = c(5, 2, 1),
 #'                  layer = "cover", add = "friction") |>
 #'   msr_distance(cost = "friction", name = "effort", layer = "patch")
-#' msk_categories(m, layer = "patch")$effort
+#' msk_table(m, layer = "patch")$effort
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
@@ -94,29 +94,27 @@ msr_distance <- function(obj = NULL, cost = NULL, routing = "cheapest",
 
   for(p in seq_len(n)){
 
-    if(is.null(cost) && routing == "straight"){
-      # geometric distance needs no path: the transform gives the nearest
-      # edge distance directly
+    if(routing == "straight"){
+      # the transform gives every cell its distance to the nearest cell of
+      # class p, so the nearest cell of class q is where it is smallest
       src <- rep(0, length(vals))
       src[cells[[p]]] <- 1
       d <- sqrt(distanceCpp(vals = src, nrow = dims[2], ncol = dims[1],
                             method = "euclidean"))
       for(q in seq_len(n)){
         if(p == q) next
-        mat[p, q] <- min(d[cells[[q]]])
+        if(is.null(cost)){
+          mat[p, q] <- min(d[cells[[q]]])
+        } else {
+          # the closest pair: that cell of q and the cell of p nearest to it
+          to <- cells[[q]][which.min(d[cells[[q]]])]
+          mat[p, q] <- .straight_path(cells[[p]], to, surface, dims)
+        }
       }
       next
     }
 
     cellCost <- if(is.null(cost)) rep(1, length(vals)) else surface
-
-    if(routing == "straight"){
-      for(q in seq_len(n)){
-        if(p == q) next
-        mat[p, q] <- .straight_path(cells[[p]], cells[[q]], cellCost, dims)
-      }
-      next
-    }
 
     # the accumulated cost of the cheapest path, entering the target class at
     # its cheapest cell
@@ -137,33 +135,33 @@ msr_distance <- function(obj = NULL, cost = NULL, routing = "cheapest",
   return(obj)
 }
 
-#' Sum the costs along the direct line between two patches
+#' Sum the costs along the direct line between two classes
 #'
-#' Walks the straight line between the closest pair of cells of two patches and
-#' sums the costs of the cells it crosses, whether or not a cheaper detour
-#' exists.
+#' Walks the straight line from the cell of the source class nearest to the
+#' target cell, which is the target class's cell nearest to the source class,
+#' and sums the costs of the cells it crosses, whether or not a cheaper detour
+#' exists. Only one target cell is compared with the source cells, so memory
+#' grows with the size of the classes, not with their product.
 #'
-#' @param fromCells [`integer(.)`][integer]\cr cell indices of the source patch.
-#' @param toCells [`integer(.)`][integer]\cr cell indices of the target patch.
+#' @param fromCells [`integer(.)`][integer]\cr cell indices of the source class.
+#' @param toCell [`integer(1)`][integer]\cr the target class's cell nearest to
+#'   the source class.
 #' @param cellCost [`numeric(.)`][numeric]\cr the cost of each cell.
 #' @param dims [`integer(2)`][integer]\cr grid dimensions, columns then rows.
 #' @return A single numeric value, \code{NA} when the line crosses a cell that
 #'   cannot be crossed.
 #' @keywords internal
 
-.straight_path <- function(fromCells, toCells, cellCost, dims){
+.straight_path <- function(fromCells, toCell, cellCost, dims){
 
   ncol <- dims[1]
   fr <- (fromCells - 1) %/% ncol; fc <- (fromCells - 1) %% ncol
-  tr <- (toCells - 1) %/% ncol;   tc <- (toCells - 1) %% ncol
+  r1 <- (toCell - 1) %/% ncol;    c1 <- (toCell - 1) %% ncol
 
-  # the closest pair of cells defines the line
-  d2 <- outer(fr, tr, function(a, b) (a - b)^2) +
-    outer(fc, tc, function(a, b) (a - b)^2)
-  best <- which(d2 == min(d2), arr.ind = TRUE)[1, ]
-
-  r0 <- fr[best[1]]; c0 <- fc[best[1]]
-  r1 <- tr[best[2]]; c1 <- tc[best[2]]
+  # the source cell nearest to the target cell: with the target cell nearest
+  # to the source class, the two are a closest pair
+  best <- which.min((fr - r1)^2 + (fc - c1)^2)
+  r0 <- fr[best]; c0 <- fc[best]
 
   # sample the line at every cell it passes through
   n <- max(abs(r1 - r0), abs(c1 - c0)) + 1

@@ -10,7 +10,7 @@
 #'   Defaults to the first layer.
 #' @return The input mosaik with the class by class matrix \code{adjacency}
 #'   added to the class table of \code{layer} (see
-#'   \code{\link{msk_categories}}).
+#'   \code{\link{msk_table}}).
 #' @details \code{adjacency} counts the pairs of bordering cells. Each pair is
 #'   counted from both sides, as in FRAGSTATS: two forest cells side by side
 #'   add 2 to forest-forest, a forest cell beside a meadow cell adds 1 to
@@ -22,13 +22,13 @@
 #' @examples
 #' # how often each land cover class borders each other class
 #' m <- msr_adjacency(landscape, layer = "cover")
-#' msk_categories(m, layer = "cover")$adjacency
+#' msk_table(m, layer = "cover")$adjacency
 #'
 #' # where the forest patches touch each other, with diagonal neighbours
 #' f <- mdf_filter(landscape, cover == 47, add = "forest") |>
 #'   mdf_componentise(connectivity = 4L, layer = "forest", add = "patch") |>
 #'   msr_adjacency(connect = 8, layer = "patch")
-#' msk_categories(f, layer = "patch")$adjacency
+#' msk_table(f, layer = "patch")$adjacency
 #' @family measure
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export

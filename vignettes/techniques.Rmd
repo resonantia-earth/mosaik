@@ -99,14 +99,14 @@ core_share <- mdf_filter(expr = cover == 47, add = "forest") |>
       layer = "core")
 
 r <- mdf(landscape, core_share)
-msk_categories(r, layer = "forest")$area
-msk_categories(r, layer = "core")
+msk_table(r, layer = "forest")$area
+msk_table(r, layer = "core")
 ```
 
 ```{r, include = FALSE}
-forest_cells <- msk_categories(r, layer = "forest")$area[2]
-core_cells <- msk_categories(r, layer = "core")$area[2]
-core_pct <- round(msk_categories(r, layer = "core")$pcore[2], 1)
+forest_cells <- msk_table(r, layer = "forest")$area[2]
+core_cells <- msk_table(r, layer = "core")$area[2]
+core_pct <- round(msk_table(r, layer = "core")$pcore[2], 1)
 ```
 
 The forest has `r forest_cells` cells, its core `r core_cells` of them, and
@@ -124,7 +124,7 @@ share of the forest that is core:
 ```{r}
 r <- msr(r, equation = "sum(core.self) / area.self * 100",
          label = "corepart", layer = "forest")
-msk_categories(r, layer = "forest")$corepart
+msk_table(r, layer = "forest")$corepart
 ```
 
 Just under half the forest is core (class 1). The same equation on a layer of
@@ -150,7 +150,7 @@ m <- landscape |>
   msr(equation = "shannon.all / log(length(pland.all))",
       label = "evenness", layer = "cover")
 
-msk_global(m, layer = "cover")
+msk_table(m, layer = "cover")
 ```
 
 Evenness is 1 when all classes cover the same share and falls towards 0 as

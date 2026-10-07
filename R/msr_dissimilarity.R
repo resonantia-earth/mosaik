@@ -10,7 +10,7 @@
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
 #' @return The input mosaik with \code{dissimilarity} added to the class table
-#'   of \code{layer} (see \code{\link{msk_categories}}).
+#'   of \code{layer} (see \code{\link{msk_table}}).
 #' @details The adjacency matrix (double-counted) is computed, then
 #'   multiplied element-wise by the contrast matrix. The dissimilarity of a
 #'   class is the row sum of the contrast-weighted adjacency matrix. The total
@@ -26,7 +26,7 @@
 #' diag(cmat) <- 0
 #'
 #' m <- msr_dissimilarity(landscape, contrast = cmat)
-#' msk_categories(m)$dissimilarity
+#' msk_table(m)$dissimilarity
 #'
 #' # non-uniform contrast: some class pairs more dissimilar than others.
 #' # the contrast matrix must stay symmetric, so each pair is set on both
@@ -35,13 +35,13 @@
 #' cmat2["44", "47"] <- cmat2["47", "44"] <- 0.2   # orchard and forest: similar
 #' cmat2["35", "47"] <- cmat2["47", "35"] <- 0.9   # road and forest: very different
 #' m <- msr_dissimilarity(landscape, contrast = cmat2)
-#' msk_categories(m)$dissimilarity
+#' msk_table(m)$dissimilarity
 #'
 #' # msr: edge contrast index (dissimilarity / perimeter)
 #' m <- msr_perimeter(m)
 #' m <- msr(m, equation = "dissimilarity.self / perimeter.self",
 #'          label = "contrast")
-#' msk_categories(m)$contrast
+#' msk_table(m)$contrast
 #' @family measure
 #' @importFrom checkmate assertClass assertCharacter assertMatrix
 #' @export

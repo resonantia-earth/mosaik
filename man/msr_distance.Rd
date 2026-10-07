@@ -34,7 +34,7 @@ measured. Defaults to the first layer.}
 }
 \value{
 The input mosaik with the distances added to the class table of
-\code{layer} (see \code{\link{msk_categories}}).
+\code{layer} (see \code{\link{msk_table}}).
 }
 \description{
 Measure how far apart the classes of a layer are. Without a cost layer,
@@ -65,13 +65,13 @@ f <- mdf_filter(landscape, cover == 47, add = "forest") |>
 
 # the distances between the forest patches
 m <- msr_distance(f, layer = "patch")
-msk_categories(m, layer = "patch")$distance
+msk_table(m, layer = "patch")$distance
 
 # the distances over a cost layer built from the classes
 m <- mdf_replace(m, old = c(21, 24, 47), new = c(5, 2, 1),
                  layer = "cover", add = "friction") |>
   msr_distance(cost = "friction", name = "effort", layer = "patch")
-msk_categories(m, layer = "patch")$effort
+msk_table(m, layer = "patch")$effort
 }
 \seealso{
 Other measure: 

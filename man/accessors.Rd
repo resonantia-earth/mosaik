@@ -9,8 +9,6 @@
 \alias{msk_crs}
 \alias{msk_provenance}
 \alias{msk_names}
-\alias{msk_categories}
-\alias{msk_global}
 \title{Accessor functions for mosaik objects}
 \usage{
 msk_extent(x)
@@ -26,25 +24,15 @@ msk_crs(x)
 msk_provenance(x)
 
 msk_names(x)
-
-msk_categories(x, layer = NULL)
-
-msk_global(x, layer = NULL)
 }
 \arguments{
 \item{x}{a \code{\link{mosaik}} object.}
-
-\item{layer}{\code{\link[=character]{character(1)}}\cr for \code{msk_categories} and
-\code{msk_global}: the layer whose results to return. Defaults to the
-first layer.}
-}
-\value{
-For \code{msk_categories} and \code{msk_global}: the class table of
-\code{layer} or its values for the whole layer, as a list, or \code{NULL}
-if there are none.
 }
 \description{
 Simple functions to access properties of a \code{\link{mosaik}} object.
+}
+\details{
+What is measured on a layer is read with \code{\link{msk_table}}.
 }
 \examples{
 msk <- mosaik(extent = c(0, 10, 0, 10), res = 1,
@@ -55,7 +43,4 @@ msk_res(msk)
 msk_ncells(msk)
 msk_crs(msk)
 msk_names(msk)
-
-msk <- msr_area(msk, layer = "cover")
-msk_categories(msk, layer = "cover")
 }

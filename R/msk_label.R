@@ -9,7 +9,7 @@
 #' @param layer [`character(1)`][character]\cr the layer whose classes are
 #'   labelled. Defaults to the first layer.
 #' @return The mosaik with the labels (and colours) in the class table of
-#'   \code{layer} (see \code{\link{msk_categories}}).
+#'   \code{layer} (see \code{\link{msk_table}}).
 #' @details Classes that \code{labels} does not name keep their label and
 #'   colour; a class without a label so far is labelled with its code. Every
 #'   \code{id} must occur in \code{layer}. Labels and colours describe the
@@ -21,7 +21,7 @@
 #'                                       label = c("open land", "forest"),
 #'                                       colour = c("#e3d39a", "#1f5f2e")),
 #'                layer = "forest")
-#' msk_categories(f, layer = "forest")
+#' msk_table(f, layer = "forest")
 #' msk_vis(f, .layer("forest"))
 #' @family utilities
 #' @importFrom checkmate assertClass assertDataFrame assertCharacter

@@ -22,8 +22,8 @@
 #'   equation is evaluated over, and with which the result is stored.
 #'   Defaults to the first layer.
 #' @return The mosaik with the result added to the class table of \code{layer}
-#'   (see \code{\link{msk_categories}}), or to its values for the whole layer
-#'   (see \code{\link{msk_global}}).
+#'   or to its values for the whole layer; both are read with
+#'   \code{\link{msk_table}}.
 #' @details
 #'   \strong{Focus.} The equation is evaluated with one class of \code{layer}
 #'   in focus at a time. The focus of a variable says which classes it reads:
@@ -102,12 +102,12 @@
 #' # the share of the landscape in each class
 #' m <- msr(m, equation = "area.self / sum(area.all) * 100", label = "pland",
 #'          layer = "cover")
-#' msk_categories(m, layer = "cover")$pland
+#' msk_table(m, layer = "cover")$pland
 #'
 #' # a metric built from another metric: Shannon diversity, for the layer
 #' m <- msr(m, equation = "-sum(pland.all / 100 * log(pland.all / 100))",
 #'          label = "shdi", layer = "cover")
-#' msk_global(m, layer = "cover")$shdi
+#' msk_table(m, layer = "cover")$shdi
 #'
 #' # the forest patches: the distance of each to its nearest neighbour, and
 #' # the share of the map in the largest patch
@@ -118,12 +118,12 @@
 #'   msr(equation = "min(distance.others)", label = "enn", layer = "patch") |>
 #'   msr(equation = "max(area.all) / sum(area.all_cover) * 100", label = "lpi",
 #'       layer = "patch")
-#' msk_categories(f, layer = "patch")$enn
-#' msk_global(f, layer = "patch")$lpi
+#' msk_table(f, layer = "patch")$enn
+#' msk_table(f, layer = "patch")$lpi
 #'
 #' # a layer read through cells: the mean canopy height of each forest patch
 #' f <- msr(f, equation = "mean(canopy.self)", label = "height", layer = "patch")
-#' msk_categories(f, layer = "patch")$height
+#' msk_table(f, layer = "patch")$height
 #' @importFrom checkmate assertClass assertCharacter
 #' @export
 
