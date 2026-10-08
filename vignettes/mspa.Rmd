@@ -469,10 +469,15 @@ mspa_classify <- function(m) {
 }
 ```
 
-It gives the published classification again:
+To check it, the function runs on the pattern again, and its class codes are
+compared with `cls`, the codes built step by step above, which match Fig. 1 of
+the paper. The comparison counts the cells where both agree. The pattern has
+`r msk_ncells(mspa)` cells, so a count of `r msk_ncells(mspa)` means the
+function gives the published class on every cell:
 
 ```{r classify-check}
-sum(mspa_classify(mspa) == cls)
+same <- mspa_classify(mspa) == cls
+sum(same)
 ```
 
 ## On an ordinary map
