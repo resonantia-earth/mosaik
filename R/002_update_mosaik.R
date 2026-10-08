@@ -296,9 +296,10 @@
 #' read in a line, and the label names the metric. Timestamps, the agent, the
 #' digests and the equations stay in the object.
 #'
-#' An argument too long for the console is wrapped, a step with several
-#' arguments gives each its own line, and every continuation line is indented
-#' to the column where the arguments start. Line breaks and runs of spaces in
+#' Short arguments stay on one line. Only when one argument alone is longer
+#' than the room left on a line is it wrapped, the arguments then fill the
+#' lines, and every continuation line is indented to the column where the
+#' arguments start. Line breaks and runs of spaces in
 #' an argument (an equation written over several lines) become single spaces;
 #' the record keeps them.
 #'
@@ -365,14 +366,25 @@
     # a line may end on an operator but not start with one: the operator is
     # tied to the word before it while wrapping
     tie <- " "
-    lines <- unlist(lapply(args, function(a) {
-      if (nchar(a) <= room) return(a)
-      a <- gsub(" ([-+*/^]|==|<=|>=|<|>|&|\\|) ", paste0(tie, "\\1 "), a)
-      gsub(tie, " ", strwrap(a, width = room, exdent = 2), fixed = TRUE)
-    }))
-    # short arguments stay on one line, as before
-    if (length(lines) == length(args) && sum(nchar(args)) + length(args) <= room) {
-      lines <- paste(args, collapse = " ")
+    # short arguments stay on one line, even past the console width: splitting
+    # them reads worse than a long line
+    if (all(nchar(args) <= room)) {
+      return(paste0(head[i], "  ", paste(args, collapse = " ")))
+    }
+    # otherwise the arguments fill a line and continue on the next when it is
+    # full; an argument longer than a line is wrapped on its own
+    lines <- character()
+    for (a in args) {
+      last <- length(lines)
+      if (last && nchar(lines[last]) + 1 + nchar(a) <= room) {
+        lines[last] <- paste(lines[last], a)
+      } else if (nchar(a) <= room) {
+        lines <- c(lines, a)
+      } else {
+        a <- gsub(" ([-+*/^]|==|<=|>=|<|>|&|\\|) ", paste0(tie, "\\1 "), a)
+        lines <- c(lines, gsub(tie, " ", strwrap(a, width = room, exdent = 2),
+                               fixed = TRUE))
+      }
     }
     paste0(head[i], "  ", paste(lines, collapse = pad))
   }, "")
