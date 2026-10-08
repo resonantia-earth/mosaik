@@ -95,7 +95,7 @@ print.msk_table <- function(x, ..., n = 20){
       if (!named) return(NULL)
       text <- formatC(val[i], width = -(classW - if (swatch) 2 else 0))
       col <- if (swatch) tbl$colour[i] else NA
-      if (!is.na(col)) paste0(make_style(col)("■"), " ", text)
+      if (!is.na(col)) paste0(make_style(col)("\u25a0"), " ", text)
       else if (swatch) paste0("  ", text)
       else text
     }
@@ -111,7 +111,7 @@ print.msk_table <- function(x, ..., n = 20){
     }
     if (nClass > length(shown)) {
       rest <- nClass - length(shown)
-      cat(blank, "… ", rest, if (rest == 1) " more class" else " more classes",
+      cat(blank, "\u2026 ", rest, if (rest == 1) " more class" else " more classes",
           "\n", sep = "")
     }
   }

@@ -365,7 +365,7 @@
     if (length(args) > 1) args <- paste0(args, c(rep(",", length(args) - 1), ""))
     # a line may end on an operator but not start with one: the operator is
     # tied to the word before it while wrapping
-    tie <- " "
+    tie <- "\u00a0"
     # short arguments stay on one line, even past the console width: splitting
     # them reads worse than a long line
     if (all(nchar(args) <= room)) {
