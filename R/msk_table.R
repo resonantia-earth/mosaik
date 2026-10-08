@@ -48,48 +48,116 @@ msk_table <- function(obj, layer = NULL){
 }
 
 
+#' @param x [`msk_table`][msk_table]\cr the table to print.
+#' @param ... not used.
+#' @param n [`integer(1)`][integer]\cr the number of classes printed; the rest
+#'   are counted.
+#' @rdname msk_table
+#' @importFrom crayon yellow make_style has_color
 #' @export
 
-print.msk_table <- function(x, ...){
+print.msk_table <- function(x, ..., n = 20){
 
   overall <- attr(x, "overall")
   tbl <- unclass(x)
   attributes(tbl) <- list(names = names(x))
-  cat("values of layer '", attr(x, "layer"), "'\n", sep = "")
-  if (!length(tbl)) {
-    cat("  --\n")
-    return(invisible(x))
-  }
+  nClass <- length(tbl$gid)
+
+  # the labels in a left column, as in the print of a mosaik
+  lab <- function(s) yellow(formatC(s, width = -12))
+  blank <- strrep(" ", 12)
+  cat(lab("msk_table"), "layer ", attr(x, "layer"), " | ", nClass,
+      if (nClass == 1) " class" else " classes", "\n", sep = "")
+  if (!length(tbl)) return(invisible(x))
 
   # one value per class goes into the table, in the order of the classes
-  perClass <- setdiff(names(tbl), overall)
-  n <- length(tbl$gid)
+  perClass <- setdiff(names(tbl), c(overall, "gid", "val", "colour"))
   column <- vapply(tbl[perClass], function(v) {
-    n > 0 && is.atomic(v) && !is.matrix(v) && length(v) == n
+    nClass > 0 && is.atomic(v) && !is.matrix(v) && length(v) == nClass
   }, logical(1))
-  if (any(column)) {
-    print(as.data.frame(tbl[perClass[column]], stringsAsFactors = FALSE),
-          row.names = FALSE)
+
+  if (nClass > 0) {
+    shown <- seq_len(min(nClass, n))
+    # numbers are rounded for the print only; the list keeps them as they are
+    cols <- lapply(tbl[perClass[column]], function(v) .format_column(v[shown]))
+    cells <- c(list(gid = as.character(tbl$gid[shown])), cols)
+    width <- vapply(names(cells), function(nm) max(nchar(c(nm, cells[[nm]]))), 1)
+    right <- function(s, w) formatC(s, width = w)
+
+    # the class: its label, after a square in its colour where the console
+    # shows colour
+    val <- if (is.null(tbl$val)) rep("", nClass) else as.character(tbl$val)
+    val[is.na(val)] <- ""
+    named <- any(nzchar(val))   # a layer of patches has no labels
+    swatch <- named && has_color() && !is.null(tbl$colour)
+    classW <- max(nchar(c("class", val[shown]))) + if (swatch) 2 else 0
+    classCell <- function(i) {
+      if (!named) return(NULL)
+      text <- formatC(val[i], width = -(classW - if (swatch) 2 else 0))
+      col <- if (swatch) tbl$colour[i] else NA
+      if (!is.na(col)) paste0(make_style(col)("■"), " ", text)
+      else if (swatch) paste0("  ", text)
+      else text
+    }
+
+    hdr <- c(right("gid", width[["gid"]]),
+             if (named) formatC("class", width = -classW),
+             vapply(names(cols), function(nm) right(nm, width[[nm]]), ""))
+    cat(lab("per class"), paste(hdr, collapse = "  "), "\n", sep = "")
+    for (i in shown) {
+      row <- c(right(cells$gid[i], width[["gid"]]), classCell(i),
+               vapply(names(cols), function(nm) right(cols[[nm]][i], width[[nm]]), ""))
+      cat(blank, paste(row, collapse = "  "), "\n", sep = "")
+    }
+    if (nClass > length(shown)) {
+      rest <- nClass - length(shown)
+      cat(blank, "… ", rest, if (rest == 1) " more class" else " more classes",
+          "\n", sep = "")
+    }
   }
 
   # what does not fit a column is named with its size
-  for (nm in perClass[!column]) {
-    v <- tbl[[nm]]
-    cat(nm, ": ", if (is.matrix(v)) {
-      sprintf("%d x %d class by class matrix", nrow(v), ncol(v))
-    } else {
-      paste(class(v)[1], "of length", length(v))
-    }, "\n", sep = "")
+  rest <- perClass[!column]
+  mats <- rest[vapply(tbl[rest], is.matrix, logical(1))]
+  if (length(mats)) {
+    cat(lab("matrices"), paste0(mats, " (", vapply(tbl[mats], function(v)
+      paste(dim(v), collapse = " x "), ""), ")", collapse = ", "), "\n", sep = "")
+  }
+  other <- setdiff(rest, mats)
+  if (length(other)) {
+    cat(lab("other"), paste0(other, " (", vapply(tbl[other], function(v)
+      paste(class(v)[1], "of length", length(v)), ""), ")", collapse = ", "),
+      "\n", sep = "")
   }
 
-  for (nm in overall) {
-    v <- tbl[[nm]]
-    cat("overall: ", nm, " = ", if (is.atomic(v) && length(v) == 1) {
-      format(v)
+  # the values for the whole layer, one per line
+  for (i in seq_along(overall)) {
+    v <- tbl[[overall[i]]]
+    shownV <- if (is.atomic(v) && length(v) == 1) {
+      .format_column(v)
     } else {
       paste(class(v)[1], "of length", length(v))
-    }, "\n", sep = "")
+    }
+    cat(if (i == 1) lab("overall") else blank, overall[i], " = ", shownV, "\n",
+        sep = "")
   }
 
   invisible(x)
+}
+
+# A column of values as text. Numbers get the same number of decimals, enough
+# to show about four digits of the largest one, so the decimal points line up:
+# 1.67 and 24.73, 5600 and 83100.
+.format_column <- function(v) {
+  if (!is.numeric(v)) return(as.character(v))
+  fin <- abs(v[is.finite(v)])
+  if (!length(fin) || all(fin == round(fin))) {
+    digits <- 0
+  } else {
+    digits <- min(max(3 - floor(log10(max(fin))), 0), 6)
+  }
+  out <- formatC(v, format = "f", digits = digits, big.mark = "")
+  out[is.na(v)] <- "NA"
+  out[is.infinite(v)] <- ifelse(v[is.infinite(v)] > 0, "Inf", "-Inf")
+  out
 }

@@ -386,11 +386,41 @@ test_that("msk_table is a list of the per-class and overall values by name", {
   expect_equal(t$area, m@categories$cover$area)
   expect_equal(t$most, max(t$area))
   out <- capture.output(print(t))
-  expect_true(any(grepl("distance: 10 x 10 class by class matrix", out)))
-  expect_true(any(grepl("overall: most = 831", out)))
+  expect_true(any(grepl("layer cover \\| 10 classes", out)))
+  expect_true(any(grepl("matrices +distance \\(10 x 10\\)", out)))
+  expect_true(any(grepl("overall +most = 83100", out)))
   expect_true(any(grepl("forest and hedgerows", out)))
-  expect_output(print(msk_table(landscape, "canopy")), "--")
+  # the colours are not printed as text
+  expect_false(any(grepl("#1f5f2e", out)))
+  # beyond n classes, the rest are counted
+  out <- capture.output(print(t, n = 3))
+  expect_true(any(grepl("7 more classes", out)))
+  expect_false(any(grepl("forest and hedgerows", out)))
+  expect_output(print(msk_table(landscape, "canopy")), "0 classes")
   expect_error(msk_table(m, "nothere"), "not found")
+})
+
+test_that("a long argument in the history wraps, aligned with the arguments", {
+  op <- options(width = 80)
+  on.exit(options(op))
+  m <- msr_area(landscape, layer = "cover") |>
+    msr(equation = "-sum(area.all / sum(area.all) * log(area.all / sum(area.all)))",
+        label = "shannon", layer = "cover") |>
+    mdf_filter(cover == 1 | cover == 11 | cover == 21 | cover == 24 |
+                 cover == 27 | cover == 31 | cover == 35 | cover == 41,
+               add = "open")
+  out <- capture.output(show(m))
+  # msr shows its label, not its equation
+  expect_true(any(grepl("msr .* label = \"shannon\"", out)))
+  expect_false(any(grepl("equation", out)))
+
+  out <- out[grep("mdf_filter", out):length(out)]
+  expect_gt(length(out), 1)
+  expect_true(all(nchar(out) <= 80))
+  # continuation lines start in the argument column, never with an operator
+  col <- regexpr("expr", out[1])
+  expect_true(all(regexpr("\\S", out[-1]) >= col))
+  expect_false(any(grepl("^\\s+(\\||[-+*/])", out[-1])))
 })
 
 test_that("legend labels can be switched off", {

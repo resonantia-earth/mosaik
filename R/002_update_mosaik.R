@@ -292,13 +292,23 @@
 #' One line per step: its number, the function, the layer it read and the one
 #' it wrote, and the arguments that differ from the function's defaults. The
 #' layer arguments are left out of that list because the arrow already shows
-#' them. Timestamps, the agent and the digests stay in the object.
+#' them. The equation of \code{msr()} is left out too: it is often too long to
+#' read in a line, and the label names the metric. Timestamps, the agent, the
+#' digests and the equations stay in the object.
+#'
+#' An argument too long for the console is wrapped, a step with several
+#' arguments gives each its own line, and every continuation line is indented
+#' to the column where the arguments start. Line breaks and runs of spaces in
+#' an argument (an equation written over several lines) become single spaces;
+#' the record keeps them.
 #'
 #' @param prov the \code{@provenance} of a mosaik.
-#' @return character, one element per step.
+#' @param indent the column at which the caller prints each step, so that the
+#'   continuation lines line up.
+#' @return character, one element per step; a wrapped step holds line breaks.
 #' @noRd
 
-.format_history <- function(prov) {
+.format_history <- function(prov, indent = 0) {
 
   if (length(prov) == 0) return(character())
 
@@ -320,6 +330,9 @@
       nm <- names(args)[i]
       if (is.null(nm)) nm <- ""
       if (nm %in% c("layer", "layers", "add", "name")) next
+      # an equation is too long to read here; the label names the metric and
+      # the record keeps the equation (msk_provenance)
+      if (fn == "msr" && nm == "equation") next
       v <- args[[i]]
       if (nzchar(nm) && nm %in% names(defaults) &&
           .same_as_default(v, defaults[[nm]])) next
@@ -328,14 +341,41 @@
     if (!is.null(e$wasGeneratedBy$iterations)) {
       shown <- c(shown, paste0("(", e$wasGeneratedBy$iterations, " iterations)"))
     }
-    c(fn, io, paste(shown, collapse = ", "))
+    list(fn = fn, io = io, args = shown)
   })
 
-  rows <- do.call(rbind, rows)
-  num <- formatC(seq_len(nrow(rows)), width = nchar(nrow(rows)))
-  fn <- formatC(rows[, 1], width = -max(nchar(rows[, 1])))
-  io <- formatC(rows[, 2], width = -max(nchar(rows[, 2])))
-  trimws(paste(num, fn, io, rows[, 3], sep = "  "), which = "right")
+  fns <- vapply(rows, `[[`, "", "fn")
+  ios <- vapply(rows, `[[`, "", "io")
+  num <- formatC(seq_along(rows), width = nchar(length(rows)))
+  head <- paste(num, formatC(fns, width = -max(nchar(fns))),
+                formatC(ios, width = -max(nchar(ios))), sep = "  ")
+
+  # the arguments start after the widest head; what does not fit the console
+  # continues on the next line, indented to that column
+  argCol <- nchar(head[1]) + 2
+  room <- max(getOption("width", 80) - indent - argCol, 30)
+  pad <- paste0("\n", strrep(" ", indent + argCol))
+
+  vapply(seq_along(rows), function(i) {
+    args <- gsub("\\s+", " ", rows[[i]]$args)
+    args <- gsub("( ", "(", gsub(" )", ")", args, fixed = TRUE), fixed = TRUE)
+    if (!length(args)) return(trimws(head[i], which = "right"))
+    # with several arguments, all but the last keep their comma
+    if (length(args) > 1) args <- paste0(args, c(rep(",", length(args) - 1), ""))
+    # a line may end on an operator but not start with one: the operator is
+    # tied to the word before it while wrapping
+    tie <- " "
+    lines <- unlist(lapply(args, function(a) {
+      if (nchar(a) <= room) return(a)
+      a <- gsub(" ([-+*/^]|==|<=|>=|<|>|&|\\|) ", paste0(tie, "\\1 "), a)
+      gsub(tie, " ", strwrap(a, width = room, exdent = 2), fixed = TRUE)
+    }))
+    # short arguments stay on one line, as before
+    if (length(lines) == length(args) && sum(nchar(args)) + length(args) <= room) {
+      lines <- paste(args, collapse = " ")
+    }
+    paste0(head[i], "  ", paste(lines, collapse = pad))
+  }, "")
 }
 
 # the formals of the function that wrote a step, from the package the entry

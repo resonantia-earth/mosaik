@@ -510,8 +510,9 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 
   # provenance trace: one mosaik, so this is printed once, not once per panel
   if(trace){
-    steps <- .format_history(obj@provenance)
+    steps <- .format_history(obj@provenance, indent = 2)
     if(length(steps) > 0){
+      # continuation lines of a wrapped step carry the indent already
       message("this object has the following history:\n  ",
               paste0(steps, collapse = "\n  "))
     }

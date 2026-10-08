@@ -2,15 +2,25 @@
 % Please edit documentation in R/msk_table.R
 \name{msk_table}
 \alias{msk_table}
+\alias{print.msk_table}
 \title{The values measured on a layer}
 \usage{
 msk_table(obj, layer = NULL)
+
+\method{print}{msk_table}(x, ..., n = 20)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to read.}
 
 \item{layer}{\code{\link[=character]{character(1)}}\cr the layer whose values to
 return. Defaults to the first layer.}
+
+\item{x}{\code{\link{msk_table}}\cr the table to print.}
+
+\item{...}{not used.}
+
+\item{n}{\code{\link[=integer]{integer(1)}}\cr the number of classes printed; the rest
+are counted.}
 }
 \value{
 A list of class \code{msk_table}. It has a print method that shows

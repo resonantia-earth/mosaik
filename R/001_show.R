@@ -53,7 +53,7 @@ setMethod(f = "show",
             cat(yellow("extent     "), object@extent, "(xmin, xmax, ymin, ymax)", sep = " ")
 
             # show provenance if present
-            steps <- .format_history(object@provenance)
+            steps <- .format_history(object@provenance, indent = 12)
             if (length(steps) > 0) {
               cat("\n")
               cat(yellow("provenance  "),
