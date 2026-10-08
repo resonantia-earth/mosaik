@@ -345,6 +345,17 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
   theWindow <- list(xmin = ext[1], xmax = ext[2],
                     ymin = ext[3], ymax = ext[4])
 
+  # the widest legend of all panels: each panel reserves it, so that a panel
+  # with long class labels does not draw a smaller map than the others
+  legendMin <- 0
+  if(length(panelOrder) > 1){
+    legendMin <- max(vapply(panelOrder, function(p){
+      as.numeric(.makePlot(obj = obj, specs = specs[panelKey == p],
+                           sharedLimits = sharedLimits,
+                           window = theWindow, theme = theme)$layout$dim$x3)
+    }, numeric(1)))
+  }
+
   for(i in seq_along(panelOrder)){
 
     theName <- panelTitles[i]
@@ -352,7 +363,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 
     temp <- .makePlot(obj = obj, specs = theSpecs,
                       sharedLimits = sharedLimits,
-                      window = theWindow, theme = theme)
+                      window = theWindow, theme = theme,
+                      legendMin = legendMin)
     theTheme <- temp$theme
     theGrob <- temp$grob
     theLegend <- temp$legend
@@ -547,7 +559,7 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #' @importFrom grid convertX unit
 #' @noRd
 
-.makeLayout <- function(obj, legend, window, theme){
+.makeLayout <- function(obj, legend, window, theme, legendMin = 0){
 
   if(is.null(theme)) theme <- .themeDefaults
 
@@ -584,7 +596,9 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
       tempW <- as.numeric(ceiling(convertX(unit(1, "strwidth", maxLbl) + unit(25, "points"), "points")))
       legendW <- legendW + tempW
     }
-    legendW <- unit(legendW, "points")
+    # every panel of a figure reserves the widest legend, so the maps are of
+    # one size whatever their legends hold
+    legendW <- unit(max(legendW, legendMin), "points")
     legendH <- unit(0, "points")
   } else {
     legendW <- unit(0, "points")
@@ -1080,7 +1094,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
 #' @importFrom grid unit convertX
 #' @noRd
 
-.makePlot <- function(obj, specs, sharedLimits = list(), window, theme){
+.makePlot <- function(obj, specs, sharedLimits = list(), window, theme,
+                      legendMin = 0){
 
   if(is.null(theme)) theme <- .themeDefaults
 
@@ -1164,7 +1179,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
     }
 
     theLayout <- .makeLayout(obj = obj, legend = theLegend,
-                             window = window, theme = theme)
+                             window = window, theme = theme,
+                             legendMin = legendMin)
 
     thisGrob <- .makeGrob(plotValues = plotValues,
                           scaleValues = scaleValues,
@@ -1218,7 +1234,8 @@ msk_vis <- function(obj, ..., title = NULL, shared_scale = FALSE,
   out$grob <- theGrob
   out$legend <- theLegend
   out$layout <- .makeLayout(obj = obj, legend = theLegend,
-                            window = window, theme = theme)
+                            window = window, theme = theme,
+                            legendMin = legendMin)
 
   return(out)
 }
