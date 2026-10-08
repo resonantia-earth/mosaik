@@ -69,7 +69,7 @@ msk_vis(m, .layer("forest"), .layer("river"), .layer("forest_river"))
 
 # a layer held in another mosaik is brought in first: here the canopy height
 # is damped by a gradient that falls from west to east
-other <- mosaik(extent = c(0, 60, 0, 56), res = 1) |>
+other <- mosaik(extent = c(0, 600, 0, 560), res = 10) |>
   drw_gradient(type = "planar", invert = TRUE, name = "damping")
 m <- msk_add(landscape, other, damping) |>
   mdf_blend(layers = c("canopy", "damping"), fun = "*", add = "damped")

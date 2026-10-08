@@ -101,7 +101,7 @@ msk_remove <- function(obj, ...){
 #'   class table and its values for the whole layer) travels with it.
 #' @examples
 #' # a second mosaik on the same grid as 'landscape'
-#' other <- mosaik(extent = c(0, 60, 0, 56), res = 1,
+#' other <- mosaik(extent = c(0, 600, 0, 560), res = 10,
 #'                 vals = list(elevation = runif(60 * 56, 0, 800)))
 #'
 #' # bring one layer over, then use it alongside the layers already there
