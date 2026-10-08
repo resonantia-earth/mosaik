@@ -27,7 +27,7 @@ road cuts through are those that closing the forest by one cell covers:
 
 ```{r}
 library(mosaik)
-area <- data.frame(x = c(3, 25, 25, 3), y = c(25, 25, 53, 53), id = 1)
+area <- data.frame(x = c(30, 250, 250, 30), y = c(250, 250, 530, 530), id = 1)
 square <- msk_struct("square", width = 3)
 wide <- msk_struct("square", width = 5)
 

@@ -3,8 +3,8 @@
 #' Calculate the area of each class of a layer and store it in the class table
 #' of that layer.
 #' @param obj [`mosaik`]\cr the mosaik to measure.
-#' @param unit [`character(1)`][character]\cr \code{"cells"} (default, number of
-#'   cells) or \code{"map"} (in map units).
+#' @param unit [`character(1)`][character]\cr \code{"map"} (default, in map
+#'   units) or \code{"cells"} (number of cells).
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
 #' @return The input mosaik with \code{area} added to the class table of
@@ -27,7 +27,7 @@
 #' @importFrom checkmate assertClass assertChoice assertCharacter
 #' @export
 
-msr_area <- function(obj = NULL, unit = "cells", layer = NULL){
+msr_area <- function(obj = NULL, unit = "map", layer = NULL){
 
   step <- .step()
   if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))

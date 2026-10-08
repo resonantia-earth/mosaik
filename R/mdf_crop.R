@@ -13,7 +13,7 @@
 #' @examples
 #' # the land cover of the whole map and of its lower-left quarter
 #' msk_vis(landscape, .layer("cover"))
-#' corner <- mdf_crop(landscape, extent = c(0, 30, 0, 28))
+#' corner <- mdf_crop(landscape, extent = c(0, 300, 0, 280))
 #' msk_vis(corner, .layer("cover"))
 #' @family utilities
 #' @importFrom checkmate assertClass assertNumeric

@@ -8,6 +8,7 @@ msr_distance(
   obj = NULL,
   cost = NULL,
   routing = "cheapest",
+  unit = "map",
   name = "distance",
   layer = NULL
 )
@@ -22,6 +23,11 @@ of crossing each cell; \code{NA} marks a cell that cannot be crossed. If
 \item{routing}{\code{\link[=character]{character(1)}}\cr which path between two classes
 is measured: \code{"straight"} is the direct line, \code{"cheapest"}
 (default) the path with the lowest total cost.}
+
+\item{unit}{\code{\link[=character]{character(1)}}\cr \code{"map"} (default, in map
+units) or \code{"cells"} (the distance in cells). With a cost layer,
+\code{"map"} multiplies the cost of each cell by its width, so a cost per
+map unit gives the cost of the whole path.}
 
 \item{name}{\code{\link[=character]{character(1)}}\cr the name the distances are stored
 under, by default \code{"distance"}. Give distances over a cost layer a
@@ -38,9 +44,9 @@ The input mosaik with the distances added to the class table of
 }
 \description{
 Measure how far apart the classes of a layer are. Without a cost layer,
-every cell counts the same, and the distance is measured in cells. With a
-cost layer, every cell counts with the cost of crossing it, so the distance
-says how hard it is to get from one class to another.
+every cell counts the same, and the distance is measured in cells or in map
+units. With a cost layer, every cell counts with the cost of crossing it, so
+the distance says how hard it is to get from one class to another.
 }
 \details{
 The result is a class by class matrix, in the order of the class

@@ -4,7 +4,7 @@
 \alias{msr_dissimilarity}
 \title{Contrast-weighted edge dissimilarity}
 \usage{
-msr_dissimilarity(obj = NULL, contrast, layer = NULL)
+msr_dissimilarity(obj = NULL, contrast, unit = "map", layer = NULL)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
@@ -13,6 +13,9 @@ msr_dissimilarity(obj = NULL, contrast, layer = NULL)
 (values between 0 and 1). Rows and columns must be named with class
 values (as character). The diagonal should be 0 (no contrast within
 a class).}
+
+\item{unit}{\code{\link[=character]{character(1)}}\cr \code{"map"} (default, edge length
+in map units) or \code{"cells"} (number of cell edges).}
 
 \item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}

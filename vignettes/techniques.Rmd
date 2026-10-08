@@ -104,12 +104,12 @@ msk_table(r, layer = "core")
 ```
 
 ```{r, include = FALSE}
-forest_cells <- msk_table(r, layer = "forest")$area[2]
-core_cells <- msk_table(r, layer = "core")$area[2]
+forest_ha <- msk_table(r, layer = "forest")$area[2] / 10000
+core_ha <- msk_table(r, layer = "core")$area[2] / 10000
 core_pct <- round(msk_table(r, layer = "core")$pcore[2], 1)
 ```
 
-The forest has `r forest_cells` cells, its core `r core_cells` of them, and
+The forest covers `r forest_ha` ha, its core `r core_ha` ha of it, and
 the core covers `r core_pct` % of the map (class 1 of `core`; class 0 is
 everything else). Every number
 from the recipe is in the object, next to the layer it describes, and the
@@ -118,11 +118,11 @@ recipe runs unchanged on the next map.
 An equation can also combine several layers. A name that is a layer reads
 the cells of the class in focus: on the layer `forest`, `core.self` holds the
 values of the layer `core` in the cells of the class in focus. Since `core` is
-1 for core and 0 elsewhere, their sum is the core area of that class. The
-share of the forest that is core:
+1 for core and 0 elsewhere, their mean is the share of that class that is
+core. The share of the forest that is core:
 
 ```{r}
-r <- msr(r, equation = "sum(core.self) / area.self * 100",
+r <- msr(r, equation = "mean(core.self) * 100",
          label = "corepart", layer = "forest")
 msk_table(r, layer = "forest")$corepart
 ```

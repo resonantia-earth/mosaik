@@ -7,7 +7,7 @@ scale: patch
 declares: ["how distance is measured (straight or through a cost surface)"]
 uses: [patches, distance]
 result:
-  - {object: isolation, layer: gap, text: "{v} cells of open land lie between its patch and the nearest other", digits: 1}
+  - {object: isolation, layer: gap, text: "{v} m of open land lie between its patch and the nearest other", digits: 1}
 ---
 
 How far a patch lies from its nearest neighbour is a primitive of its own: the
@@ -32,12 +32,12 @@ the layer `patch` by the patch's distance draws it as a map:
 isolation <- isolation |>
   mdf_replace(old = p$gid, new = p$nearest, layer = "patch",
               add = "nearest") |>
-  mdf_offset(fun = "-", value = 1, layer = "nearest", add = "gap")
+  mdf_offset(fun = "-", value = 10, layer = "nearest", add = "gap")
 ```
 
 The distance runs from the centre of a cell to the centre of another, so two
-patches with one cell of open land between them are 2 apart. `gap` subtracts
-that one cell and gives the open land between the patches.
+patches with one cell of open land between them are 20 m apart. `gap`
+subtracts that one cell of 10 m and gives the open land between the patches.
 
 ```{r, fig.alt = "Forest patches, coloured by the distance to their nearest neighbour"}
 msk_vis(isolation, .layer("forest"), .layer("gap"))
@@ -62,7 +62,7 @@ toward[as.character(far)]
 cells <- msk_pull(isolation, "patch") == far
 rows <- ceiling(which(cells) / msk_dims(isolation)[1])
 stopifnot(min(rows) > msk_dims(isolation)[2] - 6,
-          all(nearest$nearest[nearest$patch %in% 3:5] <= 3))
+          all(nearest$nearest[nearest$patch %in% 3:5] <= 30))
 ```
 
 With a cost surface instead of straight distance (`msr_distance(cost = ...)`),

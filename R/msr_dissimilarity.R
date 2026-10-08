@@ -7,6 +7,8 @@
 #'   (values between 0 and 1). Rows and columns must be named with class
 #'   values (as character). The diagonal should be 0 (no contrast within
 #'   a class).
+#' @param unit [`character(1)`][character]\cr \code{"map"} (default, edge length
+#'   in map units) or \code{"cells"} (number of cell edges).
 #' @param layer [`character(1)`][character]\cr the layer to use.
 #'   Defaults to the first layer.
 #' @return The input mosaik with \code{dissimilarity} added to the class table
@@ -43,17 +45,26 @@
 #'          label = "contrast")
 #' msk_table(m)$contrast
 #' @family measure
-#' @importFrom checkmate assertClass assertCharacter assertMatrix
+#' @importFrom checkmate assertClass assertCharacter assertMatrix assertChoice
 #' @export
 
-msr_dissimilarity <- function(obj = NULL, contrast, layer = NULL){
+msr_dissimilarity <- function(obj = NULL, contrast, unit = "map", layer = NULL){
 
   step <- .step()
   if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
 
   assertClass(x = obj, classes = "mosaik")
   assertMatrix(x = contrast, mode = "numeric", min.rows = 2, min.cols = 2)
+  assertChoice(x = unit, choices = c("cells", "map"))
   assertCharacter(x = layer, null.ok = TRUE)
+
+  # the adjacencies do not tell horizontal from vertical edges, so they become
+  # a length in map units only if a cell is as wide as it is high
+  theRes <- msk_res(obj)
+  if(unit == "map" && theRes[1] != theRes[2]){
+    stop("unit = \"map\" needs square cells, but the resolution is ",
+         theRes[1], " x ", theRes[2], ".", call. = FALSE)
+  }
 
   if(is.null(rownames(contrast)) || is.null(colnames(contrast))){
     stop("'contrast' matrix must have row and column names matching class values.")
@@ -88,6 +99,7 @@ msr_dissimilarity <- function(obj = NULL, contrast, layer = NULL){
 
   # per class: row sum of the contrast-weighted adjacencies
   dissim <- as.numeric(rowSums(adj * cmat))
+  if(unit == "map") dissim <- dissim * theRes[1]
   obj <- .store_class(obj, layer, "dissimilarity", as.integer(uVals), dissim)
 
   # provenance

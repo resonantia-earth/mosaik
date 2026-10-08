@@ -6,7 +6,7 @@
 #   Rscript --vanilla data-raw/landscape.R save     # also write data/landscape.rda
 #
 # Coordinates are cell indices, x = 1..60 from the left, y = 1..56 from the
-# bottom. The class IDs follow the earlier dataset:
+# bottom; only the finished map gets its cell size of 10 m. The class IDs follow the earlier dataset:
 #
 #   1 river             11 arable land        21 intensive grassland
 #  24 extensive grassland 27 fallow, shrub and clear-cuts
@@ -260,7 +260,8 @@ cut <- fresh & cover != 35
 canopy[cut] <- 0.2
 canopy <- pmax(round(canopy, 1), 0)
 
-landscape <- mosaik(extent = c(0, nx, 0, ny), res = 1,
+# the map is built in cells; each cell is 10 m wide, so the map is 600 x 560 m
+landscape <- mosaik(extent = c(0, nx * 10, 0, ny * 10), res = 10,
                     vals = list(cover = as.vector(t(cover)),
                                 canopy = as.vector(t(canopy))))
 

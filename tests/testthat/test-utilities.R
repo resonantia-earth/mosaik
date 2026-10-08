@@ -188,7 +188,7 @@ test_that("the focus groups the cells", {
   expect_equal(msk_table(m, "cover")$around, c(30, 15))
 
   # a cell value and a class value of the class in focus
-  m <- msr_area(m, layer = "cover")
+  m <- msr_area(m, unit = "cells", layer = "cover")
   m <- msr(m, equation = "sum(canopy.self) / area.self", label = "avg",
            layer = "cover")
   expect_equal(msk_table(m, "cover")$avg, c(15, 30))
@@ -206,7 +206,7 @@ test_that("within a patch, a patch value is that patch's own value", {
   m <- mosaik(extent = c(0, 6, 0, 4), res = 1,
               vals = list(forest = v, canopy = h))
   m <- mdf_componentise(m, layer = "forest", add = "patch") |>
-    msr_area(layer = "patch") |>
+    msr_area(unit = "cells", layer = "patch") |>
     msr(equation = "sum(canopy.self) / area.self", label = "height",
         layer = "patch")
   expect_equal(msk_table(m, "patch")$height, c(15, 40))
@@ -365,14 +365,14 @@ test_that("msk_label writes labels and colours into the class table", {
 test_that("changing the grid warns about values measured before", {
   m <- msr_area(landscape, layer = "cover") |>
     msr("max(area.all)", "most", layer = "cover")
-  expect_warning(cr <- mdf_crop(m, c(0, 30, 0, 28)), "cover \\(area, most\\)")
-  # the values are kept, as they were
-  expect_equal(sum(msk_table(cr, "cover")$area), 3360)
+  expect_warning(cr <- mdf_crop(m, c(0, 300, 0, 280)), "cover \\(area, most\\)")
+  # the values are kept, as they were: the area of the whole map
+  expect_equal(sum(msk_table(cr, "cover")$area), msk_ncells(m) * prod(msk_res(m)))
   expect_equal(msk_table(cr, "cover")$most, msk_table(m, "cover")$most)
   expect_warning(mdf_pad(m, width = 1L), "mdf_pad")
   expect_warning(mdf_resize(m, factor = 2), "mdf_resize")
   # labels alone are no reason to warn, and plotting a window does not warn
-  expect_silent(mdf_crop(landscape, c(0, 30, 0, 28)))
+  expect_silent(mdf_crop(landscape, c(0, 300, 0, 280)))
   expect_silent(msk_vis(m, .layer("cover"), window = c(0, 30, 0, 28)))
 })
 

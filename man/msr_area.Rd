@@ -4,13 +4,13 @@
 \alias{msr_area}
 \title{Area of classes}
 \usage{
-msr_area(obj = NULL, unit = "cells", layer = NULL)
+msr_area(obj = NULL, unit = "map", layer = NULL)
 }
 \arguments{
 \item{obj}{\code{\link{mosaik}}\cr the mosaik to measure.}
 
-\item{unit}{\code{\link[=character]{character(1)}}\cr \code{"cells"} (default, number of
-cells) or \code{"map"} (in map units).}
+\item{unit}{\code{\link[=character]{character(1)}}\cr \code{"map"} (default, in map
+units) or \code{"cells"} (number of cells).}
 
 \item{layer}{\code{\link[=character]{character(1)}}\cr the layer to use.
 Defaults to the first layer.}

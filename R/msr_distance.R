@@ -1,11 +1,15 @@
 #' Measure distance
 #'
 #' Measure how far apart the classes of a layer are. Without a cost layer,
-#' every cell counts the same, and the distance is measured in cells. With a
-#' cost layer, every cell counts with the cost of crossing it, so the distance
-#' says how hard it is to get from one class to another.
+#' every cell counts the same, and the distance is measured in cells or in map
+#' units. With a cost layer, every cell counts with the cost of crossing it, so
+#' the distance says how hard it is to get from one class to another.
 #'
 #' @param obj [`mosaik`]\cr the mosaik to measure.
+#' @param unit [`character(1)`][character]\cr \code{"map"} (default, in map
+#'   units) or \code{"cells"} (the distance in cells). With a cost layer,
+#'   \code{"map"} multiplies the cost of each cell by its width, so a cost per
+#'   map unit gives the cost of the whole path.
 #' @param cost [`character(1)`][character]\cr the name of a layer with the cost
 #'   of crossing each cell; \code{NA} marks a cell that cannot be crossed. If
 #'   \code{NULL} (default), every cell costs the same.
@@ -54,7 +58,7 @@
 #' @export
 
 msr_distance <- function(obj = NULL, cost = NULL, routing = "cheapest",
-                         name = "distance", layer = NULL){
+                         unit = "map", name = "distance", layer = NULL){
 
   step <- .step()
   if (.is_recipe(obj)) return(.update_mosaik(obj, step = step))
@@ -62,6 +66,7 @@ msr_distance <- function(obj = NULL, cost = NULL, routing = "cheapest",
   # check arguments ----
   assertClass(x = obj, classes = "mosaik")
   assertChoice(x = routing, choices = c("straight", "cheapest"))
+  assertChoice(x = unit, choices = c("cells", "map"))
   assertCharacter(x = cost, len = 1, null.ok = TRUE)
   assertCharacter(x = name, len = 1, pattern = "^[^._]+$")
   assertCharacter(x = layer, null.ok = TRUE)
@@ -77,6 +82,14 @@ msr_distance <- function(obj = NULL, cost = NULL, routing = "cheapest",
   if(name %in% names(obj@layers)){
     stop("'name' is '", name, "', which is a layer of 'obj'; choose another.",
          call. = FALSE)
+  }
+
+  theRes <- msk_res(obj)
+  # a distance in cells becomes one in map units only if a cell is as wide as
+  # it is high
+  if(unit == "map" && theRes[1] != theRes[2]){
+    stop("unit = \"map\" needs square cells, but the resolution is ",
+         theRes[1], " x ", theRes[2], ".", call. = FALSE)
   }
 
   dims <- obj@dims
@@ -127,6 +140,8 @@ msr_distance <- function(obj = NULL, cost = NULL, routing = "cheapest",
       mat[p, q] <- if(length(reached) == 0) NA_real_ else min(reached)
     }
   }
+
+  if(unit == "map") mat <- mat * theRes[1]
 
   obj <- .store_class(obj, layer, name, as.integer(uVals), mat)
 

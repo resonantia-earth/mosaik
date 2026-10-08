@@ -9,8 +9,8 @@
 #' decaying bocage of hedgerows, sharp and gradual forest edges, and patches
 #' bordering few or many other classes.
 #'
-#' @format A \code{mosaik} object with extent \code{c(0, 60, 0, 56)},
-#'   resolution 1, and two layers:
+#' @format A \code{mosaik} object of 60 x 56 cells of 10 m, extent
+#'   \code{c(0, 600, 0, 560)} in metres, and two layers:
 #' \describe{
 #'   \item{cover}{Land-cover class, labelled in the categories of the layer:
 #'     1 river, 11 arable land, 21 intensive grassland, 24 extensive

@@ -120,6 +120,26 @@ test_that("msr_adjacency counts the contacts between patches", {
   expect_gt(adj["2", "3"], 0)
 })
 
+test_that("msr_distance and msr_dissimilarity measure in map units by default", {
+  # two cells of class 1, three cells apart, on 10 m cells
+  vals <- c(1, 2, 2, 1)
+  m <- mosaik(extent = c(0, 40, 0, 10), res = 10, vals = list(cover = vals))
+  for (r in c("straight", "cheapest")) {
+    cells <- msk_table(msr_distance(m, routing = r, unit = "cells", layer = "cover"), "cover")$distance
+    map <- msk_table(msr_distance(m, routing = r, layer = "cover"), "cover")$distance
+    expect_equal(map, cells * 10)
+  }
+  cmat <- matrix(c(0, 1, 1, 0), 2, dimnames = list(c("1", "2"), c("1", "2")))
+  cells <- msk_table(msr_dissimilarity(m, cmat, unit = "cells", layer = "cover"), "cover")$dissimilarity
+  map <- msk_table(msr_dissimilarity(m, cmat, layer = "cover"), "cover")$dissimilarity
+  expect_equal(cells, c(2, 2))
+  expect_equal(map, cells * 10)
+
+  odd <- mosaik(extent = c(0, 4, 0, 2), res = c(1, 2), vals = list(cover = vals))
+  expect_error(msr_distance(odd, layer = "cover"), "square cells")
+  expect_error(msr_dissimilarity(odd, cmat, layer = "cover"), "square cells")
+})
+
 test_that("msr_distance measures between the classes of a layer", {
   # four corner patches of class 1
   vals <- c(1, 2, 2, 2, 1,
@@ -312,7 +332,7 @@ test_that("another layer is read by its classes with .all, by cells otherwise", 
     msr_area(layer = "cover")
   m <- msr(m, "max(area.all) / sum(area.all_cover)", "lpi", layer = "patch")
   expect_equal(msk_table(m, "patch")$lpi,
-               max(msk_table(m, "patch")$area) / msk_ncells(m))
+               max(msk_table(m, "patch")$area) / sum(msk_table(m, "cover")$area))
 
   # a class value of cover, through the cells of each patch
   m@categories$cover$cost <- seq_along(m@categories$cover$gid)
@@ -333,7 +353,8 @@ test_that("a layer name with underscores is read whole", {
     msr_area(layer = "forest_2020") |>
     msr(equation = "sum(area.all_forest_2020) * 2", label = "double",
         layer = "cover")
-  expect_equal(msk_table(m, "cover")$double, 6720)
+  # forest_2020 covers the map (0 and 1), so this is twice the map's area
+  expect_equal(msk_table(m, "cover")$double, 2 * msk_ncells(m) * prod(msk_res(m)))
 })
 
 test_that("msr reads pi and other base constants as constants", {

@@ -1,14 +1,14 @@
 # Named places on the map of `landscape`: the structures its recipes find.
 # `at` holds the map coordinates x and y of a cell centre; the overview marks them,
 # and a click on one shows what the recipes say about that cell.
-- {name: "an old windthrow", at: [17.5, 39.5]}
-- {name: "a fresh clear-cut", at: [11.5, 45.5]}
-- {name: "the road through the forest", at: [11.5, 33.5]}
-- {name: "a square glade", at: [47.5, 42.5]}
-- {name: "the core of patch 5", at: [19.5, 13.5]}
-- {name: "a corridor", at: [15.5, 23.5]}
-- {name: "a hedgerow", at: [3.5, 20.5]}
-- {name: "the road beside the river", at: [34.5, 11.5]}
-- {name: "a patch at the edge of the map", at: [54.5, 0.5]}
-- {name: "an intensive meadow", at: [49.5, 29.5]}
-- {name: "a wetland", at: [49.5, 10.5]}
+- {name: "an old windthrow", at: [175, 395]}
+- {name: "a fresh clear-cut", at: [115, 455]}
+- {name: "the road through the forest", at: [115, 335]}
+- {name: "a square glade", at: [475, 425]}
+- {name: "the core of patch 5", at: [195, 135]}
+- {name: "a corridor", at: [155, 235]}
+- {name: "a hedgerow", at: [35, 205]}
+- {name: "the road beside the river", at: [345, 115]}
+- {name: "a patch at the edge of the map", at: [545, 5]}
+- {name: "an intensive meadow", at: [495, 295]}
+- {name: "a wetland", at: [495, 105]}
