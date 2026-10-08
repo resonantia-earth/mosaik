@@ -14,133 +14,137 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7,
 
 ## What this vignette shows
 
-Morphological spatial pattern analysis (MSPA) partitions the foreground of a
-binary map (habitat against matrix) into seven mutually exclusive
-morphological classes. It describes configuration rather than composition:
-which parts of the habitat function as interior, as ecotone, and as structural
-connection.
+Morphological spatial pattern analysis (MSPA) divides the habitat of a binary
+map into seven classes. Every habitat cell gets exactly one. The classes
+describe the shape of the habitat, not its amount: which parts are interior,
+which are the border towards the open land, and which connect one part with
+another.
 
-mosaik has no MSPA function. It does not need one. MSPA decomposes into a
-handful of ordinary operations (a distance transform, a threshold, connected
-components, a zonal summary, a thinning) which mosaik already provides. What
-follows composes the full classification from those parts and reproduces the
-published result cell for cell.
+mosaik has no MSPA function, and it needs none. MSPA is a sequence of ordinary
+operations: a distance to the nearest open cell, a threshold, numbering the
+patches, a summary per patch and a thinning to centre lines. mosaik has all of
+them. This vignette builds the classification from those parts and arrives at
+the published result, cell for cell.
 
-If you want the classification and not the explanation, skip to the section
-with the whole classification in one function and take the code. The section
-after it runs the method on an ordinary map and looks at what it makes of it.
+If you only want the classification, skip to the section with the whole
+classification in one function and copy the code. The section after it runs
+the method on an ordinary map and looks at what it makes of it.
 
 ## The seven classes
 
-Everything is defined relative to the **core**: foreground cells lying further
-than a chosen distance from the matrix. That distance, `size`, is the method's
-only real parameter, and it sets the depth at which interior habitat is
-considered buffered from edge influence.
+Every class is defined in relation to the **core**: habitat cells that lie
+further than a chosen distance from the open land. That distance, `size`, is
+the only real setting of the method. It says how deep inside the habitat a
+cell must lie to be safe from what happens at the border.
 
-The remaining six classes describe how the non-core foreground relates to it:
+The other six classes say how the rest of the habitat relates to the core:
 
 | class | definition | reading |
 |---|---|---|
-| core | interior beyond `size` of the matrix | buffered habitat |
-| edge | the outer boundary of a core area | the ecotone facing the matrix |
-| perforation | the boundary of a hole enclosed within a core area | internal ecotone |
-| islet | a patch containing no core at all | too small to hold interior; a stepping stone |
-| bridge | a connector joining **two different** core areas | corridor |
-| loop | a connector returning to the same core area | detour, not a corridor |
-| branch | a connector attached at one end only | dead end |
+| core | further than `size` from the open land | interior habitat |
+| edge | the outer border of a core area | the border towards the open land |
+| perforation | the border of a hole inside a core area | a border inside the habitat |
+| islet | a patch without any core | too small for interior; a stepping stone |
+| bridge | a strip joining **two different** core areas | a corridor |
+| loop | a strip leaving a core area and returning to it | a detour, not a corridor |
+| branch | a strip attached at one end only | a dead end |
 
-The bridge/loop distinction carries most of the connectivity signal: a bridge
-links two habitat blocks and its loss fragments them, whereas a loop returns
-where it came from and its loss does not.
+Most of what MSPA says about connectivity lies in the difference between bridge
+and loop. A bridge links two blocks of habitat, and losing it splits them. A
+loop returns to where it started, and losing it splits nothing.
 
 ## Setup
 
-The `mspa` dataset that ships with the package is the pattern from the paper
-which introduced the method (Soille & Vogt 2009), in its layer `pattern`. That
-paper prints the resulting classification as its Fig. 1, so the map produced at
-the end of this vignette can be compared against it directly.
+The `mspa` dataset in the package is the pattern of the paper that introduced
+the method (Soille & Vogt 2009), in its layer `pattern`. The paper prints the
+classification of this pattern as its Fig. 1, so the map at the end of this
+vignette can be held against it.
 
 ```{r setup, message = FALSE}
 library(mosaik)
 
-m <- mspa
-ncols <- msk_dims(mspa)[1]; nrows <- msk_dims(mspa)[2]
+m <- msk_label(mspa, labels = data.frame(id = c(0, 1),
+                                         label = c("open land", "habitat"),
+                                         colour = c("#ffffff", "#222222")),
+               layer = "pattern")
 ```
 
-The binary input is the layer `pattern`, and every layer we derive is added
-alongside it, so the object carries the whole working state as we go. This is
-what we start from: habitat in black, matrix in white.
+The habitat is the layer `pattern`, and every layer built below is added next
+to it, so the object holds all intermediate results. This is the starting
+point:
 
 ```{r input, echo = FALSE}
-msk_vis(m, .layer("pattern", colours = c("#ffffff", "#222222")))
+msk_vis(m, .layer("pattern"))
 ```
 
-Two settings. `size` is the edge width, meaning the depth at which habitat
+Two settings. `size` is the width of the border, the depth at which habitat
 counts as interior. `edu` is the unit it is measured in. The reference
-implementation fixes this at `sqrt(2)`, the spacing of diagonal neighbours, so
-`size = 1` means "further than `sqrt(2)` cell widths from the matrix".
+implementation fixes it at `sqrt(2)`, the distance between two cells that
+touch at a corner, so `size = 1` means "further than `sqrt(2)` cell widths from
+the open land".
 
 ```{r params}
 size <- 1
 edu  <- sqrt(2)
 
-conn   <- 8L   # cells touching at a corner count as connected (habitat)
-connBg <- 4L   # ... but not for the background
+conn   <- 8L   # habitat cells touching at a corner are connected
+connBg <- 4L   # open cells touching only at a corner are not
 ```
 
-Throughout, each class is stored as its own 0/1 layer, and `mdf_filter()` is
-what writes them: give it a condition over the layers, and it writes 1 where
-the condition holds and 0 elsewhere.
+Each class is stored as a layer of its own, 1 where the class is and 0
+elsewhere. `mdf_filter()` writes these layers: it takes a condition over the
+layers and writes 1 where the condition holds and 0 where it does not.
 
-Each class has a code and a colour, taken from the paper so the maps here can be
-held against its Fig. 1. Code 8 is not a class of the method: it marks habitat
-not yet classified, drawn grey, and it is how the figures below show what is
-still to be explained.
+Each class has a code, a name and a colour, taken from the paper so that the
+maps here can be compared with its Fig. 1. Code 8 is not a class of the
+method. It marks habitat that is not classified yet, drawn grey, so the maps
+below show what is still to be explained. Code 9 marks the connecting strips
+before they are sorted into bridge and loop.
 
-```{r palette}
-classes <- c(branch = 7, edges = 6, perf = 3, patch = 4,
+```{r key}
+classes <- c(branch = 7, edge = 6, perforation = 3, islet = 4,
              core = 1, bridge = 5, loop = 2)
 
-mspaCols <- c("#ffffff",   # 0 background
-              "#399c39",   # 1 core
-              "#f7ff05",   # 2 loop
-              "#0401ed",   # 3 perforation
-              "#9a3312",   # 4 islet
-              "#f10606",   # 5 bridge
-              "#010100",   # 6 edge
-              "#efce09",   # 7 branch
-              "#cccccc")   # 8 not yet classified
+key <- data.frame(
+  id     = 0:9,
+  label  = c("open land", "core", "loop", "perforation", "islet", "bridge",
+             "edge", "branch", "not yet classified", "connecting strip"),
+  colour = c("#ffffff", "#399c39", "#f7ff05", "#0401ed", "#9a3312",
+             "#f10606", "#010100", "#efce09", "#cccccc", "#f10606"))
 ```
 
-The map after any number of steps is drawn by `show_state()`, which paints the
-classes decided so far and leaves the rest of the habitat grey. As the
-classification proceeds the grey shrinks.
+`show_classes()` draws a vector of class codes as a map on the grid of `obj`,
+labelled with the names and colours of `key`. `show_state()` uses it to draw
+the classes found so far and leaves the rest of the habitat grey. With every
+step the grey shrinks.
 
 ```{r show-state}
-show_state <- function(obj, done = character()){
-  cls <- rep(0L, nrows * ncols)
-  cls[msk_pull(obj, "pattern") == 1] <- 8L
-  for(nm in done) cls[msk_pull(obj, nm) == 1] <- as.integer(classes[[nm]])
+show_classes <- function(obj, codes){
+  g <- msk_add(msk_select(obj, pattern), mspa = as.numeric(codes))
+  g <- msk_label(g, labels = key[key$id %in% codes, ], layer = "mspa")
+  msk_vis(g, .layer("mspa"))
+}
 
-  state <- mosaik(extent = c(0, ncols, 0, nrows), res = 1,
-                  vals = list(mspa = as.numeric(cls)))
-  msk_vis(state, .layer("mspa", colours = mspaCols[sort(unique(cls)) + 1L]))
+show_state <- function(obj, done = character()){
+  codes <- ifelse(msk_pull(obj, "pattern") == 1, 8L, 0L)
+  for(nm in done) codes[msk_pull(obj, nm) == 1] <- classes[[nm]]
+  show_classes(obj, codes)
 }
 ```
 
 ## Core
 
-The distance transform gives every foreground cell its distance to the nearest
-matrix cell. Core is what survives the threshold.
+`mdf_distance()` gives every habitat cell its distance to the nearest open
+cell. The core is what lies further than the threshold.
 
 ```{r core}
 m <- mdf_distance(m, source = "background", layer = "pattern", add = "edt")
 m <- mdf_filter(m, edt > size * edu, add = "core")
 ```
 
-The green is core. Everything still grey is within `size` of the matrix, or
-belongs to a patch too narrow to hold any interior at all, and the rest of the
-method is about telling those cases apart.
+The green cells are core. What is still grey lies within `size` of the open
+land, or belongs to a patch too narrow to hold any core. The rest of the
+method tells these cases apart.
 
 ```{r core-fig, echo = FALSE}
 show_state(m, "core")
@@ -148,77 +152,71 @@ show_state(m, "core")
 
 ## Islet
 
-An islet is a patch holding no core. Label the patches with
-`mdf_componentise()`, then ask of each whether any of its cells is core.
+An islet is a patch without core. `mdf_componentise()` numbers the patches,
+and for each patch the question is whether any of its cells is core.
 
-`mdf_summarise()` does the second part. It groups cells by a label layer and writes
-one summary value back onto every cell of the group, which is the raster
-equivalent of a group-by. Here the summary is whether the patch contains a core
-cell, and the patches answering no are the islets.
+`mdf_summarise()` answers that. It groups the cells by a layer of numbers and
+writes one summary value onto every cell of the group, like a group-by in a
+table. Here the summary is whether the patch holds a core cell, and the
+patches without one are the islets.
 
 ```{r islet}
 m <- mdf_componentise(m, connectivity = conn, layer = "pattern", add = "cc")
 m <- mdf_filter(m, pattern != 0, value = TRUE, layer = "cc") |>
     mdf_replace(old = NA, new = 0, layer = "cc")
 m <- mdf_summarise(m, by = "cc", fun = "any", layer = "core",
-               background = 0, add = "hasCore")
-m <- mdf_filter(m, pattern == 1 & hasCore == 0, add = "patch")
+                   background = 0, add = "hasCore")
+m <- mdf_filter(m, pattern == 1 & hasCore == 0, add = "islet")
 ```
 
-The brown patches are gone from further consideration: having no core, they can
-carry no boundary and connect nothing.
+The islets are settled: without core they have no border of a core area and
+connect nothing.
 
 ```{r islet-fig, echo = FALSE}
-show_state(m, c("core", "patch"))
+show_state(m, c("core", "islet"))
 ```
 
 ## Edge and perforation
 
-Both are the one-cell boundary of a core area, and they differ in which side
-they face. An **edge** faces the surrounding matrix, a **perforation** faces a
-hole enclosed inside the core area.
+Both are the border of a core area, one cell wide. They differ in what they
+face. An **edge** faces the open land around the habitat, a **perforation**
+faces a hole inside a core area.
 
-Separating them is not a single test, because a patch may sit inside a hole of
-another patch, whose own boundary is then an edge again. The reference handles
-this by peeling: take the boundary of what you have, discard the part lying
-inside a hole, and repeat, so each nested level is resolved in turn.
+One test cannot tell them apart, because a patch can lie inside the hole of
+another patch, and the border of that inner patch is an edge again. The
+reference implementation therefore works from the outside in: it takes the
+border of what is left, removes what lies inside a hole, and repeats, one
+level of nesting per round.
 
-The starting state. Filling the holes of the core gives `corefill`, and what the
-filling added is `holes`, the holes themselves.
+The starting point: filling the holes of the core gives `corefill`, and what
+the filling added are the holes themselves, `holes`.
 
 ```{r edges-init}
 m <- mdf_distance(m, source = "foreground", layer = "core", add = "dcore")
 m <- mdf_filter(m, core == 1 | (dcore > 0 & dcore <= size * edu), add = "opening")
 
 m <- mdf_offset(m, value = 0, layer = "core", add = "work")
-m <- mdf_fill(m, connectivity = connBg,
-              layer = "work", add = "corefill")
+m <- mdf_fill(m, connectivity = connBg, layer = "work", add = "corefill")
 m <- mdf_filter(m, corefill == 1 & work == 0, add = "holes")
 
-# an empty accumulator: no cell satisfies pattern < 0, so this is all zeros
-m <- mdf_filter(m, pattern < 0, add = "edges")
+# an empty layer to collect the edges in: no cell has pattern < 0
+m <- mdf_filter(m, pattern < 0, add = "edge")
 ```
 
-One round of peeling adds the boundary of the current `corefill` to `edges`,
-then strips away the part enclosed in holes so the next round sees the next
-level down.
-Written with `obj = NULL`, a chain of `mdf_*` calls records itself instead of
-executing. That recorded sequence is a **recipe**, and `mdf_loop()` replays it
-until a condition is met.
+One round adds the border of the current `corefill` to `edge` and then removes
+what lies inside holes, so that the next round sees the next level down.
+A chain of `mdf_*` calls without a mosaik at its start does not run; it is
+recorded as a **recipe**. `mdf_loop()` runs a recipe again and again until a
+condition holds.
 
 ```{r edges-loop}
 peel <- mdf_distance(source = "foreground", layer = "corefill", add = "dfill") |>
-  mdf_filter(edges == 1 | (corefill == 0 & dfill > 0 & dfill <= size * edu), add = "edges") |>
-  mdf_fill(connectivity = conn,
-           layer = "holes", add = "i0") |>
-  mdf_filter(corefill == 1 & i0 == 0,
-             add = "corefill") |>
-  mdf_filter(work == 1 & corefill == 0,
-             add = "work") |>
-  mdf_fill(connectivity = connBg,
-           layer = "work", add = "corefill") |>
-  mdf_filter(corefill == 1 & work == 0,
-             add = "holes")
+  mdf_filter(edge == 1 | (corefill == 0 & dfill > 0 & dfill <= size * edu), add = "edge") |>
+  mdf_fill(connectivity = conn, layer = "holes", add = "i0") |>
+  mdf_filter(corefill == 1 & i0 == 0, add = "corefill") |>
+  mdf_filter(work == 1 & corefill == 0, add = "work") |>
+  mdf_fill(connectivity = connBg, layer = "work", add = "corefill") |>
+  mdf_filter(corefill == 1 & work == 0, add = "holes")
 ```
 
 ```{r edges-converge}
@@ -227,49 +225,50 @@ if(sum(msk_pull(m, "corefill")) > 0){
 }
 ```
 
-`mdf_loop()` evaluates its condition after each round, so the `if` guards the
-degenerate case of a map with no core at all, where no round should run.
+`mdf_loop()` checks its condition after each round. The `if` covers a map
+without any core, on which no round should run at all.
 
-How many rounds this takes depends on how deeply the pattern nests. Each round
-resolves one level, and on this pattern the first round already collects all
-`r sum(msk_pull(m, "edges"))` boundary cells, because nothing here sits inside
-the hole of something else. A pattern with a patch inside a clearing inside a
-forest block would need the rounds that follow.
+The number of rounds depends on how deeply the pattern nests. On this pattern
+the first round already collects all `r sum(msk_pull(m, "edge"))` border
+cells, because nothing lies inside the hole of something else. A patch inside
+a clearing inside a forest would need a second round.
 
-Now separate the two. Everything the rounds collected, minus the core itself,
-is edge. Perforation is the remainder of the core's boundary, the part the
-peeling never reached because it faces inward.
+Now the two are separated. What the rounds collected, minus the core itself,
+is edge. The rest of the border of the core is perforation: the rounds never
+reached it, because it faces inwards.
 
 ```{r edges-split}
-m <- mdf_filter(m, edges == 1 & core == 0, add = "edges")
-m <- mdf_filter(m, core == 0 & dcore > 0 & dcore <= size * edu & edges == 0, add = "perf")
+m <- mdf_filter(m, edge == 1 & core == 0, add = "edge")
+m <- mdf_filter(m, core == 0 & dcore > 0 & dcore <= size * edu & edge == 0,
+                add = "perforation")
 ```
 
-Black is edge, blue perforation. The core areas are now fully bounded, and what
-stays grey touches no core area on any side: it lies between them.
+The core areas now have their full border. What is still grey touches no core
+area on any side: it lies between them.
 
 ```{r edges-fig, echo = FALSE}
-show_state(m, c("core", "patch", "edges", "perf"))
+show_state(m, c("core", "islet", "edge", "perforation"))
 ```
 
-## Connectors
+## Connecting strips
 
-What remains unclassified is connective tissue of some kind.
+The rest of the habitat is made of strips between the parts found so far.
 
 ```{r residues}
-m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0, add = "residues")
+m <- mdf_filter(m, pattern == 1 & core == 0 & islet == 0 & perforation == 0 &
+                  edge == 0, add = "residues")
 ```
 
-To find which of it genuinely connects, reduce the pattern to its centre lines
-while holding the core areas fixed. That is `mdf_skeletonise(anchor = "core")`
-with homotopic thinning, which removes a cell only where doing so preserves the
-topology: it may not split a component or open a hole.
+To find which of these strips connect, the habitat is thinned to its centre
+lines while the core areas stay as they are. That is
+`mdf_skeletonise(anchor = "core", method = "homotopic")`. It removes a cell
+only if removing it neither splits a piece of habitat in two nor opens a hole
+in it.
 
-The consequence is what makes the classification work. A strand joining two core
-areas is topologically necessary, so it survives thinning. A dead-end strand is
-necessary to nothing, so
-it retracts entirely. The branch/connector distinction falls out of the
-thinning, so no separate test is needed for it.
+That rule does the sorting. A strip that joins two core areas cannot be
+removed without splitting the habitat, so its centre line remains. A strip
+that ends nowhere can be removed entirely, so it disappears. No separate test
+is needed to tell the two apart.
 
 ```{r skeleton}
 m <- mdf_filter(m, opening == 1 | residues == 1, add = "skin")
@@ -278,8 +277,9 @@ m <- mdf_skeletonise(m, anchor = "core", background = 0, layer = "skin",
 m <- mdf_filter(m, sk == 1 & core == 0, add = "sk")
 ```
 
-Keep the parts of the skeleton reachable through the unclassified cells. Growing
-a layer until it stops changing, a fixpoint, is `mdf_loop(stable = TRUE)`.
+Of the centre lines, only those that can be reached through unclassified cells
+are kept. They are found by growing a layer step by step until it no longer
+changes, which is `mdf_loop(stable = TRUE)`.
 
 ```{r connector}
 m <- mdf_filter(m, (opening == 1 & core == 0) | residues == 1, add = "i0")
@@ -292,31 +292,26 @@ m <- mdf_loop(m, grow, stable = TRUE, layer = "rec")
 m <- mdf_filter(m, sk == 1 & i0 == 1 & rec == 1, add = "connector")
 ```
 
-What survived is drawn here over the grey it was cut from. These strands are the
-connective structure of the pattern, and all that is left is to say what each
-one connects.
+These are the connecting strips of the pattern, drawn over the grey they come
+from. What remains is to say what each of them connects.
 
 ```{r connector-fig, echo = FALSE}
-conCls <- rep(0L, nrows * ncols)
-conCls[msk_pull(m, "pattern") == 1] <- 8L
-conCls[msk_pull(m, "connector") == 1] <- 5L
-conState <- mosaik(extent = c(0, ncols, 0, nrows), res = 1,
-                   vals = list(mspa = as.numeric(conCls)))
-msk_vis(conState,
-        .layer("mspa", colours = mspaCols[sort(unique(conCls)) + 1L]))
+codes <- ifelse(msk_pull(m, "pattern") == 1, 8L, 0L)
+codes[msk_pull(m, "connector") == 1] <- 9L
+show_classes(m, codes)
 ```
 
 ## Bridge, loop and branch
 
-Label each connector and each core area, then ask two things of every connector:
-how many distinct core areas it adjoins, and how many cells it spans. Both are
-`mdf_summarise()` summaries, the first taken over the neighbours of each connector
-rather than over its own cells.
+Number each strip and each core area, then ask two questions of every strip:
+how many different core areas it touches, and how many cells it has. Both are
+summaries by `mdf_summarise()`; the first looks at the cells next to each strip
+rather than at the strip itself.
 
-A connector adjoining two or more core areas is a **bridge**, provided it is
-longer than one cell. That second condition matters: a single cell can sit
-diagonally in the gap between two core areas, adjoining both without running
-between them, and the reference classifies it as a loop.
+A strip that touches two or more core areas is a **bridge**, if it is longer
+than one cell. The second condition matters: a single cell can sit diagonally
+in the gap between two core areas and touch both without running between
+them, and the reference implementation counts it as a loop.
 
 ```{r bridge-loop}
 m <- mdf_componentise(m, connectivity = conn, layer = "connector", add = "strand")
@@ -327,32 +322,31 @@ m <- mdf_filter(m, core != 0, value = TRUE, layer = "coreID") |>
     mdf_replace(old = NA, new = 0, layer = "coreID")
 
 m <- mdf_summarise(m, by = "strand", fun = "n_distinct", neighbours = TRUE,
-               connectivity = conn, layer = "coreID", background = 0,
-               add = "nCores")
+                   connectivity = conn, layer = "coreID", background = 0,
+                   add = "nCores")
 m <- mdf_summarise(m, by = "strand", fun = "n", layer = "strand",
-               background = 0, add = "strandSize")
+                   background = 0, add = "strandSize")
 
 m <- mdf_filter(m, connector == 1 & nCores >= 2 & strandSize >= 2, add = "bridge")
 m <- mdf_filter(m, connector == 1 & bridge == 0, add = "loop")
 ```
 
-Red is bridge, yellow loop. This is the distinction the method exists to draw:
-losing a red strand separates two habitat blocks, losing a yellow one does not.
+This is the difference the method exists for: losing a bridge separates two
+blocks of habitat, losing a loop does not.
 
 ```{r bridge-loop-fig, echo = FALSE}
-show_state(m, c("core", "patch", "edges", "perf", "bridge", "loop"))
+show_state(m, c("core", "islet", "edge", "perforation", "bridge", "loop"))
 ```
 
-Branch is the residue, being what the thinning retracted because it leads
+Branch is what is left: the strips the thinning removed because they lead
 nowhere.
 
 ```{r branch}
-m <- mdf_filter(m, pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0 &
-                   bridge == 0 & loop == 0, add = "branch")
+m <- mdf_filter(m, pattern == 1 & core == 0 & islet == 0 & perforation == 0 &
+                  edge == 0 & bridge == 0 & loop == 0, add = "branch")
 ```
 
-No grey is left, so every foreground cell now holds a class and the
-classification is complete.
+No grey is left. Every habitat cell now has a class.
 
 ```{r branch-fig, echo = FALSE}
 show_state(m, names(classes))
@@ -360,60 +354,56 @@ show_state(m, names(classes))
 
 ## Assembling
 
-Collapse the seven layers into one map of class codes. Order matters where
-classes overlap, since a cell can be both boundary and connector. The connector
-takes precedence, so bridge and loop are written last.
+The seven layers are combined into one map of class codes. Where two classes
+claim the same cell, the order decides, because a cell can be both border and
+connecting strip. The strips win, so bridge and loop are written last.
 
 ```{r assemble}
-cls <- rep(0L, nrows * ncols)
-for(nm in names(classes)) cls[msk_pull(m, nm) == 1] <- as.integer(classes[[nm]])
+cls <- rep(0L, msk_ncells(m))
+for(nm in names(classes)) cls[msk_pull(m, nm) == 1] <- classes[[nm]]
 cls[msk_pull(m, "pattern") != 1] <- 0L
 ```
 
 ## The map
 
 ```{r plot}
-res <- mosaik(extent = c(0, ncols, 0, nrows), res = 1,
-              vals = list(mspa = as.numeric(cls)))
-msk_vis(res, .layer("mspa", colours = mspaCols[sort(unique(cls)) + 1L]))
+show_classes(m, cls)
 ```
 
-This agrees with Fig. 1 of the paper cell for cell, all 1178 of them.
+This is Fig. 1 of the paper, cell for cell, all 1178 of them.
 
 ## The seven layers
 
-The map above is one view of the result. The other is the seven binary layers it
-was assembled from, each holding one class, which is what the pipeline actually
-produced.
+The map above is one view of the result. The other is the seven layers it was
+assembled from, one per class. They are drawn after the order of the
+assembling step, so each cell appears in one of them only.
 
 ```{r composition, echo = FALSE, fig.height = 8}
-op <- par(mfrow = c(4, 2), mar = c(0.5, 0.5, 2, 0.5))
-labels <- c(core = "core", edges = "edge", perf = "perforation",
-            patch = "islet", bridge = "bridge", loop = "loop",
+names7 <- c(core = "core", edge = "edge", perforation = "perforation",
+            islet = "islet", bridge = "bridge", loop = "loop",
             branch = "branch")
-for(nm in names(labels)){
-  # drawn after the precedence in "Assembling", so the 18 cells claimed by two
-  # layers appear only in the one that wins
-  v <- matrix(as.integer(cls == classes[[nm]]),
-              nrow = nrows, ncol = ncols, byrow = TRUE)
-  image(t(v[nrows:1, ]), col = c("#eeeeee", mspaCols[classes[[nm]] + 1L]),
-        axes = FALSE, asp = nrows / ncols, main = labels[[nm]])
-}
-par(op)
+layers7 <- lapply(names(names7), function(nm) as.numeric(cls == classes[[nm]]))
+seven <- do.call(msk_add, c(list(msk_select(mspa, pattern)),
+                            setNames(layers7, names(names7))))
+specs <- lapply(names(names7), function(nm){
+  .layer(nm, colours = c("#eeeeee", key$colour[key$id == classes[[nm]]]),
+         legend = FALSE)
+})
+do.call(msk_vis, c(list(seven), specs))
 ```
 
-The seven do not quite fall out as a partition on their own. Eighteen cells of
-this pattern satisfy two definitions at once, eleven of them both edge and
-bridge, seven both perforation and loop, which is why the assembling step needs
-an order at all. The panels above apply that order, so each cell appears once.
+The seven layers are not a division of the habitat on their own. Eighteen
+cells of this pattern meet two definitions at once: eleven are both edge and
+bridge, seven both perforation and loop. That is why the assembling step needs
+an order.
 
 ## The whole classification in one function
 
-The steps above, collected into one function that takes a mosaik with a
-binary layer `pattern` and returns the class codes of its cells. The edge
-width is fixed at `size = 1` and written out as `sqrt(2)`: the two recipes
-`peel` and `grow` are replayed by `mdf_loop()`, and a recipe takes its values
-with it rather than reading variables around it.
+The steps above, collected into one function. It takes a mosaik with a binary
+layer `pattern` and returns the class code of every cell. The border width is
+fixed at `size = 1` and written out as `sqrt(2)`: `mdf_loop()` runs the
+recipes `peel` and `grow`, and a recipe carries its values with it instead of
+reading variables around it.
 
 ```{r classify}
 mspa_classify <- function(m) {
@@ -424,16 +414,16 @@ mspa_classify <- function(m) {
     mdf_replace(old = NA, new = 0, layer = "cc") |>
     mdf_summarise(by = "cc", fun = "any", layer = "core", background = 0,
                   add = "hasCore") |>
-    mdf_filter(pattern == 1 & hasCore == 0, add = "patch") |>
+    mdf_filter(pattern == 1 & hasCore == 0, add = "islet") |>
     mdf_distance(source = "foreground", layer = "core", add = "dcore") |>
     mdf_filter(core == 1 | (dcore > 0 & dcore <= sqrt(2)), add = "opening") |>
     mdf_offset(value = 0, layer = "core", add = "work") |>
     mdf_fill(connectivity = 4L, layer = "work", add = "corefill") |>
     mdf_filter(corefill == 1 & work == 0, add = "holes") |>
-    mdf_filter(pattern < 0, add = "edges")
+    mdf_filter(pattern < 0, add = "edge")
   peel <- mdf_distance(source = "foreground", layer = "corefill", add = "dfill") |>
-    mdf_filter(edges == 1 | (corefill == 0 & dfill > 0 & dfill <= sqrt(2)),
-               add = "edges") |>
+    mdf_filter(edge == 1 | (corefill == 0 & dfill > 0 & dfill <= sqrt(2)),
+               add = "edge") |>
     mdf_fill(connectivity = 8L, layer = "holes", add = "i0") |>
     mdf_filter(corefill == 1 & i0 == 0, add = "corefill") |>
     mdf_filter(work == 1 & corefill == 0, add = "work") |>
@@ -442,11 +432,11 @@ mspa_classify <- function(m) {
   if (sum(msk_pull(m, "corefill")) > 0) {
     m <- mdf_loop(m, peel, until = sum(corefill, na.rm = TRUE) == 0)
   }
-  m <- mdf_filter(m, edges == 1 & core == 0, add = "edges") |>
-    mdf_filter(core == 0 & dcore > 0 & dcore <= sqrt(2) & edges == 0,
-               add = "perf") |>
-    mdf_filter(pattern == 1 & core == 0 & patch == 0 & perf == 0 & edges == 0,
-               add = "residues") |>
+  m <- mdf_filter(m, edge == 1 & core == 0, add = "edge") |>
+    mdf_filter(core == 0 & dcore > 0 & dcore <= sqrt(2) & edge == 0,
+               add = "perforation") |>
+    mdf_filter(pattern == 1 & core == 0 & islet == 0 & perforation == 0 &
+                 edge == 0, add = "residues") |>
     mdf_filter(opening == 1 | residues == 1, add = "skin") |>
     mdf_skeletonise(anchor = "core", background = 0, layer = "skin",
                     add = "sk", method = "homotopic") |>
@@ -470,10 +460,10 @@ mspa_classify <- function(m) {
                   add = "strandSize") |>
     mdf_filter(connector == 1 & nCores >= 2 & strandSize >= 2, add = "bridge") |>
     mdf_filter(connector == 1 & bridge == 0, add = "loop") |>
-    mdf_filter(pattern == 1 & core == 0 & patch == 0 & perf == 0 &
-                 edges == 0 & bridge == 0 & loop == 0, add = "branch")
-  cls <- rep(0L, prod(msk_dims(m)))
-  for (nm in names(classes)) cls[msk_pull(m, nm) == 1] <- as.integer(classes[[nm]])
+    mdf_filter(pattern == 1 & core == 0 & islet == 0 & perforation == 0 &
+                 edge == 0 & bridge == 0 & loop == 0, add = "branch")
+  cls <- rep(0L, msk_ncells(m))
+  for (nm in names(classes)) cls[msk_pull(m, nm) == 1] <- classes[[nm]]
   cls[msk_pull(m, "pattern") != 1] <- 0L
   cls
 }
@@ -487,12 +477,11 @@ sum(mspa_classify(mspa) == cls)
 
 ## On an ordinary map
 
-The pattern of the paper was drawn to show the method: each class appears,
-cleanly, where one would expect it. The forest of `landscape` is an ordinary
-map by comparison, with irregular outlines, a road through a patch, a glade
-and a windthrow, hedgerows and a corridor cut by a river. It is not coarser
-than the pattern of the paper: both are read at `size = 1`, and the patches
-of `landscape` are, if anything, larger.
+The pattern of the paper was drawn to show the method: every class appears,
+cleanly, where one expects it. The forest of `landscape` is an ordinary map by
+comparison, with irregular outlines, a road through a patch, a glade and a
+windthrow, hedgerows, and a corridor cut by a river. Both maps are read at
+`size = 1`, and the patches of `landscape` are, if anything, the larger.
 
 ```{r landscape}
 forest <- mdf_filter(landscape, cover == 47, add = "pattern")
@@ -503,65 +492,64 @@ table(factor(lcls, c(1, 6, 3, 4, 5, 2, 7),
 ```
 
 ```{r landscape-fig, echo = FALSE, fig.width = 7, fig.height = 6.5}
-lmap <- msk_add(landscape, mspa = as.numeric(lcls))
-msk_vis(lmap, .layer("mspa", colours = mspaCols[sort(unique(lcls)) + 1L]))
+show_classes(forest, lcls)
 ```
 
 Much of this reads well. The core is the interior of the large patches, and
 the hedgerows and small patches are islets. The one bridge is the corridor
-that joins the forest in the south-west to the rest, and the corridor between
-the two large northern patches, cut by the river, falls apart into two
-branches, as it should.
+that joins the forest in the south-west to the rest. The corridor between the
+two large northern patches, cut by the river, falls apart into two branches,
+as it should.
 
-Three things read less well, and they follow from the definitions, not from
-this map.
+Three things read less well. They follow from the definitions, not from this
+map.
 
 - **Corners become branches.** Of the 84 branch cells, 61 are the dead ends
-  one would name so: the two halves of the cut corridor, and the strip that
+  one would call so: the two halves of the cut corridor, and the strip that
   leaves the north-eastern patch to the south. The other 23, in ten pieces of
-  one to nine cells, are corners and prongs of large patches. Anything that
-  lies more than `sqrt(2)` cells from the core and connects no two cores is
-  branch, whether it leads anywhere or is a slightly irregular outline.
+  one to nine cells, are corners and spikes of large patches. Whatever lies
+  more than `sqrt(2)` cells from the core and connects no two core areas is
+  branch, whether it leads somewhere or is just an irregular outline.
 - **Edge exists only next to core.** Of the outermost forest cells of the
-  patches that hold core, 216 of 357 are edge. The rest are branch, loop,
-  bridge or perforation, so the edge of MSPA is not the boundary of the forest
-  but the boundary of its core.
-- **A perforation needs a hole that core encloses on every side.** The glade
+  patches that hold core, 216 of 357 are edge. The others are branch, loop,
+  bridge or perforation. The edge of MSPA is the border of the core, not the
+  border of the forest.
+- **A perforation needs a hole that core surrounds on every side.** The glade
   in the north-eastern patch lies deep enough and is ringed by 12 cells of
   perforation. The windthrow in the north-western patch lies just as much
   inside the forest, but so close to its outline that no closed ring of core
-  forms around it, and its boundary is edge.
+  forms around it, and its border is edge.
 
-None of this is an error of the implementation: the classification above
-reproduces the published one cell for cell, and the reference implementation
-of MSPA (`mspa_win64.exe`, as shipped with GuidosToolbox, run at `size = 1`
-with 8-connected habitat) gives the same classes on this map for 3359 of its
-3360 cells, the corners and prongs included. The one cell that differs is the
-corner of the map at the bottom right, where the two treat the edge of the map
-differently. It is what seven geometric
-definitions do on an outline that was not drawn for them. A larger `size`
-moves the threshold but not the logic: whatever lies more than `size` times
-`sqrt(2)` cells beyond the core is still branch, loop or bridge.
+None of this is an error of the implementation. The classification above
+reproduces the published one cell for cell. The reference implementation of
+MSPA (`mspa_win64.exe`, shipped with GuidosToolbox, run at `size = 1` with
+8-connected habitat) gives the same classes on this map for 3359 of its 3360
+cells, the corners and spikes included. The one cell that differs is the
+bottom right corner of the map, where the two treat the border of the map
+differently. It is what seven geometric definitions do to an outline that was
+not drawn for them. A larger `size` moves the threshold but not the logic:
+whatever lies more than `size` times `sqrt(2)` cells beyond the core is still
+branch, loop or bridge.
 
 ## What to take from this
 
 No part of this needed a function written for MSPA. The whole classification is
-eight operators (`mdf_distance`, `mdf_filter`, `mdf_componentise`, `mdf_replace`,
-`mdf_summarise`, `mdf_fill`, `mdf_dilate`, `mdf_skeletonise`) plus `mdf_loop()` to
-iterate a recipe to a condition.
+eight operators (`mdf_distance`, `mdf_filter`, `mdf_componentise`,
+`mdf_replace`, `mdf_summarise`, `mdf_fill`, `mdf_dilate`, `mdf_skeletonise`)
+and `mdf_loop()`, which repeats a recipe until a condition holds.
 
-This is the design intent of the package. It provides the operators that named
-methods decompose into, so the same parts compose FRAGSTATS-style metrics,
-neutral models and connectivity measures. Because the composition is explicit,
-you can read what a method does and change it.
+That is what mosaik is built for. It provides the operators that named methods
+are made of, so the same parts make FRAGSTATS metrics, neutral landscapes and
+measures of connectivity. Because every step is written out, you can read what
+a method does and change it.
 
 Two things are worth knowing if you adapt this:
 
-- Only 8-connected habitat (`conn = 8L`) is covered here. The 4-connected
-  variant needs a different rule inside the thinning step and is not
-  implemented.
-- `size` above 1 widens the core threshold; the connector step would then also
-  need the strands widened to match, which this vignette does not do.
+- Only 8-connected habitat (`conn = 8L`) is covered. The 4-connected variant
+  needs a different rule in the thinning step, which is not implemented.
+- A `size` above 1 widens the core threshold. The step that finds the
+  connecting strips would then need wider strips as well, which this vignette
+  does not do.
 
 ## Reference
 
